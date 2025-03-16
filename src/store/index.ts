@@ -1,11 +1,12 @@
 // src/store/index.ts
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
-import branchReducer from './slices/branchSlice';
+import uiReducer from './slices/uiSlice';
 import divisionReducer from './slices/divisionSlice';
+import branchReducer from './slices/branchSlice';
+import employeeReducer from './slices/employeeSlice';
 import customerReducer from './slices/customerSlice';
 import vehicleReducer from './slices/vehicleSlice';
-import employeeReducer from './slices/employeeSlice';
 import pickupRequestReducer from './slices/pickupRequestSlice';
 import sttReducer from './slices/sttSlice';
 import loadingReducer from './slices/loadingSlice';
@@ -13,16 +14,17 @@ import deliveryReducer from './slices/deliverySlice';
 import returnReducer from './slices/returnSlice';
 import collectionReducer from './slices/collectionSlice';
 import financeReducer from './slices/financeSlice';
-import uiReducer from './slices/uiSlice';
+import reportReducer from './slices/reportSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    branch: branchReducer,
+    ui: uiReducer,
     division: divisionReducer,
+    branch: branchReducer,
+    employee: employeeReducer,
     customer: customerReducer,
     vehicle: vehicleReducer,
-    employee: employeeReducer,
     pickupRequest: pickupRequestReducer,
     stt: sttReducer,
     loading: loadingReducer,
@@ -30,19 +32,27 @@ export const store = configureStore({
     return: returnReducer,
     collection: collectionReducer,
     finance: financeReducer,
-    ui: uiReducer,
+    report: reportReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
-        ignoredActions: ['auth/login/fulfilled', 'auth/refreshToken/fulfilled'],
+        ignoredActions: [
+          'auth/login/fulfilled',
+          'auth/refreshToken/fulfilled',
+          'stt/generateSTTPDF/fulfilled',
+          'loading/generateDMB/fulfilled',
+          'delivery/generateDeliveryForm/fulfilled',
+          'collection/generateInvoice/fulfilled',
+        ],
         // Ignore these field paths in all actions
         ignoredActionPaths: ['meta.arg', 'payload.timestamp'],
         // Ignore these paths in the state
         ignoredPaths: ['auth.user', 'auth.token'],
       },
     }),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
 export type RootState = ReturnType<typeof store.getState>;
