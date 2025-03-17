@@ -1,35 +1,83 @@
-// src/components/stt/STTForm.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  TextField,
-  Button,
-  Grid,
-  Box,
-  CircularProgress,
+import { 
+  Form,
   FormControl,
-  InputLabel,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage 
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { 
   Select,
-  MenuItem,
-  Typography,
-  Divider,
-  FormHelperText,
-  InputAdornment,
-  Paper,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-} from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../store';
-import { getBranches } from '../../store/slices/branchSlice';
-import { getSenders, getRecipients } from '../../store/slices/customerSlice';
-import { STT, ForwarderOption } from '../../types/stt';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { STT } from '../../types/stt';
 
-// Validation schema
-const sttSchema = z.object({
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../store';
+import { getBranches } from '../../store/slices/branchSlice';
+import { getCustomers, createCustomer } from '../../store/slices/customerSlice';
+import { createSTT, updateSTT } from '../../store/slices/sttSlice';
+import { getPenerusList } from '../../store/slices/penerusSlice';
+import { Plus, Printer, QrCode, Download } from 'lucide-react';
+
+// Customer form schema
+const customerFormSchema = z.object({
+  nama: z.string().min(3, 'Nama minimal 3 karakter'),
+  telepon: z.string().min(8, 'Nomor telepon minimal 8 karakter'),
+  alamat: z.string().min(5, 'Alamat minimal 5 karakter'),
+  kelurahan: z.string().min(3, 'Kelurahan minimal 3 karakter'),
+  kecamatan: z.string().min(3, 'Kecamatan minimal 3 karakter'),
+  kota: z.string().min(3, 'Kota minimal 3 karakter'),
+  provinsi: z.string().min(3, 'Provinsi minimal 3 karakter'),
+  email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
+  perusahaan: z.string().optional().or(z.literal('')),
+  tipe: z.enum(['pengirim', 'penerima', 'keduanya']),
+});
+
+// STT form schema
+const sttFormSchema = z.object({
   cabangAsalId: z.string().min(1, 'Cabang asal harus dipilih'),
   cabangTujuanId: z.string().min(1, 'Cabang tujuan harus dipilih'),
   pengirimId: z.string().min(1, 'Pengirim harus dipilih'),
@@ -39,561 +87,1008 @@ const sttSchema = z.object({
   packing: z.string().min(1, 'Packing harus diisi'),
   jumlahColly: z.number().min(1, 'Jumlah colly minimal 1'),
   berat: z.number().min(0.1, 'Berat minimal 0.1 kg'),
-  hargaPerKilo: z.number().min(0, 'Harga per kilo tidak boleh negatif'),
-  harga: z.number().min(0, 'Harga tidak boleh negatif'),
-  keterangan: z.string().optional(),
+  hargaPerKilo: z.number().min(1000, 'Harga per kilo minimal Rp 1.000'),
+  keterangan: z.string().optional().or(z.literal('')),
   kodePenerus: z.string().min(1, 'Kode penerus harus dipilih'),
   penerusId: z.string().optional(),
-  paymentType: z.string().min(1, 'Metode pembayaran harus dipilih'),
+  paymentType: z.enum(['CASH', 'COD', 'CAD']),
 });
 
-type STTFormInputs = z.infer<typeof sttSchema>;
+type SttFormInputs = z.infer<typeof sttFormSchema>;
+type CustomerFormInputs = z.infer<typeof customerFormSchema>;
 
-interface STTFormProps {
+interface SttFormProps {
   initialData?: STT;
-  onSubmit: (data: STTFormInputs) => void;
+  onSubmit: (data: any) => void;
   loading?: boolean;
-  forwarders?: ForwarderOption[];
 }
 
-const STTForm: React.FC<STTFormProps> = ({
+const SttForm: React.FC<SttFormProps> = ({
   initialData,
   onSubmit,
   loading = false,
-  forwarders = [],
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { branches } = useSelector((state: RootState) => state.branch);
-  const { senders, recipients } = useSelector((state: RootState) => state.customer);
+  const { toast } = useToast();
   
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-    reset,
-  } = useForm<STTFormInputs>({
-    resolver: zodResolver(sttSchema),
+  const { branches } = useSelector((state: RootState) => state.branch);
+  const { customers } = useSelector((state: RootState) => state.customer);
+  const { penerusList } = useSelector((state: RootState) => state.penerus);
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  const [openCustomerDialog, setOpenCustomerDialog] = useState(false);
+  const [customerType, setCustomerType] = useState<'pengirim' | 'penerima'>('pengirim');
+  const [totalPrice, setTotalPrice] = useState(0);
+  
+  // Initialize form
+  const form = useForm<SttFormInputs>({
+    resolver: zodResolver(sttFormSchema),
     defaultValues: {
-      cabangAsalId: initialData?.cabangAsalId || '',
+      cabangAsalId: initialData?.cabangAsalId || (user?.cabangId || ''),
       cabangTujuanId: initialData?.cabangTujuanId || '',
       pengirimId: initialData?.pengirimId || '',
       penerimaId: initialData?.penerimaId || '',
       namaBarang: initialData?.namaBarang || '',
       komoditi: initialData?.komoditi || '',
-      packing: initialData?.packing || 'Box',
+      packing: initialData?.packing || 'KARDUS',
       jumlahColly: initialData?.jumlahColly || 1,
       berat: initialData?.berat || 1,
-      hargaPerKilo: initialData?.hargaPerKilo || 0,
-      harga: initialData?.harga || 0,
+      hargaPerKilo: initialData?.hargaPerKilo || 10000,
       keterangan: initialData?.keterangan || '',
       kodePenerus: initialData?.kodePenerus || '70',
       penerusId: initialData?.penerusId || '',
       paymentType: initialData?.paymentType || 'CASH',
     },
   });
+  
+  // Initialize customer form
+  const customerForm = useForm<CustomerFormInputs>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      nama: '',
+      telepon: '',
+      alamat: '',
+      kelurahan: '',
+      kecamatan: '',
+      kota: '',
+      provinsi: '',
+      email: '',
+      perusahaan: '',
+      tipe: 'keduanya',
+    },
+  });
 
-  // Watch for values that affect calculations
-  const berat = watch('berat');
-  const hargaPerKilo = watch('hargaPerKilo');
-  const kodePenerus = watch('kodePenerus');
+  // Calculate total price when weight or per kilo price changes
+  useEffect(() => {
+    const weight = form.watch('berat');
+    const pricePerKilo = form.watch('hargaPerKilo');
+    const calculatedPrice = weight * pricePerKilo;
+    setTotalPrice(calculatedPrice);
+    
+    // Update 'harga' field in the form
+    form.setValue('harga', calculatedPrice);
+  }, [form.watch('berat'), form.watch('hargaPerKilo')]);
 
-  // Load data
+  // Fetch data on component mount
   useEffect(() => {
     dispatch(getBranches());
-    dispatch(getSenders());
-    dispatch(getRecipients());
+    dispatch(getCustomers());
+    dispatch(getPenerusList());
   }, [dispatch]);
 
-  // Calculate price when weight or price per kg changes
-  useEffect(() => {
-    const calculatedPrice = berat * hargaPerKilo;
-    setValue('harga', calculatedPrice);
-  }, [berat, hargaPerKilo, setValue]);
+  // Filter customers by type
+  const senders = customers.filter(
+    c => c.tipe === 'pengirim' || c.tipe === 'keduanya'
+  );
+  
+  const recipients = customers.filter(
+    c => c.tipe === 'penerima' || c.tipe === 'keduanya'
+  );
+
+  // Handle opening customer dialog
+  const handleAddCustomer = (type: 'pengirim' | 'penerima') => {
+    setCustomerType(type);
+    setOpenCustomerDialog(true);
+    
+    // Reset form
+    customerForm.reset({
+      nama: '',
+      telepon: '',
+      alamat: '',
+      kelurahan: '',
+      kecamatan: '',
+      kota: '',
+      provinsi: '',
+      email: '',
+      perusahaan: '',
+      tipe: type === 'pengirim' ? 'pengirim' : 'penerima',
+    });
+  };
+
+  // Handle customer form submission
+  const handleCustomerSubmit = (data: CustomerFormInputs) => {
+    // Add cabang ID from the user context
+    const customerData = {
+      ...data,
+      cabangId: user?.cabangId || '',
+    };
+    
+    dispatch(createCustomer(customerData))
+      .unwrap()
+      .then((result) => {
+        toast({
+          title: 'Berhasil menambahkan pelanggan',
+          description: `${result.nama} telah ditambahkan sebagai ${data.tipe}`,
+        });
+        
+        // Update the appropriate form field with the new customer ID
+        if (customerType === 'pengirim') {
+          form.setValue('pengirimId', result._id);
+        } else {
+          form.setValue('penerimaId', result._id);
+        }
+        
+        setOpenCustomerDialog(false);
+        
+        // Refresh customer list
+        dispatch(getCustomers());
+      })
+      .catch((error) => {
+        toast({
+          title: 'Gagal menambahkan pelanggan',
+          description: error.message,
+          variant: 'destructive',
+        });
+      });
+  };
+  
+  // Handle form submit
+  const handleFormSubmit = (data: SttFormInputs) => {
+    // Prepare data for API
+    const sttData = {
+      ...data,
+      harga: totalPrice, // Add calculated total price
+      status: 'PENDING', // Default status for new STT
+      cabangId: user?.cabangId || '', // Current user's branch ID
+    };
+    
+    onSubmit(sttData);
+  };
 
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Cabang
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="cabangAsalId"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.cabangAsalId}>
-                      <InputLabel id="cabang-asal-label">Cabang Asal</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="cabang-asal-label"
-                        label="Cabang Asal"
-                        disabled={loading}
-                      >
-                        {branches.map((branch) => (
-                          <MenuItem key={branch._id} value={branch._id}>
-                            {branch.namaCabang}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.cabangAsalId && (
-                        <FormHelperText>{errors.cabangAsalId.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="cabangTujuanId"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.cabangTujuanId}>
-                      <InputLabel id="cabang-tujuan-label">Cabang Tujuan</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="cabang-tujuan-label"
-                        label="Cabang Tujuan"
-                        disabled={loading}
-                      >
-                        {branches.map((branch) => (
-                          <MenuItem key={branch._id} value={branch._id}>
-                            {branch.namaCabang}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.cabangTujuanId && (
-                        <FormHelperText>{errors.cabangTujuanId.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-          
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Pengirim & Penerima
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="pengirimId"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.pengirimId}>
-                      <InputLabel id="pengirim-label">Pengirim</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="pengirim-label"
-                        label="Pengirim"
-                        disabled={loading}
-                      >
-                        {senders.map((sender) => (
-                          <MenuItem key={sender._id} value={sender._id}>
-                            {sender.nama}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.pengirimId && (
-                        <FormHelperText>{errors.pengirimId.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="penerimaId"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.penerimaId}>
-                      <InputLabel id="penerima-label">Penerima</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="penerima-label"
-                        label="Penerima"
-                        disabled={loading}
-                      >
-                        {recipients.map((recipient) => (
-                          <MenuItem key={recipient._id} value={recipient._id}>
-                            {recipient.nama}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.penerimaId && (
-                        <FormHelperText>{errors.penerimaId.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-          
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Barang
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="namaBarang"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Nama Barang"
-                      variant="outlined"
-                      fullWidth
-                      error={!!errors.namaBarang}
-                      helperText={errors.namaBarang?.message}
-                      disabled={loading}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="komoditi"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.komoditi}>
-                      <InputLabel id="komoditi-label">Komoditi</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="komoditi-label"
-                        label="Komoditi"
-                        disabled={loading}
-                      >
-                        <MenuItem value="Elektronik">Elektronik</MenuItem>
-                        <MenuItem value="Pakaian">Pakaian</MenuItem>
-                        <MenuItem value="Makanan">Makanan</MenuItem>
-                        <MenuItem value="Dokumen">Dokumen</MenuItem>
-                        <MenuItem value="Sparepart">Sparepart</MenuItem>
-                        <MenuItem value="Lainnya">Lainnya</MenuItem>
-                      </Select>
-                      {errors.komoditi && (
-                        <FormHelperText>{errors.komoditi.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="packing"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.packing}>
-                      <InputLabel id="packing-label">Packing</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="packing-label"
-                        label="Packing"
-                        disabled={loading}
-                      >
-                        <MenuItem value="Box">Box</MenuItem>
-                        <MenuItem value="Dus">Dus</MenuItem>
-                        <MenuItem value="Palet">Palet</MenuItem>
-                        <MenuItem value="Plastik">Plastik</MenuItem>
-                        <MenuItem value="Karung">Karung</MenuItem>
-                        <MenuItem value="Tanpa Packing">Tanpa Packing</MenuItem>
-                      </Select>
-                      {errors.packing && (
-                        <FormHelperText>{errors.packing.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="jumlahColly"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="number"
-                      label="Jumlah Colly"
-                      variant="outlined"
-                      fullWidth
-                      error={!!errors.jumlahColly}
-                      helperText={errors.jumlahColly?.message}
-                      disabled={loading}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        if (!isNaN(value)) {
-                          field.onChange(value);
-                        }
-                      }}
-                      InputProps={{
-                        inputProps: { min: 1 }
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="berat"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="number"
-                      label="Berat (kg)"
-                      variant="outlined"
-                      fullWidth
-                      error={!!errors.berat}
-                      helperText={errors.berat?.message}
-                      disabled={loading}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          field.onChange(value);
-                        }
-                      }}
-                      InputProps={{
-                        inputProps: { min: 0.1, step: 0.1 },
-                        endAdornment: <InputAdornment position="end">kg</InputAdornment>,
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="hargaPerKilo"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="number"
-                      label="Harga per Kilo"
-                      variant="outlined"
-                      fullWidth
-                      error={!!errors.hargaPerKilo}
-                      helperText={errors.hargaPerKilo?.message}
-                      disabled={loading}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (!isNaN(value)) {
-                          field.onChange(value);
-                        }
-                      }}
-                      InputProps={{
-                        inputProps: { min: 0, step: 100 },
-                        startAdornment: <InputAdornment position="start">Rp</InputAdornment>,
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="harga"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="number"
-                      label="Harga Total"
-                      variant="outlined"
-                      fullWidth
-                      error={!!errors.harga}
-                      helperText={errors.harga?.message}
-                      disabled={true} // Calculated automatically
-                      InputProps={{
-                        readOnly: true,
-                        startAdornment: <InputAdornment position="start">Rp</InputAdornment>,
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Controller
-                  name="keterangan"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Keterangan"
-                      variant="outlined"
-                      fullWidth
-                      multiline
-                      rows={2}
-                      error={!!errors.keterangan}
-                      helperText={errors.keterangan?.message}
-                      disabled={loading}
-                    />
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-          
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Pengiriman
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Kode Penerus
-                </Typography>
-                <Controller
-                  name="kodePenerus"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.kodePenerus}>
-                      <RadioGroup
-                        {...field}
-                        row
-                      >
-                        <FormControlLabel 
-                          value="70" 
-                          control={<Radio />} 
-                          label="70 - NO FORWARDING" 
-                          disabled={loading}
-                        />
-                        <FormControlLabel 
-                          value="71" 
-                          control={<Radio />} 
-                          label="71 - FORWARDING PAID BY SENDER" 
-                          disabled={loading}
-                        />
-                        <FormControlLabel 
-                          value="72" 
-                          control={<Radio />} 
-                          label="72 - FORWARDING PAID BY RECIPIENT" 
-                          disabled={loading}
-                        />
-                        <FormControlLabel 
-                          value="73" 
-                          control={<Radio />} 
-                          label="73 - FORWARDING ADVANCED BY RECIPIENT BRANCH" 
-                          disabled={loading}
-                        />
-                      </RadioGroup>
-                      {errors.kodePenerus && (
-                        <FormHelperText>{errors.kodePenerus.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              {kodePenerus !== '70' && (
-                <Grid item xs={12} md={6}>
-                  <Controller
-                    name="penerusId"
-                    control={control}
+    <div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+          <div className="space-y-8">
+            {/* Cabang Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Informasi Cabang</CardTitle>
+                <CardDescription>
+                  Pilih cabang asal dan tujuan pengiriman
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Origin Branch */}
+                  <FormField
+                    control={form.control}
+                    name="cabangAsalId"
                     render={({ field }) => (
-                      <FormControl fullWidth error={!!errors.penerusId}>
-                        <InputLabel id="penerus-label">Forwarder (Penerus)</InputLabel>
+                      <FormItem>
+                        <FormLabel>Cabang Asal</FormLabel>
                         <Select
-                          {...field}
-                          labelId="penerus-label"
-                          label="Forwarder (Penerus)"
-                          disabled={loading}
+                          disabled={loading || (user?.cabangId ? true : false)}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
                         >
-                          {forwarders.map((forwarder) => (
-                            <MenuItem key={forwarder._id} value={forwarder._id}>
-                              {forwarder.namaPenerus}
-                            </MenuItem>
-                          ))}
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih cabang asal" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {branches.map((branch) => (
+                              <SelectItem key={branch._id} value={branch._id}>
+                                {branch.namaCabang}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
-                        {errors.penerusId && (
-                          <FormHelperText>{errors.penerusId.message}</FormHelperText>
-                        )}
-                      </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
                   />
-                </Grid>
-              )}
-              
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Metode Pembayaran
-                </Typography>
-                <Controller
-                  name="paymentType"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.paymentType}>
-                      <RadioGroup
-                        {...field}
-                        row
+                  
+                  {/* Destination Branch */}
+                  <FormField
+                    control={form.control}
+                    name="cabangTujuanId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cabang Tujuan</FormLabel>
+                        <Select
+                          disabled={loading}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih cabang tujuan" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {branches
+                              .filter(b => b._id !== form.watch('cabangAsalId'))
+                              .map((branch) => (
+                                <SelectItem key={branch._id} value={branch._id}>
+                                  {branch.namaCabang}
+                                </SelectItem>
+                              ))
+                            }
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Customer Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Informasi Pelanggan</CardTitle>
+                <CardDescription>
+                  Pilih pengirim dan penerima barang
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Sender Section */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold">Pengirim</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddCustomer('pengirim')}
                       >
-                        <FormControlLabel 
-                          value="CASH" 
-                          control={<Radio />} 
-                          label="CASH (Bayar Dimuka)" 
-                          disabled={loading}
-                        />
-                        <FormControlLabel 
-                          value="COD" 
-                          control={<Radio />} 
-                          label="COD (Cash On Delivery)" 
-                          disabled={loading}
-                        />
-                        <FormControlLabel 
-                          value="CAD" 
-                          control={<Radio />} 
-                          label="CAD (Cash After Delivery)" 
-                          disabled={loading}
-                        />
-                      </RadioGroup>
-                      {errors.paymentType && (
-                        <FormHelperText>{errors.paymentType.message}</FormHelperText>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tambah Pengirim
+                      </Button>
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="pengirimId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Select
+                            disabled={loading}
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih pengirim" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {senders.map((sender) => (
+                                <SelectItem key={sender._id} value={sender._id}>
+                                  {sender.nama} {sender.perusahaan ? `(${sender.perusahaan})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </FormControl>
+                    />
+                    
+                    {form.watch('pengirimId') && (
+                      <div className="border rounded-md p-3 bg-muted/40">
+                        {(() => {
+                          const sender = customers.find(c => c._id === form.watch('pengirimId'));
+                          return sender ? (
+                            <div className="text-sm space-y-1">
+                              <p><span className="font-medium">Nama:</span> {sender.nama}</p>
+                              <p><span className="font-medium">Telepon:</span> {sender.telepon}</p>
+                              <p>
+                                <span className="font-medium">Alamat:</span> {sender.alamat}, 
+                                {sender.kelurahan}, {sender.kecamatan}, {sender.kota}, {sender.provinsi}
+                              </p>
+                            </div>
+                          ) : <p className="text-sm text-muted-foreground">Pengirim tidak ditemukan</p>;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Recipient Section */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold">Penerima</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddCustomer('penerima')}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tambah Penerima
+                      </Button>
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="penerimaId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Select
+                            disabled={loading}
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih penerima" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {recipients.map((recipient) => (
+                                <SelectItem key={recipient._id} value={recipient._id}>
+                                  {recipient.nama} {recipient.perusahaan ? `(${recipient.perusahaan})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {form.watch('penerimaId') && (
+                      <div className="border rounded-md p-3 bg-muted/40">
+                        {(() => {
+                          const recipient = customers.find(c => c._id === form.watch('penerimaId'));
+                          return recipient ? (
+                            <div className="text-sm space-y-1">
+                              <p><span className="font-medium">Nama:</span> {recipient.nama}</p>
+                              <p><span className="font-medium">Telepon:</span> {recipient.telepon}</p>
+                              <p>
+                                <span className="font-medium">Alamat:</span> {recipient.alamat}, 
+                                {recipient.kelurahan}, {recipient.kecamatan}, {recipient.kota}, {recipient.provinsi}
+                              </p>
+                            </div>
+                          ) : <p className="text-sm text-muted-foreground">Penerima tidak ditemukan</p>;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Package Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Informasi Barang</CardTitle>
+                <CardDescription>
+                  Masukkan detail barang yang akan dikirim
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Package Name */}
+                  <FormField
+                    control={form.control}
+                    name="namaBarang"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nama Barang</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Masukkan nama barang" 
+                            {...field} 
+                            disabled={loading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Commodity */}
+                  <FormField
+                    control={form.control}
+                    name="komoditi"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Komoditi</FormLabel>
+                        <Select
+                          disabled={loading}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih komoditi" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="GENERAL">Umum (General)</SelectItem>
+                            <SelectItem value="ELEKTRONIK">Elektronik</SelectItem>
+                            <SelectItem value="FASHION">Fashion</SelectItem>
+                            <SelectItem value="PECAH_BELAH">Pecah Belah</SelectItem>
+                            <SelectItem value="MAKANAN">Makanan</SelectItem>
+                            <SelectItem value="DOKUMEN">Dokumen</SelectItem>
+                            <SelectItem value="LAINNYA">Lainnya</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Packaging */}
+                  <FormField
+                    control={form.control}
+                    name="packing"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Packing</FormLabel>
+                        <Select
+                          disabled={loading}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih packing" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="KARDUS">Kardus</SelectItem>
+                            <SelectItem value="KAYU">Kayu</SelectItem>
+                            <SelectItem value="PLASTIK">Plastik</SelectItem>
+                            <SelectItem value="AMPLOP">Amplop</SelectItem>
+                            <SelectItem value="BUBBLE_WRAP">Bubble Wrap</SelectItem>
+                            <SelectItem value="TANPA_PACKING">Tanpa Packing</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Colly Count */}
+                  <FormField
+                    control={form.control}
+                    name="jumlahColly"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jumlah Colly</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="Jumlah colly" 
+                            {...field}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value);
+                              field.onChange(isNaN(value) ? 1 : value);
+                            }}
+                            min={1}
+                            disabled={loading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Weight */}
+                  <FormField
+                    control={form.control}
+                    name="berat"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Berat (kg)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="Berat dalam kilogram" 
+                            {...field}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              field.onChange(isNaN(value) ? 0.1 : value);
+                            }}
+                            step="0.1"
+                            min="0.1"
+                            disabled={loading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Price Per Kilo */}
+                  <FormField
+                    control={form.control}
+                    name="hargaPerKilo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Harga Per Kilo (Rp)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="Harga per kilogram" 
+                            {...field}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value);
+                              field.onChange(isNaN(value) ? 10000 : value);
+                            }}
+                            step="500"
+                            min="1000"
+                            disabled={loading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Total Price (Calculated) */}
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="text-sm font-medium">Total Harga</label>
+                    <div className="text-2xl font-bold text-primary">
+                      {new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR',
+                        minimumFractionDigits: 0,
+                      }).format(totalPrice)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Dihitung berdasarkan berat x harga per kilo
+                    </div>
+                  </div>
+                  
+                  {/* Notes */}
+                  <FormField
+                    control={form.control}
+                    name="keterangan"
+                    render={({ field }) => (
+                      <FormItem className="col-span-1 md:col-span-2">
+                        <FormLabel>Keterangan (Opsional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Tambahkan keterangan jika diperlukan" 
+                            {...field} 
+                            disabled={loading}
+                            rows={2}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Shipping Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Informasi Pengiriman</CardTitle>
+                <CardDescription>
+                  Pilih metode pengiriman dan pembayaran
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Forwarding Code */}
+                  <FormField
+                    control={form.control}
+                    name="kodePenerus"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kode Penerus</FormLabel>
+                        <Select
+                          disabled={loading}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih kode penerus" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="70">70 - TANPA PENERUS</SelectItem>
+                            <SelectItem value="71">71 - PENERUS DIBAYAR PENGIRIM</SelectItem>
+                            <SelectItem value="72">72 - PENERUS DIBAYAR PENERIMA</SelectItem>
+                            <SelectItem value="73">73 - PENERUS DIBAYAR DIMUKA CABANG PENERIMA</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Forwarding Agent */}
+                  {form.watch('kodePenerus') !== '70' && (
+                    <FormField
+                      control={form.control}
+                      name="penerusId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Agen Penerus</FormLabel>
+                          <Select
+                            disabled={loading}
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih agen penerus" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {penerusList.map((penerus) => (
+                                <SelectItem key={penerus._id} value={penerus._id}>
+                                  {penerus.namaPenerus}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                  
+                  {/* Payment Type */}
+                  <FormField
+                    control={form.control}
+                    name="paymentType"
+                    render={({ field }) => (
+                      <FormItem className={form.watch('kodePenerus') === '70' ? 'col-span-1 md:col-span-2' : ''}>
+                        <FormLabel>Metode Pembayaran</FormLabel>
+                        <Select
+                          disabled={loading}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih metode pembayaran" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="CASH">CASH (Bayar di Muka)</SelectItem>
+                            <SelectItem value="COD">COD (Cash On Delivery)</SelectItem>
+                            <SelectItem value="CAD">CAD (Cash After Delivery)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Payment Type Explanation */}
+                  <div className="col-span-1 md:col-span-2 border p-4 rounded-md bg-muted/40">
+                    {(() => {
+                      const paymentType = form.watch('paymentType');
+                      
+                      switch (paymentType) {
+                        case 'CASH':
+                          return (
+                            <div className="flex items-center space-x-2">
+                              <Badge>CASH</Badge>
+                              <p className="text-sm text-muted-foreground">
+                                Pembayaran dilakukan oleh pengirim saat pengiriman barang
+                              </p>
+                            </div>
+                          );
+                        case 'COD':
+                          return (
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="secondary">COD</Badge>
+                              <p className="text-sm text-muted-foreground">
+                                Pembayaran dilakukan oleh penerima saat barang diterima
+                              </p>
+                            </div>
+                          );
+                        case 'CAD':
+                          return (
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">CAD</Badge>
+                              <p className="text-sm text-muted-foreground">
+                                Pembayaran dilakukan setelah barang diterima (tagihan)
+                              </p>
+                            </div>
+                          );
+                        default:
+                          return null;
+                      }
+                    })()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Submit Button */}
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => form.reset()}
+                disabled={loading}
+              >
+                Reset
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading || !form.formState.isValid}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                    Menyimpan...
+                  </>
+                ) : initialData ? 'Perbarui STT' : 'Buat STT'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Form>
+      
+      {/* Customer Dialog */}
+      <Dialog open={openCustomerDialog} onOpenChange={setOpenCustomerDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tambah {customerType === 'pengirim' ? 'Pengirim' : 'Penerima'} Baru</DialogTitle>
+            <DialogDescription>
+              Isi formulir berikut untuk menambahkan {customerType === 'pengirim' ? 'pengirim' : 'penerima'} baru ke database.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...customerForm}>
+            <form onSubmit={customerForm.handleSubmit(handleCustomerSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Customer Name */}
+                <FormField
+                  control={customerForm.control}
+                  name="nama"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan nama" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
                 />
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
-            fullWidth
-          >
-            {initialData ? 'Perbarui STT' : 'Buat STT'}
-          </Button>
-        </Grid>
-      </Grid>
-    </Box>
+                
+                {/* Customer Phone */}
+                <FormField
+                  control={customerForm.control}
+                  name="telepon"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telepon</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan nomor telepon" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Email */}
+                <FormField
+                  control={customerForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email"
+                          placeholder="Masukkan email" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Company */}
+                <FormField
+                  control={customerForm.control}
+                  name="perusahaan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Perusahaan (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan nama perusahaan" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Type */}
+                <FormField
+                  control={customerForm.control}
+                  name="tipe"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipe</FormLabel>
+                      <Select
+                        disabled={loading}
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih tipe" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pengirim">Pengirim</SelectItem>
+                          <SelectItem value="penerima">Penerima</SelectItem>
+                          <SelectItem value="keduanya">Keduanya</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Address */}
+                <FormField
+                  control={customerForm.control}
+                  name="alamat"
+                  render={({ field }) => (
+                    <FormItem className="col-span-1 md:col-span-2">
+                      <FormLabel>Alamat</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Masukkan alamat lengkap"
+                          {...field}
+                          disabled={loading}
+                          rows={2}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Kelurahan */}
+                <FormField
+                  control={customerForm.control}
+                  name="kelurahan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kelurahan</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan kelurahan" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Kecamatan */}
+                <FormField
+                  control={customerForm.control}
+                  name="kecamatan"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kecamatan</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan kecamatan" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Kota */}
+                <FormField
+                  control={customerForm.control}
+                  name="kota"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kota</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan kota" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Customer Provinsi */}
+                <FormField
+                  control={customerForm.control}
+                  name="provinsi"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Provinsi</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Masukkan provinsi" 
+                          {...field} 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-4 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpenCustomerDialog(false)}
+                  disabled={loading}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading || !customerForm.formState.isValid}
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                      Menyimpan...
+                    </>
+                  ) : 'Tambah Pelanggan'}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
-export default STTForm;
+export default SttForm;
