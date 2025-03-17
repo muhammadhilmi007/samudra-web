@@ -31,10 +31,6 @@ export const getDivisions = createAsyncThunk(
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to fetch divisions'));
       return rejectWithValue(error.response?.data || { message: 'Failed to fetch divisions' });
-
-export const { clearDivision, clearDivisions } = divisionSlice.actions;
-
-export default divisionSlice.reducer;
     }
   }
 );
@@ -152,3 +148,6 @@ const divisionSlice = createSlice({
       });
   },
 });
+
+export const { clearDivision, clearDivisions } = divisionSlice.actions;
+export default divisionSlice.reducer;

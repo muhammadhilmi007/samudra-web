@@ -262,4 +262,6 @@ const Dashboard = () => {
   );
 };
 
-export default withAuth(Dashboard);
+// Export the wrapped component
+const WrappedDashboard = withAuth(Dashboard);
+export default WrappedDashboard;

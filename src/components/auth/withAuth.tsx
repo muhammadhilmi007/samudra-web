@@ -1,40 +1,29 @@
-// src/components/auth/withAuth.tsx
-import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { CircularProgress, Box } from '@mui/material';
+import React from 'react';
 
-// Higher Order Component to protect routes
-const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
-  const AuthenticatedComponent = (props: P) => {
+const withAuth = (WrappedComponent: React.ComponentType) => {
+  const AuthenticatedComponent = (props: any) => {
     const router = useRouter();
-    const { isAuthenticated, token } = useSelector((state: RootState) => state.auth);
-    const { loading } = useSelector((state: RootState) => state.ui);
+    const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
-    useEffect(() => {
-      // If user is not authenticated and we're not in the process of checking auth
-      if (!isAuthenticated && !token && !loading) {
-        router.replace('/login');
+    React.useEffect(() => {
+      if (!isAuthenticated) {
+        router.push('/login');
       }
-    }, [isAuthenticated, token, loading, router]);
+    }, [isAuthenticated, router]);
 
-    // Show loading state while checking authentication
-    if (!isAuthenticated || loading) {
-      return (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-          <CircularProgress />
-        </Box>
-      );
+    if (!isAuthenticated) {
+      return null;
     }
 
-    // If authenticated, render the wrapped component
-    return <Component {...props} />;
+    return <WrappedComponent {...props} />;
   };
 
   // Set display name for debugging
-  const displayName = Component.displayName || Component.name || 'Component';
-  AuthenticatedComponent.displayName = `withAuth(${displayName})`;
+  const wrappedComponentName = WrappedComponent.displayName || WrappedComponent.name || 'Component';
+  AuthenticatedComponent.displayName = `withAuth(${wrappedComponentName})`;
 
   return AuthenticatedComponent;
 };

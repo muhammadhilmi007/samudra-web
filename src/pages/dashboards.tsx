@@ -1,13 +1,10 @@
 // src/pages/dashboard.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Grid,
   Typography,
   Paper,
   Box,
-  Card,
-  CardContent,
-  CardHeader,
   Divider,
   CircularProgress,
   Chip,
@@ -28,8 +25,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line
 } from 'recharts';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
@@ -43,7 +38,7 @@ const Dashboard = () => {
   const theme = useTheme();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { dashboardStats, loading } = useSelector((state: RootState) => state.report);
+  const { loading } = useSelector((state: RootState) => state.report);
   
   useEffect(() => {
     dispatch(getDashboardStats());

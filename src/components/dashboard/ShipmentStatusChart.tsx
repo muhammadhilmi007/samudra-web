@@ -5,11 +5,10 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
-  Legend, 
+  Tooltip,
   ResponsiveContainer 
 } from 'recharts';
-import { Card, CardContent, Typography } from '@/components/ui/card';
+import { Card, CardContent, Typography } from '@mui/material';
 
 interface ShipmentStatusChartProps {
   data?: Array<{

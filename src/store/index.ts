@@ -15,6 +15,7 @@ import returnReducer from './slices/returnSlice';
 import collectionReducer from './slices/collectionSlice';
 import financeReducer from './slices/financeSlice';
 import reportReducer from './slices/reportSlice';
+import dashboardReducer from './slices/dashboardSlice';
 
 export const store = configureStore({
   reducer: {
@@ -33,6 +34,7 @@ export const store = configureStore({
     collection: collectionReducer,
     finance: financeReducer,
     report: reportReducer,
+    dashboard: dashboardReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

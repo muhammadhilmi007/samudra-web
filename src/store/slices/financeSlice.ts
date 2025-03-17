@@ -5,7 +5,7 @@ import { setLoading, setError, setSuccess } from './uiSlice';
 import { 
   Account, 
   Journal, 
-  CashTransaction, 
+  Cash, 
   AccountFormInputs, 
   JournalFormInputs,
   CashFormInputs 
@@ -16,8 +16,8 @@ interface FinanceState {
   currentAccount: Account | null;
   journals: Journal[];
   currentJournal: Journal | null;
-  cashTransactions: CashTransaction[];
-  currentCashTransaction: CashTransaction | null;
+  cashTransactions: Cash[];
+  currentCashTransaction: Cash | null;
   loading: boolean;
   error: string | null;
 }
@@ -124,7 +124,7 @@ export const getCashTransactions = createAsyncThunk(
   async (_, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
-      const response = await financeService.getCashTransactions();
+      const response = await financeService.getCash();
       dispatch(setLoading(false));
       return response;
     } catch (error: any) {
@@ -140,7 +140,7 @@ export const createCashTransaction = createAsyncThunk(
   async (cashData: CashFormInputs, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
-      const response = await financeService.createCashTransaction(cashData);
+      const response = await financeService.createCash(cashData);
       dispatch(setLoading(false));
       dispatch(setSuccess('Transaksi kas berhasil dibuat'));
       return response;

@@ -1,6 +1,6 @@
 // src/services/divisionService.ts
 import api from './api';
-import { Division } from '../types/branch';
+import { Division } from '../types/division';
 
 const divisionService = {
   // Get all divisions

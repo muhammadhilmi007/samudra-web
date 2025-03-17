@@ -14,13 +14,10 @@ function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isAuthPage = router.pathname === '/login' || router.pathname === '/register';
 
-  useEffect(() => {
-    // Check auth status when app loads
-    store.dispatch(checkAuthStatus());
-  }, []);
-  
+  // Move the checkAuthStatus dispatch to a useEffect inside the Provider
   return (
     <Provider store={store}>
+      <StoreInitializer />
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {isAuthPage ? (
@@ -34,5 +31,14 @@ function MyApp({ Component, pageProps }: AppProps) {
     </Provider>
   );
 }
+
+// Separate component to handle store initialization
+const StoreInitializer = () => {
+  useEffect(() => {
+    store.dispatch(checkAuthStatus());
+  }, []);
+  
+  return null;
+};
 
 export default MyApp;

@@ -62,14 +62,20 @@ const Login = () => {
   }, [isAuthenticated, router, dispatch]);
   
   const onSubmit = async (data: LoginFormInputs) => {
-    await dispatch(login(data));
-    
-    // Check if login was successful by seeing if we're authenticated now
-    const state = store.getState();
-    if (state.auth.isAuthenticated) {
-      router.push('/dashboard');
+    try {
+      await dispatch(login(data));
+    } catch (error) {
+      // Error handling is already managed by the slice
+      console.error('Login failed:', error);
     }
   };
+  
+  // Use useEffect to handle navigation after successful login
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
   
   const handleTogglePasswordVisibility = () => {
     setShowPassword(!showPassword);

@@ -1,5 +1,5 @@
 // src/components/layout/layout.tsx
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode } from 'react';
 import { Box, CssBaseline, useMediaQuery, useTheme } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';

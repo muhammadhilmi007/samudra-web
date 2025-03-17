@@ -237,7 +237,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
     });
     
     setOpenSubmenu(initialOpenSubmenu);
-  }, [router.pathname]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.pathname]); 
   
   const drawerWidth = open ? 240 : 72;
   

@@ -1,4 +1,3 @@
-// src/pages/_document.tsx
 import React from 'react';
 import Document, { Html, Head, Main, NextScript, DocumentContext } from 'next/document';
 import createEmotionServer from '@emotion/server/create-instance';

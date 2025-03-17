@@ -1,7 +1,5 @@
-// src/store/slices/branchSlice.ts
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import branchService from '../../services/branchService';
-import { setLoading, setError, setSuccess } from './uiSlice';
+import axios from 'axios';
 import { Branch } from '../../types/branch';
 
 interface BranchState {
@@ -18,107 +16,62 @@ const initialState: BranchState = {
   error: null,
 };
 
-// Get all branches
 export const getBranches = createAsyncThunk(
   'branch/getBranches',
-  async (_, { dispatch, rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      dispatch(setLoading(true));
-      const response = await branchService.getBranches();
-      dispatch(setLoading(false));
-      return response;
+      const response = await axios.get('/api/branches');
+      return response.data;
     } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(setError(error.response?.data?.message || 'Failed to fetch branches'));
-      return rejectWithValue(error.response?.data || { message: 'Failed to fetch branches' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch branches');
     }
   }
 );
 
-// Get branch by ID
 export const getBranchById = createAsyncThunk(
   'branch/getBranchById',
-  async (id: string, { dispatch, rejectWithValue }) => {
+  async (id: string, { rejectWithValue }) => {
     try {
-      dispatch(setLoading(true));
-      const response = await branchService.getBranchById(id);
-      dispatch(setLoading(false));
-      return response;
+      const response = await axios.get(`/api/branches/${id}`);
+      return response.data;
     } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(setError(error.response?.data?.message || 'Failed to fetch branch'));
-      return rejectWithValue(error.response?.data || { message: 'Failed to fetch branch' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch branch');
     }
   }
 );
 
-// Get branches by division
-export const getBranchesByDivision = createAsyncThunk(
-  'branch/getBranchesByDivision',
-  async (divisionId: string, { dispatch, rejectWithValue }) => {
-    try {
-      dispatch(setLoading(true));
-      const response = await branchService.getBranchesByDivision(divisionId);
-      dispatch(setLoading(false));
-      return response;
-    } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(setError(error.response?.data?.message || 'Failed to fetch branches by division'));
-      return rejectWithValue(error.response?.data || { message: 'Failed to fetch branches by division' });
-    }
-  }
-);
-
-// Create branch
 export const createBranch = createAsyncThunk(
   'branch/createBranch',
-  async (branchData: Partial<Branch>, { dispatch, rejectWithValue }) => {
+  async (branchData: Partial<Branch>, { rejectWithValue }) => {
     try {
-      dispatch(setLoading(true));
-      const response = await branchService.createBranch(branchData);
-      dispatch(setLoading(false));
-      dispatch(setSuccess('Cabang berhasil dibuat'));
-      return response;
+      const response = await axios.post('/api/branches', branchData);
+      return response.data;
     } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(setError(error.response?.data?.message || 'Failed to create branch'));
-      return rejectWithValue(error.response?.data || { message: 'Failed to create branch' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to create branch');
     }
   }
 );
 
-// Update branch
 export const updateBranch = createAsyncThunk(
   'branch/updateBranch',
-  async ({ id, branchData }: { id: string; branchData: Partial<Branch> }, { dispatch, rejectWithValue }) => {
+  async ({ id, branchData }: { id: string; branchData: Partial<Branch> }, { rejectWithValue }) => {
     try {
-      dispatch(setLoading(true));
-      const response = await branchService.updateBranch(id, branchData);
-      dispatch(setLoading(false));
-      dispatch(setSuccess('Cabang berhasil diperbarui'));
-      return response;
+      const response = await axios.put(`/api/branches/${id}`, branchData);
+      return response.data;
     } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(setError(error.response?.data?.message || 'Failed to update branch'));
-      return rejectWithValue(error.response?.data || { message: 'Failed to update branch' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to update branch');
     }
   }
 );
 
-// Delete branch
 export const deleteBranch = createAsyncThunk(
   'branch/deleteBranch',
-  async (id: string, { dispatch, rejectWithValue }) => {
+  async (id: string, { rejectWithValue }) => {
     try {
-      dispatch(setLoading(true));
-      await branchService.deleteBranch(id);
-      dispatch(setLoading(false));
-      dispatch(setSuccess('Cabang berhasil dihapus'));
+      await axios.delete(`/api/branches/${id}`);
       return id;
     } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(setError(error.response?.data?.message || 'Failed to delete branch'));
-      return rejectWithValue(error.response?.data || { message: 'Failed to delete branch' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete branch');
     }
   }
 );
@@ -136,40 +89,84 @@ const branchSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Get all branches
+      // Get Branches
+      .addCase(getBranches.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(getBranches.fulfilled, (state, action) => {
+        state.loading = false;
         state.branches = action.payload;
+        state.error = null;
       })
-      // Get branch by ID
+      .addCase(getBranches.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Get Branch By Id
+      .addCase(getBranchById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(getBranchById.fulfilled, (state, action) => {
+        state.loading = false;
         state.branch = action.payload;
+        state.error = null;
       })
-      // Get branches by division
-      .addCase(getBranchesByDivision.fulfilled, (state, action) => {
-        state.branches = action.payload;
+      .addCase(getBranchById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       })
-      // Create branch
+      // Create Branch
+      .addCase(createBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(createBranch.fulfilled, (state, action) => {
+        state.loading = false;
         state.branches.push(action.payload);
-        state.branch = action.payload;
+        state.error = null;
       })
-      // Update branch
+      .addCase(createBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Update Branch
+      .addCase(updateBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(updateBranch.fulfilled, (state, action) => {
-        state.branches = state.branches.map((branch) =>
+        state.loading = false;
+        state.branches = state.branches.map(branch =>
           branch._id === action.payload._id ? action.payload : branch
         );
         state.branch = action.payload;
+        state.error = null;
       })
-      // Delete branch
+      .addCase(updateBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Delete Branch
+      .addCase(deleteBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteBranch.fulfilled, (state, action) => {
-        state.branches = state.branches.filter((branch) => branch._id !== action.payload);
-        if (state.branch && state.branch._id === action.payload) {
+        state.loading = false;
+        state.branches = state.branches.filter(branch => branch._id !== action.payload);
+        if (state.branch?._id === action.payload) {
           state.branch = null;
         }
+        state.error = null;
+      })
+      .addCase(deleteBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
 export const { clearBranch, clearBranches } = branchSlice.actions;
-
 export default branchSlice.reducer;

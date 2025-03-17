@@ -73,7 +73,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import withAuth from '../../components/auth/withAuth';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 
 interface TabPanelProps {
   children?: React.ReactNode;
