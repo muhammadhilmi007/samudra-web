@@ -4,56 +4,65 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
+  Box,
+  Grid,
   TextField,
   Button,
-  Grid,
-  Box,
-  CircularProgress,
   FormControl,
   InputLabel,
   Select,
-  MenuItem,
+  FormHelperText,
+  CircularProgress,
   Typography,
   Divider,
-  FormHelperText,
-  Chip,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
   Checkbox,
-  IconButton,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
+  InputAdornment,
+  MenuItem,
+  Autocomplete,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
   Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
+  AttachMoney as AttachMoneyIcon,
+  Receipt as ReceiptIcon,
+  Person as PersonIcon,
   Search as SearchIcon,
+  FilterList as FilterListIcon,
+  ReceiptLong as ReceiptLongIcon,
+  Info as InfoIcon,
+  Clear as ClearIcon,
+  Business as BusinessIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationOnIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../store';
+import { AppDispatch, RootState } from '../../store';
 import { getBranches } from '../../store/slices/branchSlice';
-import { getCustomers } from '../../store/slices/customerSlice';
-import { getSTTsByStatus } from '../../store/slices/sttSlice';
+import { getCustomers, getCustomersByType } from '../../store/slices/customerSlice';
+import { getSTTsByCustomer, getSTTsByPaymentType } from '../../store/slices/sttSlice';
 import { Collection, CollectionFormInputs } from '../../types/collection';
+import { Customer } from '../../types/customer';
 import { STT } from '../../types/stt';
-import StatusBadge from '../shared/StatusBadge';
 
 // Validation schema
 const collectionSchema = z.object({
-  pelangganId: z.string().min(1, 'Customer harus dipilih'),
-  tipePelanggan: z.string().min(1, 'Tipe pelanggan harus dipilih'),
+  pelangganId: z.string().min(1, 'Pelanggan wajib dipilih'),
+  tipePelanggan: z.enum(['Pengirim', 'Penerima'], {
+    errorMap: () => ({ message: 'Tipe pelanggan wajib dipilih' }),
+  }),
   sttIds: z.array(z.string()).min(1, 'Minimal satu STT harus dipilih'),
-  cabangId: z.string().min(1, 'Cabang harus dipilih'),
-  overdue: z.boolean().optional(),
-  totalTagihan: z.number().min(0),
-  status: z.string().min(1, 'Status harus dipilih'),
+  cabangId: z.string().min(1, 'Cabang wajib dipilih'),
 });
 
 interface CollectionFormProps {
@@ -71,11 +80,14 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
   const { branches } = useSelector((state: RootState) => state.branch);
   const { customers } = useSelector((state: RootState) => state.customer);
   const { sttList } = useSelector((state: RootState) => state.stt);
+  const { user } = useSelector((state: RootState) => state.auth);
   
-  const [selectedSTTs, setSelectedSTTs] = useState<STT[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [customerType, setCustomerType] = useState(initialData?.tipePelanggan || 'Pengirim');
-
+  const [availableSTTs, setAvailableSTTs] = useState<STT[]>([]);
+  const [selectedCustomerData, setSelectedCustomerData] = useState<Customer | null>(null);
+  const [sttSearchTerm, setSTTSearchTerm] = useState('');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string | null>(null);
+  
+  // Form setup with validation
   const {
     control,
     handleSubmit,
@@ -89,88 +101,144 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
       pelangganId: initialData?.pelangganId || '',
       tipePelanggan: initialData?.tipePelanggan || 'Pengirim',
       sttIds: initialData?.sttIds || [],
-      cabangId: initialData?.cabangId || '',
-      overdue: initialData?.overdue || false,
-      totalTagihan: initialData?.totalTagihan || 0,
-      status: initialData?.status || 'BELUM LUNAS',
+      cabangId: initialData?.cabangId || user?.cabangId || '',
     },
   });
-
-  // Watch values
-  const selectedCustomerId = watch('pelangganId');
-  const selectedSttIds = watch('sttIds');
+  
+  // Watch form values
+  const selectedPelangganId = watch('pelangganId');
+  const selectedTipePelanggan = watch('tipePelanggan');
+  const selectedSTTIds = watch('sttIds');
   const selectedCabangId = watch('cabangId');
-
-  // Load data on component mount
+  
+  // Fetch initial data
   useEffect(() => {
     dispatch(getBranches());
     dispatch(getCustomers());
     
-    // Get unpaid STTs
-    dispatch(getSTTsByStatus('TERKIRIM'));
-  }, [dispatch]);
-
-  // Filter STTs based on customer type and ID
-  useEffect(() => {
-    if (selectedCustomerId && customerType) {
-      const relevantSTTs = sttList.filter(stt => {
-        if (customerType === 'Pengirim') {
-          return stt.pengirimId === selectedCustomerId;
-        } else {
-          return stt.penerimaId === selectedCustomerId;
-        }
-      });
+    // If we have initial data, load related STTs
+    if (initialData) {
+      if (initialData.pelangganId) {
+        dispatch(getSTTsByCustomer(initialData.pelangganId));
+      }
       
-      setSelectedSTTs(relevantSTTs);
-      
-      // If initialData is not provided, reset selected STTs
-      if (!initialData) {
-        setValue('sttIds', []);
+      // Set selected customer data
+      const customer = customers.find(c => c._id === initialData.pelangganId);
+      if (customer) {
+        setSelectedCustomerData(customer);
       }
     }
-  }, [selectedCustomerId, customerType, sttList, setValue, initialData]);
-
-  // Calculate total amount when selected STTs change
+  }, [dispatch, initialData]);
+  
+  // When customer changes, fetch their STTs
   useEffect(() => {
-    const totalAmount = sttList
-      .filter(stt => selectedSttIds.includes(stt._id))
-      .reduce((total, stt) => total + stt.harga, 0);
-    
-    setValue('totalTagihan', totalAmount);
-  }, [selectedSttIds, sttList, setValue]);
-
-  // Handle customer type change
-  const handleCustomerTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setCustomerType(value);
-    setValue('tipePelanggan', value);
-    setValue('sttIds', []);
-  };
-
-  // Handle STT selection
-  const handleSTTSelection = (sttId: string) => {
-    const currentSelected = [...selectedSttIds];
-    const index = currentSelected.indexOf(sttId);
-    
-    if (index === -1) {
-      currentSelected.push(sttId);
+    if (selectedPelangganId) {
+      // Set selected customer data
+      const customer = customers.find(c => c._id === selectedPelangganId);
+      setSelectedCustomerData(customer || null);
+      
+      // Load STTs for this customer
+      dispatch(getSTTsByCustomer(selectedPelangganId));
     } else {
-      currentSelected.splice(index, 1);
+      setSelectedCustomerData(null);
+      setAvailableSTTs([]);
+    }
+  }, [dispatch, selectedPelangganId, customers]);
+  
+  // Filter available STTs based on payment type
+  useEffect(() => {
+    if (paymentTypeFilter) {
+      dispatch(getSTTsByPaymentType(paymentTypeFilter));
+    }
+  }, [dispatch, paymentTypeFilter]);
+  
+  // Filter STTs by customer type, payment status and search term
+  useEffect(() => {
+    // Start with all STTs for this customer
+    let filteredSTTs = [...sttList];
+    
+    // Filter by customer type
+    if (selectedTipePelanggan === 'Pengirim') {
+      filteredSTTs = filteredSTTs.filter(stt => stt.pengirimId === selectedPelangganId);
+    } else if (selectedTipePelanggan === 'Penerima') {
+      filteredSTTs = filteredSTTs.filter(stt => stt.penerimaId === selectedPelangganId);
     }
     
-    setValue('sttIds', currentSelected);
-  };
-
-  // Filter STTs by search term
-  const filteredSTTs = selectedSTTs.filter(stt => {
-    if (!searchTerm) return true;
+    // Filter by payment type
+    if (paymentTypeFilter) {
+      filteredSTTs = filteredSTTs.filter(stt => stt.paymentType === paymentTypeFilter);
+    }
     
-    return (
-      stt.noSTT.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stt.namaBarang.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
-
+    // Filter by payment status - only show STTs that haven't been fully paid
+    filteredSTTs = filteredSTTs.filter(stt => {
+      // If the STT is already in a collection that's not this one, exclude it
+      // Real implementation would check if it's already in a collection that's fully paid
+      
+      // For now, just exclude STTs that are already in a collection
+      if (initialData) {
+        // If we're editing, keep the STTs that are already in this collection
+        return !stt.collectionIds || 
+              !stt.collectionIds.length || 
+              (initialData.sttIds && initialData.sttIds.includes(stt._id));
+      } else {
+        // If we're creating, exclude STTs that are already in any collection
+        return !stt.collectionIds || !stt.collectionIds.length;
+      }
+    });
+    
+    // Search filter
+    if (sttSearchTerm) {
+      const term = sttSearchTerm.toLowerCase();
+      filteredSTTs = filteredSTTs.filter(
+        stt => 
+          stt.noSTT.toLowerCase().includes(term) ||
+          stt.namaBarang.toLowerCase().includes(term) ||
+          (stt.pengirim?.nama && stt.pengirim.nama.toLowerCase().includes(term)) ||
+          (stt.penerima?.nama && stt.penerima.nama.toLowerCase().includes(term))
+      );
+    }
+    
+    setAvailableSTTs(filteredSTTs);
+  }, [sttList, selectedPelangganId, selectedTipePelanggan, paymentTypeFilter, sttSearchTerm, initialData]);
+  
+  // When customer type changes, reset STT selection
+  useEffect(() => {
+    // Reset selected STTs when customer type changes
+    setValue('sttIds', []);
+  }, [selectedTipePelanggan, setValue]);
+  
+  // Handle payment type filter change
+  const handlePaymentTypeFilterChange = (type: string | null) => {
+    setPaymentTypeFilter(type);
+  };
+  
+  // Handle STT selection
+  const handleSTTSelection = (sttId: string) => {
+    const currentSelection = [...selectedSTTIds];
+    const index = currentSelection.indexOf(sttId);
+    
+    if (index === -1) {
+      // Add to selection
+      setValue('sttIds', [...currentSelection, sttId]);
+    } else {
+      // Remove from selection
+      currentSelection.splice(index, 1);
+      setValue('sttIds', currentSelection);
+    }
+  };
+  
+  // Handle select all STTs
+  const handleSelectAllSTTs = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setValue(
+        'sttIds',
+        availableSTTs.map(stt => stt._id)
+      );
+    } else {
+      setValue('sttIds', []);
+    }
+  };
+  
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -179,296 +247,406 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
       minimumFractionDigits: 0,
     }).format(amount);
   };
-
+  
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+  
+  // Calculate total amount
+  const calculateTotal = () => {
+    return availableSTTs
+      .filter(stt => selectedSTTIds.includes(stt._id))
+      .reduce((total, stt) => total + stt.harga, 0);
+  };
+  
+  // Reset form
+  const handleReset = () => {
+    reset({
+      pelangganId: '',
+      tipePelanggan: 'Pengirim',
+      sttIds: [],
+      cabangId: user?.cabangId || '',
+    });
+    setSTTSearchTerm('');
+    setPaymentTypeFilter(null);
+  };
+  
+  // Filter customers based on type
+  const filteredCustomers = customers.filter(
+    customer => 
+      selectedTipePelanggan === 'Pengirim' 
+        ? (customer.tipe === 'Pengirim' || customer.tipe === 'Keduanya')
+        : (customer.tipe === 'Penerima' || customer.tipe === 'Keduanya')
+  );
+  
   return (
     <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Penagihan
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="cabangId"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.cabangId}>
-                      <InputLabel id="cabang-label">Cabang</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="cabang-label"
-                        label="Cabang"
-                        disabled={loading}
-                      >
-                        {branches.map((branch) => (
-                          <MenuItem key={branch._id} value={branch._id}>
-                            {branch.namaCabang}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.cabangId && (
-                        <FormHelperText>{errors.cabangId.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.status}>
-                      <InputLabel id="status-label">Status Penagihan</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="status-label"
-                        label="Status Penagihan"
-                        disabled={loading}
-                      >
-                        <MenuItem value="BELUM LUNAS">BELUM LUNAS</MenuItem>
-                        <MenuItem value="LUNAS">LUNAS</MenuItem>
-                      </Select>
-                      {errors.status && (
-                        <FormHelperText>{errors.status.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Controller
-                  name="overdue"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
-                          disabled={loading}
-                        />
-                      }
-                      label="Tandai sebagai Overdue (Jatuh Tempo)"
-                    />
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-          
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Customer
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <FormControl component="fieldset">
-                  <Typography variant="subtitle2" gutterBottom>
-                    Tipe Customer
-                  </Typography>
-                  <Controller
-                    name="tipePelanggan"
-                    control={control}
-                    render={({ field }) => (
-                      <RadioGroup
-                        {...field}
-                        row
-                        onChange={handleCustomerTypeChange}
-                      >
-                        <FormControlLabel
-                          value="Pengirim"
-                          control={<Radio />}
-                          label="Pengirim (Sender)"
-                          disabled={loading}
-                        />
-                        <FormControlLabel
-                          value="Penerima"
-                          control={<Radio />}
-                          label="Penerima (Recipient)"
-                          disabled={loading}
-                        />
-                      </RadioGroup>
-                    )}
-                  />
-                  {errors.tipePelanggan && (
-                    <FormHelperText error>{errors.tipePelanggan.message}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="pelangganId"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.pelangganId}>
-                      <InputLabel id="customer-label">Customer</InputLabel>
-                      <Select
-                        {...field}
-                        labelId="customer-label"
-                        label="Customer"
-                        disabled={loading}
-                      >
-                        {customers
-                          .filter(customer => {
-                            if (customerType === 'Pengirim') {
-                              return customer.tipe === 'Pengirim' || customer.tipe === 'Keduanya';
-                            } else {
-                              return customer.tipe === 'Penerima' || customer.tipe === 'Keduanya';
-                            }
-                          })
-                          .map((customer) => (
-                            <MenuItem key={customer._id} value={customer._id}>
-                              {customer.nama} - {customer.telepon}
-                            </MenuItem>
-                          ))}
-                      </Select>
-                      {errors.pelangganId && (
-                        <FormHelperText>{errors.pelangganId.message}</FormHelperText>
-                      )}
-                    </FormControl>
-                  )}
-                />
-              </Grid>
-            </Grid>
-          </Paper>
-          
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Pilih STT untuk Penagihan
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            
-            <Box mb={2}>
-              <TextField
-                fullWidth
-                placeholder="Cari STT berdasarkan nomor atau nama barang"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                disabled={loading || !selectedCustomerId}
-                InputProps={{
-                  startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
+          <Typography variant="subtitle1" fontWeight="bold">
+            Informasi Penagihan
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Controller
+            name="tipePelanggan"
+            control={control}
+            render={({ field }) => (
+              <FormControl fullWidth error={!!errors.tipePelanggan} disabled={loading}>
+                <InputLabel id="customer-type-label">Tipe Pelanggan *</InputLabel>
+                <Select
+                  {...field}
+                  labelId="customer-type-label"
+                  label="Tipe Pelanggan *"
+                >
+                  <MenuItem value="Pengirim">Pengirim</MenuItem>
+                  <MenuItem value="Penerima">Penerima</MenuItem>
+                </Select>
+                {errors.tipePelanggan && (
+                  <FormHelperText>{errors.tipePelanggan.message}</FormHelperText>
+                )}
+              </FormControl>
+            )}
+          />
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Controller
+            name="pelangganId"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                {...field}
+                options={filteredCustomers}
+                getOptionLabel={(option) => {
+                  if (typeof option === 'string') return option;
+                  return option.nama + (option.perusahaan ? ` - ${option.perusahaan}` : '');
                 }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Pilih Pelanggan *"
+                    error={!!errors.pelangganId}
+                    helperText={errors.pelangganId?.message}
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <InputAdornment position="start">
+                            <PersonIcon />
+                          </InputAdornment>
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                onChange={(_, newValue) => {
+                  field.onChange(newValue ? newValue._id : '');
+                }}
+                disabled={loading}
+                isOptionEqualToValue={(option, value) => 
+                  option._id === value._id
+                }
+                value={filteredCustomers.find(c => c._id === field.value) || null}
               />
-            </Box>
+            )}
+          />
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Controller
+            name="cabangId"
+            control={control}
+            render={({ field }) => (
+              <FormControl fullWidth error={!!errors.cabangId} disabled={loading || !!user?.cabangId}>
+                <InputLabel id="branch-label">Cabang *</InputLabel>
+                <Select
+                  {...field}
+                  labelId="branch-label"
+                  label="Cabang *"
+                >
+                  {branches.map((branch) => (
+                    <MenuItem key={branch._id} value={branch._id}>
+                      {branch.namaCabang}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.cabangId && <FormHelperText>{errors.cabangId.message}</FormHelperText>}
+              </FormControl>
+            )}
+          />
+        </Grid>
+        
+        {selectedCustomerData && (
+          <Grid item xs={12}>
+            <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Informasi Pelanggan
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Box display="flex" alignItems="center" mb={1}>
+                    <PersonIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                      <strong>Nama:</strong> {selectedCustomerData.nama}
+                    </Typography>
+                  </Box>
+                  
+                  {selectedCustomerData.perusahaan && (
+                    <Box display="flex" alignItems="center" mb={1}>
+                      <BusinessIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        <strong>Perusahaan:</strong> {selectedCustomerData.perusahaan}
+                      </Typography>
+                    </Box>
+                  )}
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Box display="flex" alignItems="center" mb={1}>
+                    <PhoneIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                      <strong>Telepon:</strong> {selectedCustomerData.telepon}
+                    </Typography>
+                  </Box>
+                  
+                  <Box display="flex" alignItems="flex-start" mb={1}>
+                    <LocationOnIcon fontSize="small" sx={{ mr: 1, mt: 0.5, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                      <strong>Alamat:</strong> {selectedCustomerData.alamat}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        )}
+        
+        <Grid item xs={12}>
+          <Typography variant="subtitle1" fontWeight="bold" mt={2}>
+            Pilih STT untuk Penagihan
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          
+          <Box 
+            display="flex" 
+            justifyContent="space-between" 
+            alignItems="center" 
+            mb={2}
+            gap={2}
+            flexDirection={{ xs: 'column', sm: 'row' }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              label="Cari STT"
+              variant="outlined"
+              value={sttSearchTerm}
+              onChange={(e) => setSTTSearchTerm(e.target.value)}
+              disabled={!selectedPelangganId || loading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
             
-            {selectedCustomerId ? (
-              <>
-                <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
-                  <Table stickyHeader size="small">
-                    <TableHead>
-                      <TableRow>
+            <Box display="flex" gap={1}>
+              <Button
+                variant={paymentTypeFilter === 'CASH' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => handlePaymentTypeFilterChange(paymentTypeFilter === 'CASH' ? null : 'CASH')}
+                disabled={!selectedPelangganId || loading}
+                startIcon={<AttachMoneyIcon />}
+              >
+                CASH
+              </Button>
+              
+              <Button
+                variant={paymentTypeFilter === 'COD' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => handlePaymentTypeFilterChange(paymentTypeFilter === 'COD' ? null : 'COD')}
+                disabled={!selectedPelangganId || loading}
+                startIcon={<AttachMoneyIcon />}
+              >
+                COD
+              </Button>
+              
+              <Button
+                variant={paymentTypeFilter === 'CAD' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => handlePaymentTypeFilterChange(paymentTypeFilter === 'CAD' ? null : 'CAD')}
+                disabled={!selectedPelangganId || loading}
+                startIcon={<AttachMoneyIcon />}
+              >
+                CAD
+              </Button>
+              
+              <Tooltip title="Reset Filter">
+                <IconButton 
+                  size="small" 
+                  onClick={() => {
+                    setPaymentTypeFilter(null);
+                    setSTTSearchTerm('');
+                  }}
+                  disabled={!selectedPelangganId || loading}
+                >
+                  <ClearIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+          
+          {!selectedPelangganId ? (
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">
+                Pilih pelanggan terlebih dahulu untuk melihat daftar STT
+              </Typography>
+            </Paper>
+          ) : loading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : availableSTTs.length === 0 ? (
+            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">
+                Tidak ada STT yang tersedia untuk penagihan
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mt={1}>
+                {paymentTypeFilter ? 'Coba ubah filter tipe pembayaran' : 'Pelanggan ini tidak memiliki STT yang belum dibayar'}
+              </Typography>
+            </Paper>
+          ) : (
+            <Paper variant="outlined">
+              <TableContainer sx={{ maxHeight: 400 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          color="primary"
+                          indeterminate={
+                            selectedSTTIds.length > 0 && selectedSTTIds.length < availableSTTs.length
+                          }
+                          checked={
+                            availableSTTs.length > 0 && selectedSTTIds.length === availableSTTs.length
+                          }
+                          onChange={handleSelectAllSTTs}
+                          disabled={loading}
+                        />
+                      </TableCell>
+                      <TableCell>No. STT</TableCell>
+                      <TableCell>Tanggal</TableCell>
+                      <TableCell>Barang</TableCell>
+                      <TableCell>Pengirim</TableCell>
+                      <TableCell>Penerima</TableCell>
+                      <TableCell>Pembayaran</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right">Jumlah</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {availableSTTs.map((stt) => (
+                      <TableRow
+                        key={stt._id}
+                        hover
+                        selected={selectedSTTIds.includes(stt._id)}
+                        onClick={() => handleSTTSelection(stt._id)}
+                      >
                         <TableCell padding="checkbox">
                           <Checkbox
                             color="primary"
-                            indeterminate={
-                              selectedSttIds.length > 0 && selectedSttIds.length < filteredSTTs.length
-                            }
-                            checked={
-                              filteredSTTs.length > 0 && selectedSttIds.length === filteredSTTs.length
-                            }
-                            onChange={() => {
-                              if (selectedSttIds.length === filteredSTTs.length) {
-                                setValue('sttIds', []);
-                              } else {
-                                setValue(
-                                  'sttIds',
-                                  filteredSTTs.map((stt) => stt._id)
-                                );
-                              }
-                            }}
-                            disabled={loading || filteredSTTs.length === 0}
+                            checked={selectedSTTIds.includes(stt._id)}
+                            onChange={() => handleSTTSelection(stt._id)}
+                            disabled={loading}
                           />
                         </TableCell>
-                        <TableCell>No. STT</TableCell>
-                        <TableCell>Tanggal</TableCell>
-                        <TableCell>Barang</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell align="right">Jumlah</TableCell>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <ReceiptIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+                            {stt.noSTT}
+                          </Box>
+                        </TableCell>
+                        <TableCell>{formatDate(stt.createdAt)}</TableCell>
+                        <TableCell>{stt.namaBarang}</TableCell>
+                        <TableCell>{stt.pengirim?.nama || '-'}</TableCell>
+                        <TableCell>{stt.penerima?.nama || '-'}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={stt.paymentType} 
+                            size="small" 
+                            color={
+                              stt.paymentType === 'CASH' ? 'success' : 
+                              stt.paymentType === 'COD' ? 'primary' : 
+                              'warning'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>{stt.status}</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="medium">
+                            {formatCurrency(stt.harga)}
+                          </Typography>
+                        </TableCell>
                       </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredSTTs.length > 0 ? (
-                        filteredSTTs.map((stt) => (
-                          <TableRow
-                            key={stt._id}
-                            hover
-                            onClick={() => handleSTTSelection(stt._id)}
-                            selected={selectedSttIds.includes(stt._id)}
-                          >
-                            <TableCell padding="checkbox">
-                              <Checkbox
-                                color="primary"
-                                checked={selectedSttIds.includes(stt._id)}
-                                onChange={() => handleSTTSelection(stt._id)}
-                                disabled={loading}
-                              />
-                            </TableCell>
-                            <TableCell>{stt.noSTT}</TableCell>
-                            <TableCell>
-                              {new Date(stt.createdAt).toLocaleDateString('id-ID')}
-                            </TableCell>
-                            <TableCell>{stt.namaBarang}</TableCell>
-                            <TableCell>
-                              <StatusBadge status={stt.status} />
-                            </TableCell>
-                            <TableCell align="right">{formatCurrency(stt.harga)}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                            Tidak ada STT tersedia untuk customer ini
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                
-                {errors.sttIds && (
-                  <FormHelperText error sx={{ mt: 1 }}>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              {errors.sttIds && (
+                <Box p={2} color="error.main">
+                  <Typography variant="body2" color="inherit">
                     {errors.sttIds.message}
-                  </FormHelperText>
-                )}
-                
-                <Box mt={2} display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="subtitle2">
-                    STT terpilih: {selectedSttIds.length} dari {filteredSTTs.length}
-                  </Typography>
-                  <Typography variant="h6">
-                    Total Tagihan: {formatCurrency(watch('totalTagihan'))}
                   </Typography>
                 </Box>
-              </>
-            ) : (
-              <Box py={3} textAlign="center">
-                <Typography color="text.secondary">
-                  Pilih customer terlebih dahulu untuk melihat daftar STT
+              )}
+              
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                p={2}
+                bgcolor="background.default"
+                borderTop={1}
+                borderColor="divider"
+              >
+                <Typography variant="body2">
+                  {selectedSTTIds.length} dari {availableSTTs.length} STT dipilih
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Total: {formatCurrency(calculateTotal())}
                 </Typography>
               </Box>
-            )}
-          </Paper>
+            </Paper>
+          )}
         </Grid>
         
-        <Grid item xs={12}>
+        <Grid item xs={12} display="flex" justifyContent="flex-end" gap={2}>
+          <Button
+            variant="outlined"
+            onClick={handleReset}
+            disabled={loading}
+          >
+            Reset
+          </Button>
           <Button
             type="submit"
             variant="contained"
-            color="primary"
-            size="large"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
-            fullWidth
+            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <AttachMoneyIcon />}
+            disabled={loading || !selectedPelangganId || selectedSTTIds.length === 0}
           >
             {initialData ? 'Perbarui Penagihan' : 'Buat Penagihan'}
           </Button>
