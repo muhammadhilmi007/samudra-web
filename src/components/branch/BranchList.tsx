@@ -1,7 +1,7 @@
 // src/components/branch/BranchList.tsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Box, Button, Typography, Chip } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { Branch } from '../../types/branch';
 import DataTable from '../shared/DataTable';
