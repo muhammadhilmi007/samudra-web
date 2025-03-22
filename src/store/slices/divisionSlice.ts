@@ -119,32 +119,64 @@ const divisionSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Get all divisions
       .addCase(getDivisions.fulfilled, (state, action) => {
-        state.divisions = action.payload;
+        // Check if payload is an array
+        if (Array.isArray(action.payload)) {
+          state.divisions = action.payload.filter((division: Division) => division && division._id) || [];
+        } else if (action.payload && action.payload.data && Array.isArray(action.payload.data)) {
+          // If payload is an object with a data property that's an array
+          state.divisions = action.payload.data.filter((division: Division) => division && division._id) || [];
+        } else {
+          // Fallback if payload structure is unexpected
+          state.divisions = [];
+          console.error('Unexpected response format from getDivisions:', action.payload);
+        }
       })
       // Get division by ID
       .addCase(getDivisionById.fulfilled, (state, action) => {
-        state.division = action.payload;
+        state.division = action.payload && action.payload._id ? action.payload : null;
       })
       // Create division
       .addCase(createDivision.fulfilled, (state, action) => {
-        state.divisions.push(action.payload);
-        state.division = action.payload;
+        // Ensure divisions is an array before pushing
+        if (!Array.isArray(state.divisions)) {
+          state.divisions = [];
+        }
+        // Ensure the new division has an _id before adding it
+        if (action.payload && action.payload._id) {
+          state.divisions.push(action.payload);
+          state.division = action.payload;
+        }
+        // Filter out any null values from divisions
+        state.divisions = state.divisions.filter(division => division && division._id);
       })
       // Update division
       .addCase(updateDivision.fulfilled, (state, action) => {
-        state.divisions = state.divisions.map((division) =>
-          division._id === action.payload._id ? action.payload : division
-        );
+        // Ensure divisions is an array before mapping
+        if (!Array.isArray(state.divisions)) {
+          state.divisions = [];
+        } else {
+          state.divisions = state.divisions.map((division) =>
+            division._id === action.payload._id ? action.payload : division
+          );
+        }
         state.division = action.payload;
+        // Filter out any null values from divisions
+        state.divisions = state.divisions.filter(division => division && division._id);
       })
       // Delete division
       .addCase(deleteDivision.fulfilled, (state, action) => {
-        state.divisions = state.divisions.filter((division) => division._id !== action.payload);
+        // Ensure divisions is an array before filtering
+        if (!Array.isArray(state.divisions)) {
+          state.divisions = [];
+        } else {
+          state.divisions = state.divisions.filter((division) => division._id !== action.payload);
+        }
         if (state.division && state.division._id === action.payload) {
           state.division = null;
         }
+        // Filter out any null values from divisions
+        state.divisions = state.divisions.filter(division => division && division._id);
       });
   },
 });

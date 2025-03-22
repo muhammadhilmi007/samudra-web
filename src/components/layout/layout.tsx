@@ -4,8 +4,8 @@ import { Box, CssBaseline, useMediaQuery, useTheme } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { toggleSidebar } from '../../store/slices/uiSlice';
-import Header from './Header';
-import Sidebar from './Sidebar';
+import Header from './header';
+import Sidebar from './sidebar';
 
 interface LayoutProps {
   children: ReactNode;

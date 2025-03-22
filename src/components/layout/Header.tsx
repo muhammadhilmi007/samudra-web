@@ -1,198 +1,224 @@
-// src/components/layout/Header.tsx
 import React, { useState } from 'react';
-import {
-  AppBar,
-  Toolbar,
-  IconButton,
-  Typography,
-  Box,
-  Menu,
-  MenuItem,
+import { 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  IconButton, 
+  Avatar, 
+  Menu, 
+  MenuItem, 
+  Box, 
+  Badge, 
+  Divider,
   Tooltip,
-  Avatar,
-  Badge,
+  useMediaQuery,
   useTheme
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Notifications as NotificationsIcon,
-  AccountCircle,
   Settings as SettingsIcon,
+  AccountCircle,
   Logout as LogoutIcon,
-  Person as PersonIcon
+  Person as ProfileIcon
 } from '@mui/icons-material';
-import { useDispatch, useSelector } from 'react-redux';
-import { useRouter } from 'next/router';
-import { RootState, AppDispatch } from '../../store';
-import { logout } from '../../store/slices/authSlice';
+import { styled } from '@mui/material/styles';
+import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
-  onDrawerToggle: () => void;
+  onToggleSidebar: () => void;
+  username?: string;
+  userRole?: string;
+  cabangName?: string;
+  isSidebarOpen: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onDrawerToggle }) => {
-  const theme = useTheme();
+const StyledAppBar = styled(AppBar)(({ theme }) => ({
+  zIndex: theme.zIndex.drawer + 1,
+  boxShadow: theme.shadows[1],
+  backgroundColor: theme.palette.background.paper,
+  color: theme.palette.text.primary,
+}));
+
+const Header: React.FC<HeaderProps> = ({
+  onToggleSidebar,
+  username = 'Admin',
+  userRole = 'Administrator',
+  cabangName = 'Pusat',
+  isSidebarOpen
+}) => {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notificationsAnchor, setNotificationsAnchor] = useState<null | HTMLElement>(null);
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-  const { user } = useSelector((state: RootState) => state.auth);
-  const { sidebarOpen } = useSelector((state: RootState) => state.ui);
-  
-  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  const [anchorElNotifications, setAnchorElNotifications] = useState<null | HTMLElement>(null);
-  
-  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElUser(event.currentTarget);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
   };
-  
-  const handleCloseUserMenu = () => {
-    setAnchorElUser(null);
+
+  const handleNotificationsOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationsAnchor(event.currentTarget);
   };
-  
-  const handleOpenNotificationsMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElNotifications(event.currentTarget);
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
   };
-  
-  const handleCloseNotificationsMenu = () => {
-    setAnchorElNotifications(null);
+
+  const handleNotificationsClose = () => {
+    setNotificationsAnchor(null);
   };
-  
-  const handleLogout = async () => {
-    await dispatch(logout());
-    router.push('/login');
+
+  const handleLogout = () => {
+    // TODO: Implement logout
+    handleMenuClose();
+    router.push('/');
   };
-  
-  const handleProfile = () => {
-    router.push('/profile');
-    handleCloseUserMenu();
-  };
-  
+
   const handleSettings = () => {
+    handleMenuClose();
     router.push('/settings');
-    handleCloseUserMenu();
   };
-  
+
+  const handleProfile = () => {
+    handleMenuClose();
+    router.push('/profile');
+  };
+
   return (
-    <AppBar
-      position="fixed"
-      sx={{
-        zIndex: theme.zIndex.drawer + 1,
-        transition: theme.transitions.create(['width', 'margin'], {
-          easing: theme.transitions.easing.sharp,
-          duration: theme.transitions.duration.leavingScreen,
-        }),
-      }}
-    >
+    <StyledAppBar position="fixed">
       <Toolbar>
         <IconButton
-          color="inherit"
-          aria-label="open drawer"
           edge="start"
-          onClick={onDrawerToggle}
-          sx={{ mr: 2 }}
+          color="inherit"
+          aria-label="toggle drawer"
+          onClick={onToggleSidebar}
+          sx={{ mr: 2, display: { xs: 'block', sm: 'none' } }}
         >
           <MenuIcon />
         </IconButton>
-        
+        {!isSidebarOpen && !isMobile && (
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="open drawer"
+            onClick={onToggleSidebar}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
         <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          Samudra ERP
+          Samudra ERP {cabangName ? `- ${cabangName}` : ''}
         </Typography>
-        
-        <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center' }}>
-          {/* Notifications */}
-          <Tooltip title="Notifications">
-            <IconButton
-              color="inherit"
-              onClick={handleOpenNotificationsMenu}
-              sx={{ mr: 1 }}
+
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Tooltip title="Notifikasi">
+            <IconButton 
+              color="inherit" 
+              onClick={handleNotificationsOpen}
+              aria-controls="notifications-menu"
+              aria-haspopup="true"
             >
-              <Badge badgeContent={4} color="error">
+              <Badge badgeContent={3} color="error">
                 <NotificationsIcon />
               </Badge>
             </IconButton>
           </Tooltip>
           
-          {/* User Menu */}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}>
-              {user?.nama || 'User'}
-            </Typography>
-            <Tooltip title="Open settings">
-              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+          <Menu
+            id="notifications-menu"
+            anchorEl={notificationsAnchor}
+            keepMounted
+            open={Boolean(notificationsAnchor)}
+            onClose={handleNotificationsClose}
+            PaperProps={{
+              style: {
+                width: '320px',
+                maxHeight: '400px',
+              },
+            }}
+          >
+            <MenuItem>
+              <Box sx={{ py: 0.5 }}>
+                <Typography variant="subtitle2">Pengiriman tertunda</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Ada 5 pengiriman tertunda yang memerlukan perhatian segera
+                </Typography>
+              </Box>
+            </MenuItem>
+            <Divider />
+            <MenuItem>
+              <Box sx={{ py: 0.5 }}>
+                <Typography variant="subtitle2">STT baru dibuat</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  BDG-180325-2023 telah dibuat dan menunggu pengiriman
+                </Typography>
+              </Box>
+            </MenuItem>
+            <Divider />
+            <MenuItem>
+              <Box sx={{ py: 0.5 }}>
+                <Typography variant="subtitle2">Penagihan jatuh tempo</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  2 penagihan akan jatuh tempo dalam 3 hari
+                </Typography>
+              </Box>
+            </MenuItem>
+          </Menu>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', mr: 2, textAlign: 'right' }}>
+              <Typography variant="subtitle2" noWrap>
+                {username}
+              </Typography>
+              <Typography variant="caption" color="textSecondary" noWrap>
+                {userRole}
+              </Typography>
+            </Box>
+            
+            <Tooltip title="Pengaturan akun">
+              <IconButton
+                onClick={handleProfileMenuOpen}
+                size="large"
+                edge="end"
+                aria-controls="profile-menu"
+                aria-haspopup="true"
+                color="inherit"
+              >
                 <Avatar 
-                  alt={user?.nama || 'User'} 
-                  src={user?.fotoProfil || ''} 
-                  sx={{ width: 32, height: 32 }}
-                >
-                  {(user?.nama?.charAt(0) || 'U').toUpperCase()}
+                  sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }} 
+                  alt={username}>
+                  {username?.charAt(0) || 'A'}
                 </Avatar>
               </IconButton>
             </Tooltip>
           </Box>
+
+          <Menu
+            id="profile-menu"
+            anchorEl={anchorEl}
+            keepMounted
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem onClick={handleProfile}>
+              <ProfileIcon fontSize="small" sx={{ mr: 1 }} />
+              Profile
+            </MenuItem>
+            <MenuItem onClick={handleSettings}>
+              <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
+              Pengaturan
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={handleLogout}>
+              <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
+              Logout
+            </MenuItem>
+          </Menu>
         </Box>
-        
-        {/* User dropdown menu */}
-        <Menu
-          sx={{ mt: '45px' }}
-          id="menu-appbar"
-          anchorEl={anchorElUser}
-          anchorOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          keepMounted
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          open={Boolean(anchorElUser)}
-          onClose={handleCloseUserMenu}
-        >
-          <MenuItem onClick={handleProfile}>
-            <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-            <Typography textAlign="center">Profil</Typography>
-          </MenuItem>
-          <MenuItem onClick={handleSettings}>
-            <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
-            <Typography textAlign="center">Pengaturan</Typography>
-          </MenuItem>
-          <MenuItem onClick={handleLogout}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-            <Typography textAlign="center">Logout</Typography>
-          </MenuItem>
-        </Menu>
-        
-        {/* Notifications dropdown menu */}
-        <Menu
-          sx={{ mt: '45px' }}
-          id="menu-notifications"
-          anchorEl={anchorElNotifications}
-          anchorOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          keepMounted
-          transformOrigin={{
-            vertical: 'top',
-            horizontal: 'right',
-          }}
-          open={Boolean(anchorElNotifications)}
-          onClose={handleCloseNotificationsMenu}
-        >
-          <MenuItem onClick={handleCloseNotificationsMenu}>
-            <Typography variant="body2">STT #JKT-150323-0025 telah terkirim</Typography>
-          </MenuItem>
-          <MenuItem onClick={handleCloseNotificationsMenu}>
-            <Typography variant="body2">STT #BDG-150323-0042 dalam pengiriman</Typography>
-          </MenuItem>
-          <MenuItem onClick={handleCloseNotificationsMenu}>
-            <Typography variant="body2">Pembayaran diterima untuk STT #JKT-140323-0078</Typography>
-          </MenuItem>
-          <MenuItem onClick={handleCloseNotificationsMenu}>
-            <Typography variant="body2">Lihat semua notifikasi</Typography>
-          </MenuItem>
-        </Menu>
       </Toolbar>
-    </AppBar>
+    </StyledAppBar>
   );
 };
 

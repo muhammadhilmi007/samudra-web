@@ -178,7 +178,8 @@ const vehicleSlice = createSlice({
     builder
       // Get all vehicles
       .addCase(getVehicles.fulfilled, (state, action) => {
-        state.vehicles = action.payload;
+        state.vehicles = action.payload || []; // Ensure payload is an array
+        state.loading = false;
       })
       // Get vehicle by ID
       .addCase(getVehicleById.fulfilled, (state, action) => {

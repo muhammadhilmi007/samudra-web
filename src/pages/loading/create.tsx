@@ -1,4 +1,3 @@
-// src/pages/loading/create.tsx
 import React, { useEffect } from 'react';
 import {
   Box,
@@ -24,11 +23,22 @@ import { clearError, clearSuccess } from '../../store/slices/uiSlice';
 import { LoadingFormInputs } from '../../types/loading';
 import withAuth from '../../components/auth/withAuth';
 import LoadingForm from '../../components/loading/LoadingForm';
+import { FormProvider, useForm } from 'react-hook-form';
 
 const CreateLoadingPage = () => {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  
+  const methods = useForm<LoadingFormInputs>({
+    defaultValues: {
+      sttIds: [],
+      antrianTruckId: '',
+      checkerId: '',
+      cabangMuatId: '',
+      cabangBongkarId: '',
+      keterangan: ''
+    }
+  });
+
   const { user } = useSelector((state: RootState) => state.auth);
   const { branches } = useSelector((state: RootState) => state.branch);
   const { sttList } = useSelector((state: RootState) => state.stt);
@@ -39,18 +49,17 @@ const CreateLoadingPage = () => {
   useEffect(() => {
     dispatch(getBranches());
     
-    // Get pending STTs
     if (user?.cabangId) {
       dispatch(getSTTsByStatus('PENDING'));
       dispatch(getEmployeesByBranch(user.cabangId));
       dispatch(getTruckQueuesByBranch(user.cabangId));
+      methods.setValue('cabangMuatId', user.cabangId);
     }
-  }, [dispatch, user]);
+  }, [dispatch, user, methods]);
 
   const handleSubmit = (data: LoadingFormInputs) => {
     dispatch(createLoading(data)).then((result) => {
       if (!result.error) {
-        // Redirect to loading list after successful creation
         setTimeout(() => {
           router.push('/loading');
         }, 1500);
@@ -67,7 +76,6 @@ const CreateLoadingPage = () => {
     dispatch(clearSuccess());
   };
 
-  // Filter employees to find checkers
   const checkers = employees.filter(employee => 
     employee.jabatan.toLowerCase().includes('checker') || 
     employee.jabatan.toLowerCase().includes('operator')
@@ -88,27 +96,30 @@ const CreateLoadingPage = () => {
         </Box>
 
         <Paper sx={{ width: '100%', mb: 2, p: 3 }}>
-          <LoadingForm 
-            onSubmit={handleSubmit} 
-            onCancel={handleCancel}
-            branches={branches}
-            sttList={sttList}
-            checkers={checkers}
-            truckQueues={truckQueues}
-            loading={loading}
-            initialData={{
-              sttIds: [],
-              antrianTruckId: '',
-              checkerId: '',
-              cabangMuatId: user?.cabangId || '',
-              cabangBongkarId: '',
-              keterangan: ''
-            }}
-          />
+          <FormProvider {...methods}>
+            <LoadingForm 
+              onSubmit={methods.handleSubmit(handleSubmit)} 
+              onCancel={handleCancel}
+              branches={branches}
+              sttList={sttList}
+              checkers={checkers}
+              truckQueues={truckQueues}
+              loading={loading}
+              initialData={{
+                sttIds: [],
+                antrianTruckId: '',
+                checkerId: '',
+                cabangMuatId: user?.cabangId || '',
+                cabangBongkarId: '',
+                keterangan: '',
+                _id: '',
+                idMuat: ''
+              }}
+            />
+          </FormProvider>
         </Paper>
       </Box>
 
-      {/* Snackbar untuk notifikasi */}
       <Snackbar open={!!error || !!success} autoHideDuration={6000} onClose={handleCloseSnackbar}>
         <Alert 
           onClose={handleCloseSnackbar} 

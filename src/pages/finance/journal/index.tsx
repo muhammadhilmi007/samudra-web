@@ -25,7 +25,7 @@ const JournalListPage: React.FC = () => {
         {canManageFinances && (
           <Button asChild>
             <Link to="/finance/journal/create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4" />c
               Tambah Jurnal
             </Link>
           </Button>

@@ -1,5 +1,5 @@
 // src/pages/branch/create.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -7,6 +7,7 @@ import {
   Button,
   Breadcrumbs,
   Link as MuiLink,
+  Alert,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -14,24 +15,31 @@ import {
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../../store';
-import { createBranch } from '../../store/slices/branchSlice';
 import BranchForm from '../../components/branch/BranchForm';
 import withAuth from '../../components/auth/withAuth';
+import { z } from 'zod';
+
+// Import the branch schema type
+const branchSchema = z.object({
+  namaCabang: z.string().min(1, "Nama cabang harus diisi"),
+  divisiId: z.string().min(1, "Divisi harus dipilih"),
+  alamat: z.string().min(1, "Alamat harus diisi"),
+  kelurahan: z.string().min(1, "Kelurahan harus diisi"),
+  kecamatan: z.string().min(1, "Kecamatan harus diisi"),
+  kota: z.string().min(1, "Kota harus diisi"),
+  provinsi: z.string().min(1, "Provinsi harus diisi"),
+  kontakPenanggungJawab: z.object({
+    nama: z.string().min(1, "Nama penanggung jawab harus diisi"),
+    telepon: z.string().min(1, "Telepon penanggung jawab harus diisi"),
+    email: z.string().email("Format email tidak valid"),
+  }),
+});
+
+type BranchFormInputs = z.infer<typeof branchSchema>;
 
 const CreateBranchPage = () => {
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-
-  const handleSubmit = async (branchData: any) => {
-    try {
-      await dispatch(createBranch(branchData)).unwrap();
-      router.push('/branch');
-    } catch (error) {
-      console.error('Failed to create branch:', error);
-    }
-  };
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <>
@@ -62,7 +70,15 @@ const CreateBranchPage = () => {
         </Box>
         
         <Paper sx={{ p: 3 }}>
-          <BranchForm onSubmit={handleSubmit} />
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <BranchForm
+            loading={false}
+            onSubmit={undefined} // Let BranchForm handle the submission
+          />
         </Paper>
       </Box>
     </>

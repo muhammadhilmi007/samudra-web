@@ -52,8 +52,9 @@ const CollectionPage = () => {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   
-  const { collections, pdfUrl, loading } = useSelector((state: RootState) => state.collection);
-  const { branches } = useSelector((state: RootState) => state.branch);
+  // Add default empty array for collections
+  const { collections = [], pdfUrl, loading } = useSelector((state: RootState) => state.collection);
+  const { branches = [] } = useSelector((state: RootState) => state.branch);
   const { user } = useSelector((state: RootState) => state.auth);
   const { error, success } = useSelector((state: RootState) => state.ui);
   
@@ -112,33 +113,40 @@ const CollectionPage = () => {
   };
   
   // Filter collections by search term
-  const filteredCollections = collections.filter((collection) => {
-    const searchLower = searchTerm.toLowerCase();
-    const customerName = collection.pelanggan?.nama?.toLowerCase() || '';
-    
-    return (
-      collection.noPenagihan.toLowerCase().includes(searchLower) ||
-      customerName.includes(searchLower)
-    );
-  });
+  // Update the filter function with safety check
+  const filteredCollections = Array.isArray(collections) 
+    ? collections.filter((collection) => {
+        const searchLower = searchTerm.toLowerCase();
+        const customerName = collection.pelanggan?.nama?.toLowerCase() || '';
+        
+        return (
+          collection.noPenagihan.toLowerCase().includes(searchLower) ||
+          customerName.includes(searchLower)
+        );
+      })
+    : [];
   
-  // Calculate total amount
+  // Update calculation functions with safety checks
   const calculateTotalAmount = () => {
-    return filteredCollections.reduce((total, collection) => total + collection.totalTagihan, 0);
+    return Array.isArray(filteredCollections)
+      ? filteredCollections.reduce((total, collection) => total + collection.totalTagihan, 0)
+      : 0;
   };
   
-  // Calculate total paid
   const calculateTotalPaid = () => {
-    return filteredCollections
-      .filter((collection) => collection.status === 'LUNAS')
-      .reduce((total, collection) => total + collection.totalTagihan, 0);
+    return Array.isArray(filteredCollections)
+      ? filteredCollections
+          .filter((collection) => collection.status === 'LUNAS')
+          .reduce((total, collection) => total + collection.totalTagihan, 0)
+      : 0;
   };
   
-  // Calculate total unpaid
   const calculateTotalUnpaid = () => {
-    return filteredCollections
-      .filter((collection) => collection.status === 'BELUM LUNAS')
-      .reduce((total, collection) => total + collection.totalTagihan, 0);
+    return Array.isArray(filteredCollections)
+      ? filteredCollections
+          .filter((collection) => collection.status === 'BELUM LUNAS')
+          .reduce((total, collection) => total + collection.totalTagihan, 0)
+      : 0;
   };
   
   // Get status chip color

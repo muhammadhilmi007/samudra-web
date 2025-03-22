@@ -1,5 +1,5 @@
 // src/pages/dashboard/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Grid,
@@ -8,21 +8,22 @@ import {
   Container,
   Tabs,
   Tab,
-  useTheme,
   CircularProgress,
   Divider,
-} from '@mui/material';
-import Head from 'next/head';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
-import DashboardSummary from '../../components/dashboard/DashboardSummary';
-import RevenueChart from '../../components/dashboard/RevenueChart';
-import ShipmentStatusChart from '../../components/dashboard/ShipmentStatusChart';
-import RecentActivity from '../../components/dashboard/RecentActivity';
-import DashboardCard from '../../components/dashboard/DashboardCard';
-import { getDashboardStats } from '../../store/slices/dashboardSlice';
-import { getBranches } from '../../store/slices/branchSlice';
-import withAuth from '../../components/auth/withAuth';
+} from "@mui/material";
+import Head from "next/head";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../store";
+import DashboardSummary from "../../components/dashboard/DashboardSummary";
+import RevenueChart from "../../components/dashboard/RevenueChart";
+import ShipmentStatusChart from "../../components/dashboard/ShipmentStatusChart";
+import RecentActivity from "../../components/dashboard/RecentActivity";
+import {
+  getDashboardStats,
+  getRecentActivities,
+} from "../../store/slices/dashboardSlice";
+import { getBranches } from "../../store/slices/branchSlice";
+import withAuth from "../../components/auth/withAuth";
 
 // Interface for tab panels
 interface TabPanelProps {
@@ -50,9 +51,12 @@ function TabPanel(props: TabPanelProps) {
 
 const Dashboard = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const theme = useTheme();
   const { user } = useSelector((state: RootState) => state.auth);
   const { loading } = useSelector((state: RootState) => state.ui);
+
+  useEffect(() => {
+    dispatch(getRecentActivities());
+  }, [dispatch]);
   const { branches } = useSelector((state: RootState) => state.branch);
   const [tabValue, setTabValue] = useState(0);
 
@@ -69,9 +73,9 @@ const Dashboard = () => {
 
   // Get user's branch name
   const getUserBranchName = () => {
-    if (!user?.cabangId) return 'Semua Cabang';
-    const branch = branches.find(b => b._id === user.cabangId);
-    return branch ? branch.namaCabang : 'Cabang Anda';
+    if (!user?.cabangId) return "Semua Cabang";
+    const branch = branches.find((b) => b._id === user.cabangId);
+    return branch ? branch.namaCabang : "Cabang Anda";
   };
 
   return (
@@ -86,15 +90,16 @@ const Dashboard = () => {
             Dashboard {getUserBranchName()}
           </Typography>
           <Typography variant="body1" color="textSecondary">
-            Selamat datang, {user?.nama || 'Pengguna'}! Berikut adalah ringkasan data operasional Anda.
+            Selamat datang, {user?.nama || "Pengguna"}! Berikut adalah ringkasan
+            data operasional Anda.
           </Typography>
         </Box>
 
-        <Box sx={{ width: '100%', mb: 4 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs 
-              value={tabValue} 
-              onChange={handleTabChange} 
+        <Box sx={{ width: "100%", mb: 4 }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
               aria-label="dashboard tabs"
               variant="scrollable"
               scrollButtons="auto"
@@ -109,7 +114,12 @@ const Dashboard = () => {
           </Box>
 
           {loading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              minHeight="50vh"
+            >
               <CircularProgress />
             </Box>
           ) : (
@@ -123,21 +133,20 @@ const Dashboard = () => {
               <TabPanel value={tabValue} index={1}>
                 <Grid container spacing={3}>
                   <Grid item xs={12} lg={8}>
-                    <Paper sx={{ p: 3, height: '100%' }}>
-                      <Typography variant="h6" gutterBottom>
-                        Status Pengiriman
-                      </Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <ShipmentStatusChart />
-                    </Paper>
+                    <ShipmentStatusChart />
                   </Grid>
                   <Grid item xs={12} lg={4}>
-                    <Paper sx={{ p: 3, height: '100%' }}>
+                    <Paper sx={{ p: 3, height: "100%" }}>
                       <Typography variant="h6" gutterBottom>
                         Kinerja Cabang
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={400} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={400}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
                           Grafik kinerja cabang akan ditampilkan di sini
                         </Typography>
@@ -160,21 +169,20 @@ const Dashboard = () => {
               <TabPanel value={tabValue} index={2}>
                 <Grid container spacing={3}>
                   <Grid item xs={12} lg={8}>
-                    <Paper sx={{ p: 3, height: '100%' }}>
-                      <Typography variant="h6" gutterBottom>
-                        Pendapatan Bulanan
-                      </Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <RevenueChart />
-                    </Paper>
+                    <RevenueChart />
                   </Grid>
                   <Grid item xs={12} lg={4}>
-                    <Paper sx={{ p: 3, height: '100%' }}>
+                    <Paper sx={{ p: 3, height: "100%" }}>
                       <Typography variant="h6" gutterBottom>
                         Distribusi Pembayaran
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={400} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={400}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
                           Grafik distribusi pembayaran akan ditampilkan di sini
                         </Typography>
@@ -187,7 +195,12 @@ const Dashboard = () => {
                         Piutang Terbaru
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={300} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={300}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
                           Daftar piutang terbaru akan ditampilkan di sini
                         </Typography>
@@ -200,9 +213,15 @@ const Dashboard = () => {
                         Penagihan yang Akan Datang
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={300} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={300}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
-                          Daftar penagihan yang akan datang akan ditampilkan di sini
+                          Daftar penagihan yang akan datang akan ditampilkan di
+                          sini
                         </Typography>
                       </Box>
                     </Paper>
@@ -219,7 +238,12 @@ const Dashboard = () => {
                         Kinerja Pengiriman
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={400} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={400}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
                           Grafik kinerja pengiriman akan ditampilkan di sini
                         </Typography>
@@ -232,7 +256,12 @@ const Dashboard = () => {
                         Kinerja Kendaraan
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={300} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={300}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
                           Grafik kinerja kendaraan akan ditampilkan di sini
                         </Typography>
@@ -245,7 +274,12 @@ const Dashboard = () => {
                         Kinerja Supir
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
-                      <Box height={300} display="flex" alignItems="center" justifyContent="center">
+                      <Box
+                        height={300}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
                         <Typography variant="body2" color="textSecondary">
                           Grafik kinerja supir akan ditampilkan di sini
                         </Typography>

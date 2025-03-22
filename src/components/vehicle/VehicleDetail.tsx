@@ -17,7 +17,6 @@ import {
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
   TableRow,
   Tab,
   Tabs,
@@ -35,6 +34,7 @@ import {
 import { RootState, AppDispatch } from '../../store';
 import { getVehicleById } from '../../store/slices/vehicleSlice';
 import StatusBadge from '../shared/StatusBadge';
+import { Image } from 'lucide-react';
 
 interface VehicleDetailProps {
   id: string;
@@ -407,7 +407,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                         <BadgeIcon sx={{ mr: 1, verticalAlign: 'middle' }} fontSize="small" />
                         Foto KTP Kenek
                       </Typography>
-                      <img 
+                      <Image 
                         src={vehicle.fotoKTPKenek} 
                         alt="KTP Kenek" 
                         style={{ 

@@ -16,10 +16,6 @@ import {
   Typography,
   Divider,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Checkbox,
   InputAdornment,
   MenuItem,
@@ -32,15 +28,13 @@ import {
   TableCell,
   Tooltip,
   IconButton,
+  Chip,
 } from '@mui/material';
 import {
   AttachMoney as AttachMoneyIcon,
   Receipt as ReceiptIcon,
   Person as PersonIcon,
   Search as SearchIcon,
-  FilterList as FilterListIcon,
-  ReceiptLong as ReceiptLongIcon,
-  Info as InfoIcon,
   Clear as ClearIcon,
   Business as BusinessIcon,
   Phone as PhoneIcon,
@@ -49,7 +43,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import { getBranches } from '../../store/slices/branchSlice';
-import { getCustomers, getCustomersByType } from '../../store/slices/customerSlice';
+import { getCustomers } from '../../store/slices/customerSlice';
 import { getSTTsByCustomer, getSTTsByPaymentType } from '../../store/slices/sttSlice';
 import { Collection, CollectionFormInputs } from '../../types/collection';
 import { Customer } from '../../types/customer';
@@ -57,12 +51,17 @@ import { STT } from '../../types/stt';
 
 // Validation schema
 const collectionSchema = z.object({
-  pelangganId: z.string().min(1, 'Pelanggan wajib dipilih'),
+  pelangganId: z.string().min(1, 'Pelanggan wajib dipilih')
+    .refine(val => val.trim().length > 0, 'ID Pelanggan tidak valid'),
   tipePelanggan: z.enum(['Pengirim', 'Penerima'], {
     errorMap: () => ({ message: 'Tipe pelanggan wajib dipilih' }),
   }),
-  sttIds: z.array(z.string()).min(1, 'Minimal satu STT harus dipilih'),
-  cabangId: z.string().min(1, 'Cabang wajib dipilih'),
+  sttIds: z.array(z.string())
+    .min(1, 'Minimal satu STT harus dipilih')
+    .refine(arr => arr.every(id => id.trim().length > 0), 'ID STT tidak valid')
+    .refine(arr => new Set(arr).size === arr.length, 'STT tidak boleh duplikat'),
+  cabangId: z.string().min(1, 'Cabang wajib dipilih')
+    .refine(val => val.trim().length > 0, 'ID Cabang tidak valid'),
 });
 
 interface CollectionFormProps {
@@ -138,7 +137,9 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
       setSelectedCustomerData(customer || null);
       
       // Load STTs for this customer
-      dispatch(getSTTsByCustomer(selectedPelangganId));
+      if (selectedPelangganId) {
+        dispatch(getSTTsByCustomer(selectedPelangganId));
+      }
     } else {
       setSelectedCustomerData(null);
       setAvailableSTTs([]);
@@ -148,7 +149,9 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
   // Filter available STTs based on payment type
   useEffect(() => {
     if (paymentTypeFilter) {
-      dispatch(getSTTsByPaymentType(paymentTypeFilter));
+      if (paymentTypeFilter) {
+        dispatch(getSTTsByPaymentType(paymentTypeFilter));
+      }
     }
   }, [dispatch, paymentTypeFilter]);
   
@@ -201,8 +204,25 @@ const CollectionForm: React.FC<CollectionFormProps> = ({
     setAvailableSTTs(filteredSTTs);
   }, [sttList, selectedPelangganId, selectedTipePelanggan, paymentTypeFilter, sttSearchTerm, initialData]);
   
-  // When customer type changes, reset STT selection
+  // When customer type changes, reset STT selection and validate
   useEffect(() => {
+    // Reset STT selection when customer type changes
+    setValue('sttIds', []);
+    
+    // Validate customer type and STT selection
+    if (selectedPelangganId && selectedTipePelanggan) {
+      const customer = customers.find(c => c._id === selectedPelangganId);
+      if (!customer) {
+        throw new Error('Pelanggan tidak ditemukan');
+      }
+      
+      // Validate customer type matches selected type
+      if (selectedTipePelanggan === 'Pengirim' && !customer.isPengirim) {
+        throw new Error('Pelanggan bukan pengirim');
+      } else if (selectedTipePelanggan === 'Penerima' && !customer.isPenerima) {
+        throw new Error('Pelanggan bukan penerima');
+      }
+    }
     // Reset selected STTs when customer type changes
     setValue('sttIds', []);
   }, [selectedTipePelanggan, setValue]);

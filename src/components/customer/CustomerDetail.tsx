@@ -34,11 +34,9 @@ import {
   Timeline as TimelineIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
-import { Customer } from '../../types/customer';
 import { AppDispatch, RootState } from '../../store';
 import {
   getCustomerById,
-  getCustomerSTTs,
   getCustomerCollections,
   getCustomerPickups,
 } from '../../store/slices/customerSlice';

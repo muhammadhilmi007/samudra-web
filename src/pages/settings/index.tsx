@@ -4,7 +4,7 @@ import { RootState } from '../../store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon } from '@mui/icons-material';
 
 // Import komponen-komponen settings
 import UserProfileForm from '../../components/settings/UserProfileForm';

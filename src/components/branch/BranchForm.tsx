@@ -1,8 +1,7 @@
-// src/components/branch/BranchForm.tsx
-import React, { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import React, { useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   TextField,
   Button,
@@ -15,25 +14,27 @@ import {
   MenuItem,
   Typography,
   Divider,
-} from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../store';
-import { getDivisions } from '../../store/slices/divisionSlice';
-import { Branch } from '../../types/branch';
+} from "@mui/material";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState, AppDispatch } from "../../store";
+import { getDivisions } from "../../store/slices/divisionSlice";
+import { getBranches, createBranch } from "../../store/slices/branchSlice";
+import { Branch } from "../../types/branch";
+import { useNavigate } from "react-router-dom";
 
 // Validation schema
 const branchSchema = z.object({
-  namaCabang: z.string().min(1, 'Nama cabang harus diisi'),
-  divisiId: z.string().min(1, 'Divisi harus dipilih'),
-  alamat: z.string().min(1, 'Alamat harus diisi'),
-  kelurahan: z.string().min(1, 'Kelurahan harus diisi'),
-  kecamatan: z.string().min(1, 'Kecamatan harus diisi'),
-  kota: z.string().min(1, 'Kota harus diisi'),
-  provinsi: z.string().min(1, 'Provinsi harus diisi'),
+  namaCabang: z.string().min(1, "Nama cabang harus diisi"),
+  divisiId: z.string().min(1, "Divisi harus dipilih"),
+  alamat: z.string().min(1, "Alamat harus diisi"),
+  kelurahan: z.string().min(1, "Kelurahan harus diisi"),
+  kecamatan: z.string().min(1, "Kecamatan harus diisi"),
+  kota: z.string().min(1, "Kota harus diisi"),
+  provinsi: z.string().min(1, "Provinsi harus diisi"),
   kontakPenanggungJawab: z.object({
-    nama: z.string().min(1, 'Nama penanggung jawab harus diisi'),
-    telepon: z.string().min(1, 'Telepon penanggung jawab harus diisi'),
-    email: z.string().email('Format email tidak valid'),
+    nama: z.string().min(1, "Nama penanggung jawab harus diisi"),
+    telepon: z.string().min(1, "Telepon penanggung jawab harus diisi"),
+    email: z.string().email("Format email tidak valid"),
   }),
 });
 
@@ -52,25 +53,26 @@ const BranchForm: React.FC<BranchFormProps> = ({
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { divisions } = useSelector((state: RootState) => state.division);
+  const router = useNavigate();
 
   const {
     control,
-    handleSubmit,
+    handleSubmit: handleFormSubmit,
     formState: { errors },
   } = useForm<BranchFormInputs>({
     resolver: zodResolver(branchSchema),
     defaultValues: {
-      namaCabang: initialData?.namaCabang || '',
-      divisiId: initialData?.divisiId || '',
-      alamat: initialData?.alamat || '',
-      kelurahan: initialData?.kelurahan || '',
-      kecamatan: initialData?.kecamatan || '',
-      kota: initialData?.kota || '',
-      provinsi: initialData?.provinsi || '',
+      namaCabang: initialData?.namaCabang || "",
+      divisiId: initialData?.divisiId || "",
+      alamat: initialData?.alamat || "",
+      kelurahan: initialData?.kelurahan || "",
+      kecamatan: initialData?.kecamatan || "",
+      kota: initialData?.kota || "",
+      provinsi: initialData?.provinsi || "",
       kontakPenanggungJawab: {
-        nama: initialData?.kontakPenanggungJawab?.nama || '',
-        telepon: initialData?.kontakPenanggungJawab?.telepon || '',
-        email: initialData?.kontakPenanggungJawab?.email || '',
+        nama: initialData?.kontakPenanggungJawab?.nama || "",
+        telepon: initialData?.kontakPenanggungJawab?.telepon || "",
+        email: initialData?.kontakPenanggungJawab?.email || "",
       },
     },
   });
@@ -79,8 +81,29 @@ const BranchForm: React.FC<BranchFormProps> = ({
     dispatch(getDivisions());
   }, [dispatch]);
 
+  const handleBranchSubmit = async (branchData: BranchFormInputs) => {
+    try {
+      if (onSubmit) {
+        onSubmit(branchData);
+        return;
+      }
+
+      const result = await dispatch(createBranch(branchData)).unwrap();
+      console.log("Branch created successfully:", result);
+      router("/branch");
+    } catch (error) {
+      console.error("Failed to create branch:", error);
+      // Handle error appropriately
+      throw error; // Re-throw to be handled by the parent component
+    }
+  };
+
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <Box
+      component="form"
+      onSubmit={handleFormSubmit(handleBranchSubmit)}
+      noValidate
+    >
       <Grid container spacing={2}>
         <Grid item xs={12}>
           <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
@@ -230,7 +253,12 @@ const BranchForm: React.FC<BranchFormProps> = ({
         </Grid>
 
         <Grid item xs={12}>
-          <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mt: 2 }}>
+          <Typography
+            variant="subtitle1"
+            fontWeight="bold"
+            gutterBottom
+            sx={{ mt: 2 }}
+          >
             Informasi Penanggung Jawab
           </Typography>
           <Divider sx={{ mb: 2 }} />
@@ -296,11 +324,13 @@ const BranchForm: React.FC<BranchFormProps> = ({
             variant="contained"
             color="primary"
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+            startIcon={
+              loading ? <CircularProgress size={20} color="inherit" /> : null
+            }
             fullWidth
             sx={{ mt: 2 }}
           >
-            {initialData ? 'Perbarui' : 'Simpan'}
+            {initialData ? "Perbarui" : "Simpan"}
           </Button>
         </Grid>
       </Grid>

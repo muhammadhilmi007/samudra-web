@@ -16,6 +16,8 @@ import collectionReducer from './slices/collectionSlice';
 import financeReducer from './slices/financeSlice';
 import reportReducer from './slices/reportSlice';
 import dashboardReducer from './slices/dashboardSlice';
+import truckQueueReducer from './slices/truckQueueSlice';
+import forwarderReducer from './slices/forwarderSlice';
 
 export const store = configureStore({
   reducer: {
@@ -35,11 +37,12 @@ export const store = configureStore({
     finance: financeReducer,
     report: reportReducer,
     dashboard: dashboardReducer,
+    truckQueue: truckQueueReducer,
+    forwarder: forwarderReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore these action types
         ignoredActions: [
           'auth/login/fulfilled',
           'auth/refreshToken/fulfilled',
@@ -48,9 +51,7 @@ export const store = configureStore({
           'delivery/generateDeliveryForm/fulfilled',
           'collection/generateInvoice/fulfilled',
         ],
-        // Ignore these field paths in all actions
         ignoredActionPaths: ['meta.arg', 'payload.timestamp'],
-        // Ignore these paths in the state
         ignoredPaths: ['auth.user', 'auth.token'],
       },
     }),

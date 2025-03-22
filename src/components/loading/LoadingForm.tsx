@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
   Form,
   FormControl,
-  FormField,
   FormItem,
   FormLabel,
   FormMessage 
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { Controller } from 'react-hook-form';
 import { 
   Card, 
   CardContent, 
@@ -27,8 +27,7 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useDispatch, useSelector } from 'react-redux';
@@ -48,7 +47,6 @@ import {
 } from '@/components/ui/table';
 import { Plus, Minus, Truck, RotateCw, Package } from 'lucide-react';
 import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
 
 // Schema validation for loading form
 const loadingFormSchema = z.object({
@@ -66,7 +64,7 @@ type LoadingFormInputs = z.infer<typeof loadingFormSchema>;
 
 interface LoadingFormProps {
   initialData?: Loading;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: unknown) => void;
   loading?: boolean;
 }
 
@@ -78,8 +76,16 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
   const dispatch = useDispatch<AppDispatch>();
   const { branches } = useSelector((state: RootState) => state.branch);
   const { employees } = useSelector((state: RootState) => state.employee);
+  interface TruckQueue {
+    _id: string;
+    status: string;
+    truckId?: string;
+    supirId?: string;
+  }
+  
   const { truckQueues } = useSelector((state: RootState) => state.truckQueue);
-  const { stts } = useSelector((state: RootState) => state.stt);
+  const trucks = truckQueues as TruckQueue[];
+  const { sttList } = useSelector((state: RootState) => state.stt);
   const { user } = useSelector((state: RootState) => state.auth);
   
   const [selectedSttIds, setSelectedSttIds] = useState<string[]>(initialData?.sttIds || []);
@@ -99,16 +105,10 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
     dispatch(getEmployees());
     
     // Filter truck queues by branch and MENUNGGU status
-    dispatch(getTruckQueues({ 
-      branchId: user?.cabangId, 
-      status: 'MENUNGGU'
-    }));
+    dispatch(getTruckQueues());
     
     // Filter STTs by branch and PENDING status
-    dispatch(getSTTsByStatus({ 
-      status: 'PENDING',
-      branchId: user?.cabangId
-    }));
+    dispatch(getSTTsByStatus('PENDING'));
   }, [dispatch, user]);
   
   // Initialize form
@@ -142,10 +142,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
       form.setValue('sttIds', []);
       
       // Get new STTs for the selected branch
-      dispatch(getSTTsByStatus({ 
-        status: 'PENDING',
-        branchId: watchedOriginBranch
-      }));
+      dispatch(getSTTsByStatus('PENDING'));
     }
   }, [watchedOriginBranch, dispatch, form, originBranchId]);
   
@@ -155,7 +152,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
   );
   
   // Filter STTs for the destination branch
-  const destinationStts = stts.filter(stt => 
+  const destinationStts = sttList.filter(stt => 
     stt.cabangTujuanId === watchedDestBranch && 
     stt.cabangAsalId === watchedOriginBranch && 
     stt.status === 'PENDING'
@@ -185,10 +182,10 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
       setSelectedSttIds(newSelection);
       form.setValue('sttIds', newSelection);
     } else {
-      // Select all destination STTs
-      const destinationSttIds = destinationStts.map(stt => stt._id);
-      const newSelection = [
-        ...selectedSttIds.filter(id => !destinationStts.some(stt => stt._id === id)),
+// Select all destination STTs
+const destinationSttIds = destinationStts.map((stt: { _id: string }) => stt._id);
+const newSelection = [
+  ...selectedSttIds.filter(id => !destinationStts.some(stt => stt._id === id)),
         ...destinationSttIds
       ];
       setSelectedSttIds(newSelection);
@@ -204,10 +201,15 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
   };
   
   // Get truck information
-  const getTruckInfo = (truckQueueId?: string) => {
+  interface TruckInfo {
+    noPolisi: string;
+    supirName: string;
+  }
+
+  const getTruckInfo = (truckQueueId?: string): TruckInfo => {
     if (!truckQueueId) return { noPolisi: '-', supirName: '-' };
     
-    const truckQueue = truckQueues.find(tq => tq._id === truckQueueId);
+    const truckQueue = trucks.find((tq: TruckQueue) => tq._id === truckQueueId);
     if (!truckQueue) return { noPolisi: '-', supirName: '-' };
     
     // Find truck details
@@ -244,7 +246,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
   };
   
   return (
-    <Form {...form}>
+    <Form {...form} onSubmit={() => {}}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)}>
         <div className="space-y-6">
           <Card>
@@ -263,8 +265,8 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
+                  variant="text"
+                  size="small"
                   onClick={() => {
                     // Generate a new loading ID
                     const newId = `LOAD-${format(new Date(), 'ddMMyy')}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -278,7 +280,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Origin Branch */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="cabangMuatId"
                   render={({ field }) => (
@@ -295,11 +297,13 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {branches.map((branch) => (
-                            <SelectItem key={branch._id} value={branch._id}>
-                              {branch.namaCabang}
-                            </SelectItem>
-                          ))}
+                          {branches
+                            .filter(branch => branch._id && branch._id.trim() !== '')
+                            .map((branch) => (
+                              <SelectItem key={branch._id} value={branch._id}>
+                                {branch.namaCabang}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -308,7 +312,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 />
                 
                 {/* Destination Branch */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="cabangBongkarId"
                   render={({ field }) => (
@@ -326,7 +330,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                         </FormControl>
                         <SelectContent>
                           {branches
-                            .filter(b => b._id !== form.watch('cabangMuatId'))
+                            .filter(b => b._id && b._id.trim() !== '' && b._id !== form.watch('cabangMuatId'))
                             .map((branch) => (
                               <SelectItem key={branch._id} value={branch._id}>
                                 {branch.namaCabang}
@@ -340,7 +344,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 />
                 
                 {/* Truck Queue */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="antrianTruckId"
                   render={({ field }) => (
@@ -357,8 +361,8 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {truckQueues
-                            .filter(tq => tq.status === 'MENUNGGU')
+                          {trucks
+                            .filter(tq => tq.status === 'waiting' && tq._id && tq._id.trim() !== '')
                             .map((truckQueue) => {
                               const truckInfo = getTruckInfo(truckQueue._id);
                               return (
@@ -375,7 +379,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 />
                 
                 {/* Checker */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="checkerId"
                   render={({ field }) => (
@@ -392,11 +396,13 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {checkers.map((checker) => (
-                            <SelectItem key={checker._id} value={checker._id}>
-                              {checker.nama}
-                            </SelectItem>
-                          ))}
+                          {checkers
+                            .filter(checker => checker._id && checker._id.trim() !== '')
+                            .map((checker) => (
+                              <SelectItem key={checker._id} value={checker._id}>
+                                {checker.nama}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -405,7 +411,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 />
                 
                 {/* Departure Time */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="waktuBerangkat"
                   render={({ field }) => (
@@ -434,7 +440,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 />
                 
                 {/* Status */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="status"
                   render={({ field }) => (
@@ -462,7 +468,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                 />
                 
                 {/* Notes */}
-                <FormField
+                <Controller
                   control={form.control}
                   name="keterangan"
                   render={({ field }) => (
@@ -499,8 +505,8 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                   <div className="flex items-center">
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      variant="outlined"  // Changed from "outline" to "outlined"
+                      size="small"
                       onClick={toggleAllDestinationStts}
                       disabled={destinationStts.length === 0}
                     >
@@ -527,7 +533,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
                   <span className="font-medium">
                     STT yang dipilih: {selectedSttIds.length || 0}
                   </span>
-                  <FormField
+                  <Controller
                     control={form.control}
                     name="sttIds"
                     render={() => (
@@ -607,7 +613,7 @@ const LoadingForm: React.FC<LoadingFormProps> = ({
           <div className="flex justify-end space-x-4">
             <Button
               type="button"
-              variant="outline"
+              variant="outlined"
               onClick={() => form.reset()}
               disabled={loading}
             >

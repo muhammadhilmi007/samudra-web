@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
-  CardDescription 
+  CardDescription,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button} from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -46,36 +46,40 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { STT } from '../../types/stt';
+import { STT, STTFormInputs } from '../../types/stt';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
-import { getSTTs, deleteSTT } from '../../store/slices/sttSlice';
+import {
+  getSTTs,
+  deleteSTT,
+  createSTT,
+  updateSTT,
+  getSTTsByBranch
+} from '../../store/slices/sttSlice';
 import { getBranches } from '../../store/slices/branchSlice';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,  
 } from '@/components/ui/alert-dialog';
-import SttForm from './SttForm';
-import SttDetail from './SttDetail';
+import SttForm from './STTForm';
+import SttDetail from './STTDetail';
 import { 
   Plus, 
   MoreVertical, 
   Edit, 
   Trash2, 
-  Eye, 
-  FileDown, 
+  Eye,
   QrCode, 
   Printer,
-  Search,
-  Filter
+  Search
 } from 'lucide-react';
 
 interface SttListProps {
@@ -86,13 +90,12 @@ interface SttListProps {
 
 const SttList: React.FC<SttListProps> = ({ 
   branchFilter,
-  statusFilter,
+  statusFilter: initialStatusFilter,
   createOnly = false
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { stts, loading } = useSelector((state: RootState) => state.stt);
-  const { branches } = useSelector((state: RootState) => state.branch);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { sttList = [], loading } = useSelector((state: RootState) => state.stt);
+  const { branches = [] } = useSelector((state: RootState) => state.branch);
   
   const [openForm, setOpenForm] = useState(false);
   const [openDetail, setOpenDetail] = useState(false);
@@ -102,24 +105,21 @@ const SttList: React.FC<SttListProps> = ({
   // Search and filter
   const [searchTerm, setSearchTerm] = useState('');
   const [branchId, setBranchId] = useState(branchFilter || '');
-  const [status, setStatus] = useState(statusFilter || '');
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter || '');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   
   // Load initial data
   useEffect(() => {
     dispatch(getBranches());
-    
-    const filters = {
-      ...(branchId ? { branchId } : {}),
-      ...(status ? { status } : {}),
-      ...(searchTerm ? { search: searchTerm } : {})
-    };
-    
-    dispatch(getSTTs(filters));
-  }, [dispatch, branchId, status, searchTerm]);
+    if (branchId && branchId !== '') {
+      dispatch(getSTTsByBranch(branchId));
+    } else {
+      dispatch(getSTTs());
+    }
+  }, [dispatch, branchId]);
   
   // Handle opening STT form for create/edit
   const handleOpenForm = (stt?: STT) => {
@@ -134,7 +134,7 @@ const SttList: React.FC<SttListProps> = ({
   };
   
   // Handle form submission
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: STTFormInputs) => {
     if (selectedStt) {
       // Update existing STT
       dispatch(updateSTT({ 
@@ -181,7 +181,7 @@ const SttList: React.FC<SttListProps> = ({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <Badge variant="outline">Pending</Badge>;
+        return <Badge>Pending</Badge>;
       case 'MUAT':
         return <Badge variant="secondary">Muat</Badge>;
       case 'TRANSIT':
@@ -212,17 +212,17 @@ const SttList: React.FC<SttListProps> = ({
   };
   
   // Filter and paginate STTs
-  const filteredStts = stts
-    .filter(stt => 
-      (branchId ? stt.cabangId === branchId || stt.cabangAsalId === branchId || stt.cabangTujuanId === branchId : true) &&
-      (status ? stt.status === status : true) &&
-      (searchTerm ? 
-        stt.noSTT.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (stt.namaBarang && stt.namaBarang.toLowerCase().includes(searchTerm.toLowerCase())) : 
-        true
-      )
+  const filteredStts = React.useMemo(() => {
+    if (!Array.isArray(sttList)) return [];
+    
+    return sttList.filter(item => 
+      (!statusFilter || item.status === statusFilter) &&
+      (searchTerm === '' || 
+        (item.noSTT && item.noSTT.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.namaBarang && item.namaBarang.toLowerCase().includes(searchTerm.toLowerCase())))
     );
-  
+  }, [sttList, statusFilter, searchTerm]);
+
   const totalPages = Math.ceil(filteredStts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedStts = filteredStts.slice(startIndex, startIndex + itemsPerPage);
@@ -240,7 +240,7 @@ const SttList: React.FC<SttListProps> = ({
         {!createOnly && (
           <Dialog open={openForm} onOpenChange={setOpenForm}>
             <DialogTrigger asChild>
-              <Button onClick={() => handleOpenForm()}>
+              <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Buat STT Baru
               </Button>
@@ -267,6 +267,7 @@ const SttList: React.FC<SttListProps> = ({
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
+                name="search"
                 placeholder="Cari nomor STT atau nama barang..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -284,7 +285,7 @@ const SttList: React.FC<SttListProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Semua Cabang</SelectItem>
-                  {branches.map((branch) => (
+                  {(Array.isArray(branches) ? branches : []).map((branch) => (
                     <SelectItem key={branch._id} value={branch._id}>
                       {branch.namaCabang}
                     </SelectItem>
@@ -293,8 +294,8 @@ const SttList: React.FC<SttListProps> = ({
               </Select>
               
               <Select
-                value={status}
-                onValueChange={setStatus}
+                value={statusFilter}
+                onValueChange={setStatusFilter}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Semua Status" />
@@ -353,7 +354,7 @@ const SttList: React.FC<SttListProps> = ({
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="outlined" size="small">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -363,13 +364,20 @@ const SttList: React.FC<SttListProps> = ({
                                 Lihat Detail
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link to={`/stt/track?noStt=${stt.noSTT}`}>
+                                <Link
+                                  to={`/stt/track?noStt=${stt.noSTT}`}
+                                  className="flex items-center"
+                                >
                                   <QrCode className="mr-2 h-4 w-4" />
                                   Lacak Pengiriman
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link to={`/stt/print/${stt._id}`} target="_blank">
+                                <Link
+                                  to={`/stt/print/${stt._id}`}
+                                  target="_blank"
+                                  className="flex items-center"
+                                >
                                   <Printer className="mr-2 h-4 w-4" />
                                   Cetak STT
                                 </Link>
@@ -378,12 +386,11 @@ const SttList: React.FC<SttListProps> = ({
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit STT
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleOpenDeleteDialog(stt)}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Hapus STT
+                              <DropdownMenuItem onClick={() => handleOpenDeleteDialog(stt)}>
+                                <span className="text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4 inline" />
+                                  Hapus STT
+                                </span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -474,7 +481,7 @@ const SttList: React.FC<SttListProps> = ({
           <DialogHeader>
             <DialogTitle>Detail STT</DialogTitle>
           </DialogHeader>
-          {selectedStt && <SttDetail stt={selectedStt} />}
+          {selectedStt && <SttDetail id={selectedStt._id} data={selectedStt} />}
         </DialogContent>
       </Dialog>
       
@@ -489,8 +496,13 @@ const SttList: React.FC<SttListProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground">
+            <AlertDialogCancel>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={loading}
+            >
               Hapus
             </AlertDialogAction>
           </AlertDialogFooter>

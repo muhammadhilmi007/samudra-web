@@ -15,8 +15,6 @@ import {
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -62,7 +60,7 @@ const DashboardSummary: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Sample data - in a real application, this would come from API
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats] = useState<DashboardStats>({
     totalSTT: 245,
     totalShipments: 189,
     totalRevenue: 45800000,
@@ -71,7 +69,7 @@ const DashboardSummary: React.FC = () => {
     returShipments: 8
   });
   
-  const [chartData, setChartData] = useState<ChartData>({
+  const [chartData] = useState<ChartData>({
     monthlyRevenue: [
       { name: 'Jan', revenue: 4000000 },
       { name: 'Feb', revenue: 3000000 },
@@ -101,7 +99,7 @@ const DashboardSummary: React.FC = () => {
     ]
   });
   
-  const [recentActivities, setRecentActivities] = useState<Activity[]>([
+  const [recentActivities] = useState<Activity[]>([
     { id: 1, desc: 'STT #JKT-150323-0025 telah terkirim', time: '15 Mar 2023, 14:30', status: 'TERKIRIM' },
     { id: 2, desc: 'STT #BDG-150323-0042 dalam pengiriman', time: '15 Mar 2023, 13:45', status: 'TRANSIT' },
     { id: 3, desc: 'Pembayaran diterima untuk STT #JKT-140323-0078', time: '15 Mar 2023, 11:20', status: 'PAYMENT' },

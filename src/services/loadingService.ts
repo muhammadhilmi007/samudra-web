@@ -39,6 +39,11 @@ const loadingService = {
     return response.data;
   },
 
+  async deleteLoading(id: string) {
+    const response = await api.delete(`/loadings/${id}`);
+    return response.data;
+  },
+
   async generateDMB(id: string) {
     const response = await api.get(`/loadings/generate-dmb/${id}`);
     return response.data;

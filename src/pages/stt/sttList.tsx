@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import SttList from '../../components/stt/SttList';
+import SttList from '../../components/stt/STTList';
 import { Plus } from 'lucide-react';
 
 const SttListPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
+  const branchId = user?.cabangId || '';
   
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -18,7 +19,7 @@ const SttListPage: React.FC = () => {
             Kelola semua Surat Tanda Terima (STT) pengiriman barang
           </p>
         </div>
-        <Button asChild>
+        <Button>
           <Link to="/stt/create">
             <Plus className="mr-2 h-4 w-4" />
             Buat STT Baru
@@ -26,7 +27,7 @@ const SttListPage: React.FC = () => {
         </Button>
       </div>
       
-      <SttList branchFilter={user?.cabangId} />
+      <SttList branchFilter={branchId} />
     </div>
   );
 };

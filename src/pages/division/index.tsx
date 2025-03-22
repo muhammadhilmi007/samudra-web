@@ -39,4 +39,4 @@ const DivisionsPage: NextPage = () => {
   );
 };
 
-export default withAuth()(DivisionsPage);
+export default withAuth(DivisionsPage);

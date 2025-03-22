@@ -75,25 +75,21 @@ const ReturnPage = () => {
   };
 
   // Filter returns based on search term and filters
-  const filteredReturns = returns.filter((returnItem) => {
-    // Filter by status if selected
+  const filteredReturns = Array.isArray(returns) ? returns.filter((returnItem) => {
+    // Filter logic remains the same
     if (filterStatus && returnItem.status !== filterStatus) {
       return false;
     }
     
     if (searchTerm) {
-      // Search in return ID
       const idMatch = returnItem.idRetur.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Search in STT numbers
       const sttsMatch = returnItem.stts?.some(stt => 
         stt.noSTT.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      
       return idMatch || sttsMatch;
     }
     return true;
-  });
+  }) : [];
 
   return (
     <>

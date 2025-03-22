@@ -92,7 +92,7 @@ const ReturnList: React.FC<ReturnListProps> = ({
   const { returns, loading } = useSelector((state: RootState) => state.return);
   const { branches } = useSelector((state: RootState) => state.branch);
   const { stts } = useSelector((state: RootState) => state.stt);
-  const { user } = useSelector((state: RootState) => state.auth);
+  useSelector((state: RootState) => state.auth);
   
   const [openDetail, setOpenDetail] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -107,7 +107,7 @@ const ReturnList: React.FC<ReturnListProps> = ({
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(10);
   
   // Load initial data
   useEffect(() => {
@@ -251,7 +251,7 @@ const ReturnList: React.FC<ReturnListProps> = ({
                     <SelectValue placeholder="Semua Cabang" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Semua Cabang</SelectItem>
+                    <SelectItem value="ALL">Semua Cabang</SelectItem>
                     {branches.map((branch) => (
                       <SelectItem key={branch._id} value={branch._id}>
                         {branch.namaCabang}
@@ -268,7 +268,7 @@ const ReturnList: React.FC<ReturnListProps> = ({
                     <SelectValue placeholder="Semua Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Semua Status</SelectItem>
+                    <SelectItem value="ALL">Semua Status</SelectItem>
                     <SelectItem value="PROSES">Proses</SelectItem>
                     <SelectItem value="SAMPAI">Sampai</SelectItem>
                   </SelectContent>

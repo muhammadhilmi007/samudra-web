@@ -44,6 +44,12 @@ const returnService = {
     const response = await api.put(`/returns/${id}/status`, { status });
     return response.data;
   },
+
+  // Delete return
+  async deleteReturn(id: string) {
+    const response = await api.delete(`/returns/${id}`);
+    return response.data;
+  },
 };
 
 export default returnService;

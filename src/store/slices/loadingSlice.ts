@@ -146,6 +146,24 @@ export const updateLoadingStatus = createAsyncThunk(
   }
 );
 
+// Add this implementation for the deleteLoading thunk
+export const deleteLoading = createAsyncThunk(
+  'loadings/deleteLoading',
+  async (id: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      await loadingService.deleteLoading(id);
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Pemuatan berhasil dihapus'));
+      return id;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to delete loading'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete loading' });
+    }
+  }
+);
+
 // Generate DMB (Daftar Muat Barang)
 export const generateDMB = createAsyncThunk(
   'loading/generateDMB',
@@ -404,6 +422,13 @@ const loadingSlice = createSlice({
         state.truckQueues = state.truckQueues.filter((queue) => queue._id !== action.payload);
         if (state.truckQueue && state.truckQueue._id === action.payload) {
           state.truckQueue = null;
+        }
+      })
+      // Delete loading
+      .addCase(deleteLoading.fulfilled, (state, action) => {
+        state.loadings = state.loadings.filter((loading) => loading._id !== action.payload);
+        if (state.loading && state.loading._id === action.payload) {
+          state.loading = null;
         }
       });
   },

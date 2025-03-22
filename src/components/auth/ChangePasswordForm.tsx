@@ -15,6 +15,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../../store/index';
 import { changePassword } from '../../store/slices/authSlice';
 import { unwrapResult } from '@reduxjs/toolkit';
 
@@ -36,7 +37,7 @@ const changePasswordSchema = z.object({
 type ChangePasswordFormInputs = z.infer<typeof changePasswordSchema>;
 
 const ChangePasswordForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -59,11 +60,11 @@ const ChangePasswordForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess })
     setSuccess(null);
     
     try {
-      // @ts-ignore (dispatch is typed incorrectly for async thunks)
       const resultAction = await dispatch(
         changePassword({
           currentPassword: data.currentPassword,
           newPassword: data.newPassword,
+          confirmPassword: data.newPassword // or data.confirmPassword if you have it
         })
       );
       unwrapResult(resultAction);
@@ -74,8 +75,12 @@ const ChangePasswordForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess })
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error: any) {
-      setError(error.message || 'Gagal mengubah password. Silakan coba lagi.');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Gagal mengubah password. Silakan coba lagi.');
+      }
     } finally {
       setLoading(false);
     }

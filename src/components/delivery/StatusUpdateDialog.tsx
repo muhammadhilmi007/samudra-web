@@ -84,49 +84,78 @@ const StatusUpdateDialog: React.FC<StatusUpdateDialogProps> = ({
     setStatus(event.target.value as 'LANSIR' | 'TERKIRIM' | 'BELUM_SELESAI');
   };
 
-  // Validate form before submit
+  // Validate form with comprehensive validation rules
   const validateForm = (): boolean => {
-    // Validate based on selected status
-    if (status === 'TERKIRIM') {
-      if (!namaPenerima.trim()) {
-        setError('Nama penerima harus diisi untuk status TERKIRIM');
+    // Reset error state
+    setError(null);
+
+    // Validate based on status
+    switch (status) {
+      case 'TERKIRIM':
+        // Validate recipient name
+        if (!namaPenerima?.trim()) {
+          setError('Nama penerima harus diisi untuk status TERKIRIM');
+          return false;
+        }
+
+        // Validate return kilometer
+        if (typeof kilometerPulang !== 'number') {
+          setError('Kilometer pulang harus diisi');
+          return false;
+        }
+
+        if (kilometerPulang <= 0) {
+          setError('Kilometer pulang harus bernilai positif');
+          return false;
+        }
+
+        if (kilometerPulang < (delivery.kilometerBerangkat || 0)) {
+          setError('Kilometer pulang harus lebih besar dari kilometer berangkat');
+          return false;
+        }
+        break;
+
+      case 'BELUM_SELESAI':
+        // Require explanation for unfinished delivery
+        if (!keterangan.trim()) {
+          setError('Keterangan harus diisi untuk status BELUM SELESAI');
+          return false;
+        }
+        break;
+
+      case 'LANSIR':
+        // No specific validation for LANSIR status
+        break;
+
+      default:
+        setError('Status pengiriman tidak valid');
         return false;
-      }
-      
-      if (kilometerPulang === '') {
-        setError('Kilometer pulang harus diisi untuk status TERKIRIM');
-        return false;
-      }
-      
-      if (kilometerPulang < (delivery.kilometerBerangkat || 0)) {
-        setError('Kilometer pulang harus lebih besar dari kilometer berangkat');
-        return false;
-      }
     }
-    
+
     return true;
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
+  // Handle form submission with improved error handling
+  const handleSubmit = async () => {
     if (!validateForm()) return;
     
-    const statusData: DeliveryStatusUpdate = {
-      status,
-    };
-    
-    // Add additional data based on status
-    if (status === 'TERKIRIM') {
-      statusData.kilometerPulang = kilometerPulang as number;
-      statusData.namaPenerima = namaPenerima;
-      statusData.sampai = new Date().toISOString();
+    try {
+      const statusData: DeliveryStatusUpdate = {
+        status,
+        ...(status === 'TERKIRIM' && {
+          kilometerPulang: kilometerPulang as number,
+          namaPenerima,
+          sampai: new Date().toISOString()
+        }),
+        ...(keterangan.trim() && { keterangan })
+      };
+      
+      await onSubmit(statusData);
+      setError(null);
+    } catch (err) {
+      setError('Gagal memperbarui status pengiriman');
+      console.error('Status update error:', err);
     }
-    
-    if (keterangan.trim()) {
-      statusData.keterangan = keterangan;
-    }
-    
-    onSubmit(statusData);
   };
 
   return (
@@ -191,7 +220,9 @@ const StatusUpdateDialog: React.FC<StatusUpdateDialogProps> = ({
                 <Select
                   labelId="status-label"
                   value={status}
-                  onChange={handleStatusChange as any}
+                  onChange={(event) => {
+                    setStatus(event.target.value as 'LANSIR' | 'TERKIRIM' | 'BELUM_SELESAI');
+                  }}
                   label="Status Pengiriman"
                   disabled={loading}
                 >

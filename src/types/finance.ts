@@ -7,16 +7,16 @@ export interface Account {
     deskripsi?: string;
     createdAt: string;
     updatedAt: string;
-  }
-  
-  export interface AccountFormInputs {
+}
+
+export interface AccountFormInputs {
     kodeAccount: string;
     namaAccount: string;
     tipeAccount: 'Pendapatan' | 'Biaya' | 'Aset' | 'Kewajiban' | 'Ekuitas';
     deskripsi?: string;
-  }
-  
-  export interface Journal {
+}
+
+export interface JournalEntry {
     _id: string;
     tanggal: string;
     accountId: string;
@@ -33,26 +33,26 @@ export interface Account {
     
     // Relasi yang mungkin ada dalam respon API
     account?: {
-      _id: string;
-      kodeAccount: string;
-      namaAccount: string;
-      tipeAccount: string;
+        _id: string;
+        kodeAccount: string;
+        namaAccount: string;
+        tipeAccount: string;
     };
     cabang?: {
-      _id: string;
-      namaCabang: string;
+        _id: string;
+        namaCabang: string;
     };
     user?: {
-      _id: string;
-      nama: string;
+        _id: string;
+        nama: string;
     };
     stts?: Array<{
-      _id: string;
-      noSTT: string;
+        _id: string;
+        noSTT: string;
     }>;
-  }
-  
-  export interface JournalFormInputs {
+}
+
+export interface JournalFormInputs {
     tanggal: string;
     accountId: string;
     cabangId: string;
@@ -61,9 +61,9 @@ export interface Account {
     kredit: number;
     tipe: 'Lokal' | 'Pusat';
     sttIds?: string[];
-  }
-  
-  export interface Cash {
+}
+
+export interface Cash {
     _id: string;
     tanggal: string;
     tipeKas: 'Awal' | 'Akhir' | 'Kecil' | 'Rekening' | 'Tangan';
@@ -78,25 +78,25 @@ export interface Account {
     
     // Relasi yang mungkin ada dalam respon API
     cabang?: {
-      _id: string;
-      namaCabang: string;
+        _id: string;
+        namaCabang: string;
     };
     user?: {
-      _id: string;
-      nama: string;
+        _id: string;
+        nama: string;
     };
-  }
-  
-  export interface CashFormInputs {
+}
+
+export interface CashFormInputs {
     tanggal: string;
     tipeKas: 'Awal' | 'Akhir' | 'Kecil' | 'Rekening' | 'Tangan';
     cabangId: string;
     keterangan?: string;
     debet: number;
     kredit: number;
-  }
-  
-  export interface BankStatement {
+}
+
+export interface BankStatement {
     _id: string;
     tanggal: string;
     bank: string;
@@ -113,16 +113,16 @@ export interface Account {
     
     // Relasi yang mungkin ada dalam respon API
     cabang?: {
-      _id: string;
-      namaCabang: string;
+        _id: string;
+        namaCabang: string;
     };
     user?: {
-      _id: string;
-      nama: string;
+        _id: string;
+        nama: string;
     };
-  }
-  
-  export interface BankStatementFormInputs {
+}
+
+export interface BankStatementFormInputs {
     tanggal: string;
     bank: string;
     noRekening: string;
@@ -130,9 +130,9 @@ export interface Account {
     debet: number;
     kredit: number;
     cabangId: string;
-  }
-  
-  export interface Asset {
+}
+
+export interface Asset {
     _id: string;
     namaAset: string;
     tipeAset: string;
@@ -149,16 +149,16 @@ export interface Account {
     
     // Relasi yang mungkin ada dalam respon API
     cabang?: {
-      _id: string;
-      namaCabang: string;
+        _id: string;
+        namaCabang: string;
     };
     user?: {
-      _id: string;
-      nama: string;
+        _id: string;
+        nama: string;
     };
-  }
-  
-  export interface AssetFormInputs {
+}
+
+export interface AssetFormInputs {
     namaAset: string;
     tipeAset: string;
     tanggalPembelian: string;
@@ -167,4 +167,4 @@ export interface Account {
     statusAset: 'AKTIF' | 'DIJUAL' | 'RUSAK';
     lokasiAset: string;
     cabangId: string;
-  }
+}

@@ -123,6 +123,24 @@ export const updateReturnStatus = createAsyncThunk(
   }
 );
 
+// Delete return
+export const deleteReturn = createAsyncThunk(
+  'return/deleteReturn',
+  async (id: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      await returnService.deleteReturn(id);
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Retur berhasil dihapus'));
+      return id;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to delete return'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete return' });
+    }
+  }
+);
+
 const returnSlice = createSlice({
   name: 'return',
   initialState,
@@ -138,7 +156,7 @@ const returnSlice = createSlice({
     builder
       // Get all returns
       .addCase(getReturns.fulfilled, (state, action) => {
-        state.returns = action.payload;
+        state.returns = Array.isArray(action.payload) ? action.payload : [];
       })
       // Get return by ID
       .addCase(getReturnById.fulfilled, (state, action) => {
@@ -146,7 +164,7 @@ const returnSlice = createSlice({
       })
       // Get returns by branch
       .addCase(getReturnsByBranch.fulfilled, (state, action) => {
-        state.returns = action.payload;
+        state.returns = Array.isArray(action.payload) ? action.payload : [];
       })
       // Create return
       .addCase(createReturn.fulfilled, (state, action) => {
@@ -166,6 +184,13 @@ const returnSlice = createSlice({
           item._id === action.payload._id ? action.payload : item
         );
         state.currentReturn = action.payload;
+      })
+      // Delete return
+      .addCase(deleteReturn.fulfilled, (state, action) => {
+        state.returns = state.returns.filter(item => item._id !== action.payload);
+        if (state.currentReturn && state.currentReturn._id === action.payload) {
+          state.currentReturn = null;
+        }
       });
   },
 });

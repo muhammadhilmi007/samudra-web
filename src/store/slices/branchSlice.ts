@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import branchService from '../../services/branchService';
 import { Branch } from '../../types/branch';
 
 interface BranchState {
@@ -20,8 +20,8 @@ export const getBranches = createAsyncThunk(
   'branch/getBranches',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/branches');
-      return response.data;
+      const data = await branchService.getBranches();
+      return data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch branches');
     }
@@ -32,8 +32,8 @@ export const getBranchById = createAsyncThunk(
   'branch/getBranchById',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/branches/${id}`);
-      return response.data;
+      const data = await branchService.getBranchById(id);
+      return data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch branch');
     }
@@ -44,8 +44,8 @@ export const createBranch = createAsyncThunk(
   'branch/createBranch',
   async (branchData: Partial<Branch>, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/branches', branchData);
-      return response.data;
+      const data = await branchService.createBranch(branchData);
+      return data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create branch');
     }
@@ -56,8 +56,8 @@ export const updateBranch = createAsyncThunk(
   'branch/updateBranch',
   async ({ id, branchData }: { id: string; branchData: Partial<Branch> }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(`/api/branches/${id}`, branchData);
-      return response.data;
+      const data = await branchService.updateBranch(id, branchData);
+      return data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update branch');
     }
@@ -68,10 +68,22 @@ export const deleteBranch = createAsyncThunk(
   'branch/deleteBranch',
   async (id: string, { rejectWithValue }) => {
     try {
-      await axios.delete(`/api/branches/${id}`);
+      await branchService.deleteBranch(id);
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete branch');
+    }
+  }
+);
+
+export const getBranchesByDivision = createAsyncThunk(
+  'branch/getBranchesByDivision',
+  async (divisionId: string, { rejectWithValue }) => {
+    try {
+      const data = await branchService.getBranchesByDivision(divisionId);
+      return data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch branches by division');
     }
   }
 );
@@ -96,8 +108,15 @@ const branchSlice = createSlice({
       })
       .addCase(getBranches.fulfilled, (state, action) => {
         state.loading = false;
-        state.branches = action.payload;
-        state.error = null;
+        if (Array.isArray(action.payload)) {
+          state.branches = action.payload;
+          state.error = null;
+          console.log("Branch state updated successfully:", state.branches);
+        } else {
+          state.branches = [];
+          state.error = "Invalid data format received from server";
+          console.error("Invalid branch data format:", action.payload);
+        }
       })
       .addCase(getBranches.rejected, (state, action) => {
         state.loading = false;
@@ -124,8 +143,13 @@ const branchSlice = createSlice({
       })
       .addCase(createBranch.fulfilled, (state, action) => {
         state.loading = false;
-        state.branches.push(action.payload);
-        state.error = null;
+        if (action.payload) {
+          state.branches.push(action.payload);
+          state.error = null;
+          console.log("Branch created successfully:", action.payload);
+        } else {
+          console.error("No branch data returned from API on creation");
+        }
       })
       .addCase(createBranch.rejected, (state, action) => {
         state.loading = false;
@@ -162,6 +186,20 @@ const branchSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteBranch.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Get Branches By Division
+      .addCase(getBranchesByDivision.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getBranchesByDivision.fulfilled, (state, action) => {
+        state.loading = false;
+        state.branches = action.payload;
+        state.error = null;
+      })
+      .addCase(getBranchesByDivision.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

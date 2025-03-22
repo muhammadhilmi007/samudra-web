@@ -22,6 +22,28 @@ const initialState: CustomerState = {
   error: null,
 };
 
+// Common error handling helper
+const createAsyncThunkWithErrorHandling = <T, A>(
+  typePrefix: string,
+  payloadCreator: (arg: A, thunkAPI: any) => Promise<T>
+) => {
+  return createAsyncThunk(typePrefix, async (arg: A, thunkAPI) => {
+    const { dispatch } = thunkAPI;
+    try {
+      dispatch(setLoading(true));
+      const response = await payloadCreator(arg, thunkAPI);
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      const message = error.response?.data?.message || `Failed to ${typePrefix}`;
+      dispatch(setError(message));
+      return thunkAPI.rejectWithValue({ message });
+    }
+  });
+}
+
+
 // Get all customers
 export const getCustomers = createAsyncThunk(
   'customer/getCustomers',
@@ -108,7 +130,7 @@ export const getRecipients = createAsyncThunk(
 );
 
 // Create customer
-export const createCustomer = createAsyncThunk(
+export const createCustomer = createAsyncThunkWithErrorHandling<Customer, Partial<Customer>>(
   'customer/createCustomer',
   async (customerData: Partial<Customer>, { dispatch, rejectWithValue }) => {
     try {

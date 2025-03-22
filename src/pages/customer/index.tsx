@@ -78,8 +78,10 @@ const customerSchema = z.object({
 
 const CustomerPage = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { customers } = useSelector((state: RootState) => state.customer);
-  const { branches } = useSelector((state: RootState) => state.branch);
+  // Add default empty array for customers
+  const { customers = [] } = useSelector((state: RootState) => state.customer);
+  // Add default empty array for branches
+  const { branches = [] } = useSelector((state: RootState) => state.branch);
   const { user } = useSelector((state: RootState) => state.auth);
   const { loading, error, success } = useSelector((state: RootState) => state.ui);
 
@@ -224,26 +226,29 @@ const CustomerPage = () => {
   };
 
   // Filter customers based on search term and filters
-  const filteredCustomers = customers
-    .filter((customer) => {
-      if (filterType && customer.tipe !== filterType && !(filterType === 'Keduanya' && (customer.tipe === 'Pengirim' || customer.tipe === 'Penerima'))) {
-        return false;
-      }
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        return (
-          customer.nama.toLowerCase().includes(searchLower) ||
-          customer.perusahaan.toLowerCase().includes(searchLower) ||
-          customer.telepon.includes(searchTerm) ||
-          customer.alamat.toLowerCase().includes(searchLower) ||
-          customer.kota.toLowerCase().includes(searchLower)
-        );
-      }
-      return true;
-    });
+  const filteredCustomers = Array.isArray(customers) 
+    ? customers.filter((customer) => {
+        if (filterType && customer.tipe !== filterType && !(filterType === 'Keduanya' && (customer.tipe === 'Pengirim' || customer.tipe === 'Penerima'))) {
+          return false;
+        }
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase();
+          return (
+            customer.nama.toLowerCase().includes(searchLower) ||
+            customer.perusahaan.toLowerCase().includes(searchLower) ||
+            customer.telepon.includes(searchTerm) ||
+            customer.alamat.toLowerCase().includes(searchLower) ||
+            customer.kota.toLowerCase().includes(searchLower)
+          );
+        }
+        return true;
+      })
+    : [];
 
-  // Pagination
-  const paginatedCustomers = filteredCustomers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  // Pagination with safety check
+  const paginatedCustomers = Array.isArray(filteredCustomers)
+    ? filteredCustomers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+    : [];
 
   // Get chip color based on customer type
   const getCustomerTypeColor = (type: string) => {

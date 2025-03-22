@@ -31,10 +31,6 @@ import {
   Select,
   Tab,
   Tabs,
-  Avatar,
-  Card,
-  CardContent,
-  CardMedia,
   Divider
 } from '@mui/material';
 import {
@@ -44,11 +40,9 @@ import {
   Search as SearchIcon,
   DirectionsCar as DirectionsCarIcon,
   LocalShipping as LocalShippingIcon,
-  Person as PersonIcon,
   Phone as PhoneIcon,
   PhotoCamera as PhotoCameraIcon,
   Badge as BadgeIcon,
-  Group as GroupIcon,
   Home as HomeIcon
 } from '@mui/icons-material';
 import Head from 'next/head';
@@ -66,7 +60,7 @@ import {
 import { getBranches } from '../../store/slices/branchSlice';
 import { getEmployees } from '../../store/slices/employeeSlice';
 import { clearError, clearSuccess } from '../../store/slices/uiSlice';
-import { Vehicle, VehicleFormInputs } from '../../types/vehicle';
+import { Vehicle } from '../../types/vehicle';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -342,22 +336,22 @@ const VehiclePage = () => {
   };
 
   // Filter vehicles based on search term and filters
-  const filteredVehicles = vehicles.filter((vehicle) => {
-    // Filter by type if set
-    if (filterType && vehicle.tipe !== filterType) {
-      return false;
-    }
-    
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        vehicle.noPolisi.toLowerCase().includes(searchLower) ||
-        vehicle.namaKendaraan.toLowerCase().includes(searchLower) ||
-        (vehicle.supir?.nama || '').toLowerCase().includes(searchLower)
-      );
-    }
-    return true;
-  });
+const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => {
+  // Filter by type if set
+  if (filterType && vehicle.tipe !== filterType) {
+    return false;
+  }
+  
+  if (searchTerm) {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      vehicle.noPolisi.toLowerCase().includes(searchLower) ||
+      vehicle.namaKendaraan.toLowerCase().includes(searchLower) ||
+      (vehicle.supir?.nama || '').toLowerCase().includes(searchLower)
+    );
+  }
+  return true;
+}) : [];
 
   // Pagination
   const paginatedVehicles = filteredVehicles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);

@@ -24,7 +24,6 @@ import {
   Replay as ReplayIcon,
   AttachMoney as AttachMoneyIcon,
   DirectionsCar as DirectionsCarIcon,
-  Add as AddIcon,
   KeyboardArrowRight as KeyboardArrowRightIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
@@ -51,7 +50,7 @@ const RecentActivity: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { recentActivities } = useSelector((state: RootState) => state.dashboard);
-  const { loading } = useSelector((state: RootState) => state.ui);
+  const { loading } = useSelector((state: RootState) => state.ui as { loading: boolean });
   const [activities, setActivities] = useState<Activity[]>([]);
 
   useEffect(() => {
@@ -59,7 +58,7 @@ const RecentActivity: React.FC = () => {
     dispatch(getRecentActivities());
     
     // Use sample data if no activities available
-    if (!recentActivities || recentActivities.length === 0) {
+    if (!recentActivities?.length) {
       // Sample data
       const sampleActivities: Activity[] = [
         {

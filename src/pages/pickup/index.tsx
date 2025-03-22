@@ -1,5 +1,5 @@
 // src/pages/pickup/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -34,8 +34,8 @@ import {
   Divider,
   Card,
   CardContent,
-  CardActions
-} from '@mui/material';
+  CardActions,
+} from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -47,11 +47,11 @@ import {
   Place as PlaceIcon,
   Inventory as InventoryIcon,
   FileCopy as FileCopyIcon,
-  Schedule as ScheduleIcon
-} from '@mui/icons-material';
-import Head from 'next/head';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
+  Schedule as ScheduleIcon,
+} from "@mui/icons-material";
+import Head from "next/head";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../store";
 import {
   getPickupRequests,
   getPendingPickupRequests,
@@ -60,19 +60,23 @@ import {
   deletePickupRequest,
   updatePickupRequestStatus,
   getPickups,
-  createPickup
-} from '../../store/slices/pickupRequestSlice';
-import { getBranches } from '../../store/slices/branchSlice';
-import { getSenders } from '../../store/slices/customerSlice';
-import { getVehicles } from '../../store/slices/vehicleSlice';
-import { getEmployees } from '../../store/slices/employeeSlice';
-import { clearError, clearSuccess } from '../../store/slices/uiSlice';
-import { PickupRequest, PickupRequestFormInputs, PickupFormInputs } from '../../types/pickupRequest';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import withAuth from '../../components/auth/withAuth';
-import { useRouter } from 'next/router';
+  createPickup,
+} from "../../store/slices/pickupRequestSlice";
+import { getBranches } from "../../store/slices/branchSlice";
+import { getSenders } from "../../store/slices/customerSlice";
+import { getVehicles } from "../../store/slices/vehicleSlice";
+import { getEmployees } from "../../store/slices/employeeSlice";
+import { clearError, clearSuccess } from "../../store/slices/uiSlice";
+import {
+  PickupRequest,
+  PickupRequestFormInputs,
+  PickupFormInputs,
+} from "../../types/pickupRequest";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import withAuth from "../../components/auth/withAuth";
+import { useRouter } from "next/router";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -98,46 +102,56 @@ function TabPanel(props: TabPanelProps) {
 
 // Schema for pickup request form validation
 const pickupRequestSchema = z.object({
-  pengirimId: z.string().min(1, 'Pengirim wajib dipilih'),
-  alamatPengambilan: z.string().min(1, 'Alamat pengambilan wajib diisi'),
-  tujuan: z.string().min(1, 'Tujuan wajib diisi'),
-  jumlahColly: z.number().min(1, 'Jumlah colly minimal 1'),
-  cabangId: z.string().min(1, 'Cabang wajib dipilih'),
+  pengirimId: z.string().min(1, "Pengirim wajib dipilih"),
+  alamatPengambilan: z.string().min(1, "Alamat pengambilan wajib diisi"),
+  tujuan: z.string().min(1, "Tujuan wajib diisi"),
+  jumlahColly: z.number().min(1, "Jumlah colly minimal 1"),
+  cabangId: z.string().min(1, "Cabang wajib dipilih"),
 });
 
 // Schema for pickup form validation
 const pickupSchema = z.object({
-  pengirimId: z.string().min(1, 'Pengirim wajib dipilih'),
-  sttIds: z.array(z.string()).min(1, 'STT wajib dipilih minimal 1'),
-  supirId: z.string().min(1, 'Supir wajib dipilih'),
+  pengirimId: z.string().min(1, "Pengirim wajib dipilih"),
+  sttIds: z.array(z.string()).min(1, "STT wajib dipilih minimal 1"),
+  supirId: z.string().min(1, "Supir wajib dipilih"),
   kenekId: z.string().optional(),
-  kendaraanId: z.string().min(1, 'Kendaraan wajib dipilih'),
-  estimasiPengambilan: z.string().min(1, 'Estimasi pengambilan wajib diisi'),
-  cabangId: z.string().min(1, 'Cabang wajib dipilih'),
+  kendaraanId: z.string().min(1, "Kendaraan wajib dipilih"),
+  estimasiPengambilan: z.string().min(1, "Estimasi pengambilan wajib diisi"),
+  cabangId: z.string().min(1, "Cabang wajib dipilih"),
 });
 
 const PickupPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { pickupRequests, pendingRequests, pickups } = useSelector((state: RootState) => state.pickupRequest);
+  const { pickupRequests, pendingRequests, pickups } = useSelector(
+    (state: RootState) => state.pickupRequest
+  );
   const { branches } = useSelector((state: RootState) => state.branch);
   const { senders } = useSelector((state: RootState) => state.customer);
   const { vehicles } = useSelector((state: RootState) => state.vehicle);
   const { employees } = useSelector((state: RootState) => state.employee);
   const { user } = useSelector((state: RootState) => state.auth);
-  const { loading, error, success } = useSelector((state: RootState) => state.ui);
+  const { loading, error, success } = useSelector(
+    (state: RootState) => state.ui
+  );
 
   const [tabValue, setTabValue] = useState(0);
   const [openRequestDialog, setOpenRequestDialog] = useState(false);
   const [openPickupDialog, setOpenPickupDialog] = useState(false);
-  const [editingRequest, setEditingRequest] = useState<PickupRequest | null>(null);
+  const [editingRequest, setEditingRequest] = useState<PickupRequest | null>(
+    null
+  );
   const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [filterBranch, setFilterBranch] = useState<string>(user?.cabangId || '');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [filterBranch, setFilterBranch] = useState<string>(
+    user?.cabangId || ""
+  );
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(
+    null
+  );
 
   const {
     control: requestControl,
@@ -147,11 +161,11 @@ const PickupPage = () => {
   } = useForm<PickupRequestFormInputs>({
     resolver: zodResolver(pickupRequestSchema),
     defaultValues: {
-      pengirimId: '',
-      alamatPengambilan: '',
-      tujuan: '',
+      pengirimId: "",
+      alamatPengambilan: "",
+      tujuan: "",
       jumlahColly: 1,
-      cabangId: user?.cabangId || '',
+      cabangId: user?.cabangId || "",
     },
   });
 
@@ -163,13 +177,13 @@ const PickupPage = () => {
   } = useForm<PickupFormInputs>({
     resolver: zodResolver(pickupSchema),
     defaultValues: {
-      pengirimId: '',
+      pengirimId: "",
       sttIds: [],
-      supirId: '',
-      kenekId: '',
-      kendaraanId: '',
-      estimasiPengambilan: '',
-      cabangId: user?.cabangId || '',
+      supirId: "",
+      kenekId: "",
+      kendaraanId: "",
+      estimasiPengambilan: "",
+      cabangId: user?.cabangId || "",
     },
   });
 
@@ -180,7 +194,7 @@ const PickupPage = () => {
     dispatch(getVehicles());
     dispatch(getEmployees());
     dispatch(getPendingPickupRequests());
-    
+
     // Load requests and pickups
     if (tabValue === 0) {
       dispatch(getPickupRequests());
@@ -213,11 +227,11 @@ const PickupPage = () => {
     } else {
       setEditingRequest(null);
       resetRequestForm({
-        pengirimId: '',
-        alamatPengambilan: '',
-        tujuan: '',
+        pengirimId: "",
+        alamatPengambilan: "",
+        tujuan: "",
         jumlahColly: 1,
-        cabangId: user?.cabangId || '',
+        cabangId: user?.cabangId || "",
       });
     }
     setOpenRequestDialog(true);
@@ -232,10 +246,10 @@ const PickupPage = () => {
     resetPickupForm({
       pengirimId: request.pengirimId,
       sttIds: [],
-      supirId: '',
-      kenekId: '',
-      kendaraanId: '',
-      estimasiPengambilan: '',
+      supirId: "",
+      kenekId: "",
+      kendaraanId: "",
+      estimasiPengambilan: "",
       cabangId: request.cabangId,
     });
     setProcessingRequestId(request._id);
@@ -264,35 +278,44 @@ const PickupPage = () => {
     handleCloseDeleteDialog();
   };
 
-  const handleUpdateStatus = (id: string, status: 'PENDING' | 'FINISH') => {
+  const handleUpdateStatus = (id: string, status: "PENDING" | "FINISH") => {
     dispatch(updatePickupRequestStatus({ id, status }));
   };
 
   const onSubmitRequest = (data: PickupRequestFormInputs) => {
     if (editingRequest) {
-      dispatch(updatePickupRequest({ id: editingRequest._id, requestData: data }));
+      dispatch(
+        updatePickupRequest({ id: editingRequest._id, requestData: data })
+      );
     } else {
       dispatch(createPickupRequest(data));
     }
     handleCloseRequestDialog();
   };
 
-  const onSubmitPickup = (data: PickupFormInputs) => {
-    dispatch(createPickup(data));
-    
-    if (processingRequestId) {
-      // Mark the pickup request as completed
-      dispatch(updatePickupRequestStatus({ id: processingRequestId, status: 'FINISH' }));
+  const onSubmitPickup = async (data: PickupFormInputs) => {
+    try {
+      await dispatch(createPickup(data)).unwrap();
+  
+      if (processingRequestId) {
+        await dispatch(
+          updatePickupRequestStatus({ id: processingRequestId, status: "FINISH" })
+        ).unwrap();
+      }
+  
+      handleClosePickupDialog();
+    } catch (error) {
+      console.error("Failed to process pickup:", error);
     }
-    
-    handleClosePickupDialog();
   };
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -302,61 +325,78 @@ const PickupPage = () => {
     dispatch(clearSuccess());
   };
 
-  const handleBranchFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFilterBranch(event.target.value);
+  const handleBranchFilter = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setFilterBranch(event.target.value as string);
     setPage(0);
   };
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-    setPage(0);
+    const value = event.target.value;
+    setTimeout(() => {
+      setSearchTerm(value);
+      setPage(0);
+    }, 300); // Debounce for 300ms
   };
 
   // Filter functions
-  const filterPickupRequests = (requests: PickupRequest[]) => {
-    return requests.filter((request) => {
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        return (
-          request.pengirim?.nama.toLowerCase().includes(searchLower) ||
-          request.alamatPengambilan.toLowerCase().includes(searchLower) ||
-          request.tujuan.toLowerCase().includes(searchLower)
-        );
-      }
-      return true;
-    });
-  };
-
-  // Filtered and paginated data
-  const filteredRequests = filterPickupRequests(pickupRequests);
-  const filteredPendingRequests = filterPickupRequests(pendingRequests);
+const filterPickupRequests = (requests: PickupRequest[]) => {
+  if (!Array.isArray(requests)) return [];
   
-  const paginatedRequests = filteredRequests.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  const paginatedPendingRequests = filteredPendingRequests.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  const paginatedPickups = pickups.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  return requests.filter((request) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        request.pengirim?.nama.toLowerCase().includes(searchLower) ||
+        request.alamatPengambilan.toLowerCase().includes(searchLower) ||
+        request.tujuan.toLowerCase().includes(searchLower)
+      );
+    }
+    return true;
+  });
+};
+
+// Filtered and paginated data
+const filteredRequests = filterPickupRequests(pickupRequests || []);
+const filteredPendingRequests = filterPickupRequests(pendingRequests || []);
+
+const paginatedRequests = filteredRequests.slice(
+  page * rowsPerPage,
+  page * rowsPerPage + rowsPerPage
+);
+const paginatedPendingRequests = filteredPendingRequests.slice(
+  page * rowsPerPage,
+  page * rowsPerPage + rowsPerPage
+);
+const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
+  page * rowsPerPage,
+  page * rowsPerPage + rowsPerPage
+) : [];
 
   // Filter employees to get drivers and assistants
-  const drivers = employees.filter(emp => 
-    emp.jabatan === 'Supir' || emp.role === 'supir'
+  const drivers = employees.filter(
+    (emp) => emp.jabatan === "Supir" || emp.role === "supir"
   );
-  
-  const assistants = employees.filter(emp => 
-    emp.jabatan === 'Kenek' || emp.role === 'kenek'
+
+  const assistants = employees.filter(
+    (emp) => emp.jabatan === "Kenek" || emp.role === "kenek"
   );
 
   // Filter vehicles for pickups (only lansir vehicles)
-  const pickupVehicles = vehicles.filter(vehicle => 
-    vehicle.tipe === 'Lansir'
-  );
+  const pickupVehicles = Array.isArray(vehicles) ? vehicles.filter(
+    (vehicle) => vehicle.tipe === "Lansir"
+  ) : [];
 
-  // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -365,9 +405,14 @@ const PickupPage = () => {
       <Head>
         <title>Pengambilan Barang - Samudra ERP</title>
       </Head>
-      
+
       <Box>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={3}
+        >
           <Typography variant="h4">Pengambilan Barang</Typography>
           <Button
             variant="contained"
@@ -377,9 +422,9 @@ const PickupPage = () => {
             Buat Permintaan Pengambilan
           </Button>
         </Box>
-        
-        <Paper sx={{ width: '100%', mb: 2 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+
+        <Paper sx={{ width: "100%", mb: 2 }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
@@ -391,7 +436,7 @@ const PickupPage = () => {
               <Tab label="Pengambilan" />
             </Tabs>
           </Box>
-          
+
           <Box p={2}>
             <Grid container spacing={2} alignItems="center" mb={2}>
               <Grid item xs={12} md={7}>
@@ -429,7 +474,7 @@ const PickupPage = () => {
                 </FormControl>
               </Grid>
             </Grid>
-            
+
             <TabPanel value={tabValue} index={0}>
               <TableContainer>
                 <Table>
@@ -461,41 +506,70 @@ const PickupPage = () => {
                     ) : (
                       paginatedRequests.map((request) => (
                         <TableRow key={request._id}>
-                          <TableCell>{formatDate(request.tanggal || request.createdAt)}</TableCell>
-                          <TableCell>{request.pengirim?.nama || '-'}</TableCell>
+                          <TableCell>
+                            {formatDate(request.tanggal || request.createdAt)}
+                          </TableCell>
+                          <TableCell>{request.pengirim?.nama || "-"}</TableCell>
                           <TableCell>{request.alamatPengambilan}</TableCell>
                           <TableCell>{request.tujuan}</TableCell>
                           <TableCell>{request.jumlahColly}</TableCell>
                           <TableCell>
-                            {branches.find((branch) => branch._id === request.cabangId)?.namaCabang || '-'}
+                            {branches.find(
+                              (branch) => branch._id === request.cabangId
+                            )?.namaCabang || "-"}
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={request.status === 'PENDING' ? 'Pending' : 'Selesai'} 
-                              color={request.status === 'PENDING' ? 'warning' : 'success'} 
-                              size="small" 
+                            <Chip
+                              label={
+                                request.status === "PENDING"
+                                  ? "Pending"
+                                  : "Selesai"
+                              }
+                              color={
+                                request.status === "PENDING"
+                                  ? "warning"
+                                  : "success"
+                              }
+                              size="small"
                             />
                           </TableCell>
                           <TableCell>
                             <Tooltip title="Edit">
-                              <IconButton 
+                              <IconButton
                                 onClick={() => handleOpenRequestDialog(request)}
-                                disabled={request.status !== 'PENDING'}
+                                disabled={request.status !== "PENDING"}
                               >
                                 <EditIcon />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Update Status">
+                              <IconButton
+                                onClick={() =>
+                                  handleUpdateStatus(request._id, "FINISH")
+                                }
+                                disabled={request.status !== "PENDING"}
+                              >
+                                <CheckIcon />
+                              </IconButton>
+                            </Tooltip>
                             <Tooltip title="Hapus">
-                              <IconButton 
-                                onClick={() => handleOpenDeleteDialog(request._id)}
-                                disabled={request.status !== 'PENDING'}
+                              <IconButton
+                                onClick={() =>
+                                  handleOpenDeleteDialog(request._id)
+                                }
+                                disabled={request.status !== "PENDING"}
                               >
                                 <DeleteIcon />
                               </IconButton>
                             </Tooltip>
-                            {request.status === 'PENDING' && (
+                            {request.status === "PENDING" && (
                               <Tooltip title="Proses Pengambilan">
-                                <IconButton color="primary" onClick={() => handleOpenPickupDialog(request)}>
+                                <IconButton
+                                  color="primary"
+                                  onClick={() =>
+                                    handleOpenPickupDialog(request)
+                                  }
+                                >
                                   <DirectionsCarIcon />
                                 </IconButton>
                               </Tooltip>
@@ -507,7 +581,7 @@ const PickupPage = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              
+
               <TablePagination
                 rowsPerPageOptions={[5, 10, 25]}
                 component="div"
@@ -518,15 +592,20 @@ const PickupPage = () => {
                 onRowsPerPageChange={handleChangeRowsPerPage}
               />
             </TabPanel>
-            
+
             <TabPanel value={tabValue} index={1}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {loading ? (
                   <Box display="flex" justifyContent="center" p={4}>
                     <CircularProgress />
                   </Box>
                 ) : filteredPendingRequests.length === 0 ? (
-                  <Typography variant="body1" align="center" color="text.secondary" p={4}>
+                  <Typography
+                    variant="body1"
+                    align="center"
+                    color="text.secondary"
+                    p={4}
+                  >
                     Tidak ada permintaan pengambilan yang pending
                   </Typography>
                 ) : (
@@ -536,16 +615,24 @@ const PickupPage = () => {
                         <Grid container spacing={2}>
                           <Grid item xs={12} md={6}>
                             <Box display="flex" alignItems="center" mb={1}>
-                              <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                              <PersonIcon
+                                sx={{ mr: 1, color: "primary.main" }}
+                              />
                               <Typography variant="subtitle1">
-                                {request.pengirim?.nama || 'Pengirim tidak diketahui'}
+                                {request.pengirim?.nama ||
+                                  "Pengirim tidak diketahui"}
                               </Typography>
                             </Box>
-                            
+
                             <Box display="flex" alignItems="flex-start" mb={1}>
-                              <PlaceIcon sx={{ mr: 1, color: 'secondary.main', mt: 0.5 }} />
+                              <PlaceIcon
+                                sx={{ mr: 1, color: "secondary.main", mt: 0.5 }}
+                              />
                               <Box>
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
                                   Alamat Pengambilan:
                                 </Typography>
                                 <Typography variant="body2">
@@ -553,20 +640,27 @@ const PickupPage = () => {
                                 </Typography>
                               </Box>
                             </Box>
-                            
+
                             <Box display="flex" alignItems="center" mb={1}>
-                              <InventoryIcon sx={{ mr: 1, color: 'warning.main' }} />
+                              <InventoryIcon
+                                sx={{ mr: 1, color: "warning.main" }}
+                              />
                               <Typography variant="body2">
                                 {request.jumlahColly} Colly
                               </Typography>
                             </Box>
                           </Grid>
-                          
+
                           <Grid item xs={12} md={6}>
                             <Box display="flex" alignItems="flex-start" mb={1}>
-                              <LocalShippingIcon sx={{ mr: 1, color: 'info.main', mt: 0.5 }} />
+                              <LocalShippingIcon
+                                sx={{ mr: 1, color: "info.main", mt: 0.5 }}
+                              />
                               <Box>
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
                                   Tujuan:
                                 </Typography>
                                 <Typography variant="body2">
@@ -574,43 +668,57 @@ const PickupPage = () => {
                                 </Typography>
                               </Box>
                             </Box>
-                            
+
                             <Box display="flex" alignItems="center" mb={1}>
-                              <FileCopyIcon sx={{ mr: 1, color: 'success.main' }} />
+                              <FileCopyIcon
+                                sx={{ mr: 1, color: "success.main" }}
+                              />
                               <Typography variant="body2">
-                                Cabang: {branches.find((branch) => branch._id === request.cabangId)?.namaCabang || '-'}
+                                Cabang:{" "}
+                                {branches.find(
+                                  (branch) => branch._id === request.cabangId
+                                )?.namaCabang || "-"}
                               </Typography>
                             </Box>
-                            
+
                             <Box display="flex" alignItems="center">
-                              <ScheduleIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                              <Typography variant="body2" color="text.secondary">
-                                {formatDate(request.tanggal || request.createdAt)}
+                              <ScheduleIcon
+                                sx={{ mr: 1, color: "text.secondary" }}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {formatDate(
+                                  request.tanggal || request.createdAt
+                                )}
                               </Typography>
                             </Box>
                           </Grid>
                         </Grid>
                       </CardContent>
-                      
-                      <CardActions sx={{ justifyContent: 'flex-end', p: 2, pt: 0 }}>
-                        <Button 
-                          size="small" 
+
+                      <CardActions
+                        sx={{ justifyContent: "flex-end", p: 2, pt: 0 }}
+                      >
+                        <Button
+                          size="small"
                           startIcon={<EditIcon />}
                           onClick={() => handleOpenRequestDialog(request)}
                         >
                           Edit
                         </Button>
-                        <Button 
-                          size="small" 
-                          color="error" 
+                        <Button
+                          size="small"
+                          color="error"
                           startIcon={<DeleteIcon />}
                           onClick={() => handleOpenDeleteDialog(request._id)}
                         >
                           Hapus
                         </Button>
-                        <Button 
-                          size="small" 
-                          variant="contained" 
+                        <Button
+                          size="small"
+                          variant="contained"
                           color="primary"
                           startIcon={<DirectionsCarIcon />}
                           onClick={() => handleOpenPickupDialog(request)}
@@ -621,7 +729,7 @@ const PickupPage = () => {
                     </Card>
                   ))
                 )}
-                
+
                 <Box mt={2}>
                   <TablePagination
                     component="div"
@@ -635,7 +743,7 @@ const PickupPage = () => {
                 </Box>
               </Box>
             </TabPanel>
-            
+
             <TabPanel value={tabValue} index={2}>
               <TableContainer>
                 <Table>
@@ -668,21 +776,31 @@ const PickupPage = () => {
                       paginatedPickups.map((pickup) => (
                         <TableRow key={pickup._id}>
                           <TableCell>{pickup.noPengambilan}</TableCell>
-                          <TableCell>{formatDate(pickup.tanggal || pickup.createdAt)}</TableCell>
-                          <TableCell>{pickup.pengirim?.nama || '-'}</TableCell>
-                          <TableCell>{pickup.supir?.nama || '-'}</TableCell>
-                          <TableCell>{pickup.kendaraan?.noPolisi || '-'}</TableCell>
+                          <TableCell>
+                            {formatDate(pickup.tanggal || pickup.createdAt)}
+                          </TableCell>
+                          <TableCell>{pickup.pengirim?.nama || "-"}</TableCell>
+                          <TableCell>{pickup.supir?.nama || "-"}</TableCell>
+                          <TableCell>
+                            {pickup.kendaraan?.noPolisi || "-"}
+                          </TableCell>
                           <TableCell>{pickup.sttIds.length}</TableCell>
                           <TableCell>
-                            <Chip 
-                              label={pickup.waktuPulang ? 'Selesai' : 'Dalam Proses'} 
-                              color={pickup.waktuPulang ? 'success' : 'warning'} 
-                              size="small" 
+                            <Chip
+                              label={
+                                pickup.waktuPulang ? "Selesai" : "Dalam Proses"
+                              }
+                              color={pickup.waktuPulang ? "success" : "warning"}
+                              size="small"
                             />
                           </TableCell>
                           <TableCell>
                             <Tooltip title="Lihat Detail">
-                              <IconButton onClick={() => router.push(`/pickup/${pickup._id}`)}>
+                              <IconButton
+                                onClick={() =>
+                                  router.push(`/pickup/${pickup._id}`)
+                                }
+                              >
                                 <FileCopyIcon />
                               </IconButton>
                             </Tooltip>
@@ -693,7 +811,7 @@ const PickupPage = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              
+
               <TablePagination
                 rowsPerPageOptions={[5, 10, 25]}
                 component="div"
@@ -707,37 +825,45 @@ const PickupPage = () => {
           </Box>
         </Paper>
       </Box>
-      
+
       {/* Pickup Request Dialog */}
-      <Dialog open={openRequestDialog} onClose={handleCloseRequestDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{editingRequest ? 'Edit Permintaan Pengambilan' : 'Buat Permintaan Pengambilan'}</DialogTitle>
+      <Dialog
+        open={openRequestDialog}
+        onClose={handleCloseRequestDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingRequest
+            ? "Edit Permintaan Pengambilan"
+            : "Buat Permintaan Pengambilan"}
+        </DialogTitle>
         <Box component="form" onSubmit={handleRequestSubmit(onSubmitRequest)}>
           <DialogContent>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <Controller
-                  name="pengirimId"
-                  control={requestControl}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      select
-                      label="Pengirim"
-                      fullWidth
-                      margin="normal"
-                      error={!!requestErrors.pengirimId}
-                      helperText={requestErrors.pengirimId?.message}
-                    >
-                      {senders.map((sender) => (
-                        <MenuItem key={sender._id} value={sender._id}>
-                          {sender.nama} {sender.perusahaan ? `- ${sender.perusahaan}` : ''}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
+              <Controller
+  name="pengirimId"
+  control={requestControl}
+  render={({ field }) => (
+    <TextField
+      {...field}
+      select
+      label="Pengirim"
+      error={!!requestErrors.pengirimId}
+      helperText={requestErrors.pengirimId?.message}
+      fullWidth
+    >
+      {Array.isArray(senders) ? senders.map((sender) => (
+        <MenuItem key={sender._id} value={sender._id}>
+          {sender.nama}
+        </MenuItem>
+      )) : null}
+    </TextField>
+  )}
+/>
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Controller
                   name="alamatPengambilan"
@@ -763,7 +889,7 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Controller
                   name="tujuan"
@@ -787,7 +913,7 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Controller
                   name="jumlahColly"
@@ -814,7 +940,7 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Controller
                   name="cabangId"
@@ -844,23 +970,30 @@ const PickupPage = () => {
           <DialogActions>
             <Button onClick={handleCloseRequestDialog}>Batal</Button>
             <Button type="submit" variant="contained">
-              {editingRequest ? 'Perbarui' : 'Simpan'}
+              {editingRequest ? "Perbarui" : "Simpan"}
             </Button>
           </DialogActions>
         </Box>
       </Dialog>
-      
+
       {/* Pickup Dialog */}
-      <Dialog open={openPickupDialog} onClose={handleClosePickupDialog} maxWidth="md" fullWidth>
+      <Dialog
+        open={openPickupDialog}
+        onClose={handleClosePickupDialog}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Proses Pengambilan</DialogTitle>
         <Box component="form" onSubmit={handlePickupSubmit(onSubmitPickup)}>
           <DialogContent>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <Typography variant="subtitle1" fontWeight="bold">Informasi Kendaraan</Typography>
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Informasi Kendaraan
+                </Typography>
                 <Divider sx={{ mb: 2 }} />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Controller
                   name="supirId"
@@ -884,7 +1017,7 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Controller
                   name="kenekId"
@@ -909,7 +1042,7 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Controller
                   name="kendaraanId"
@@ -933,7 +1066,7 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Controller
                   name="estimasiPengambilan"
@@ -958,11 +1091,12 @@ const PickupPage = () => {
                   )}
                 />
               </Grid>
-              
+
               <Grid item xs={12}>
                 <Box mt={2} mb={2}>
                   <Typography variant="body2" color="text.secondary">
-                    Catatan: Setelah kendaraan berangkat, Anda dapat menambahkan STT ke dalam pengambilan ini.
+                    Catatan: Setelah kendaraan berangkat, Anda dapat menambahkan
+                    STT ke dalam pengambilan ini.
                   </Typography>
                 </Box>
               </Grid>
@@ -976,7 +1110,7 @@ const PickupPage = () => {
           </DialogActions>
         </Box>
       </Dialog>
-      
+
       {/* Confirm Delete Dialog */}
       <Dialog
         open={confirmDeleteDialog}
@@ -984,9 +1118,7 @@ const PickupPage = () => {
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">
-          Konfirmasi Hapus
-        </DialogTitle>
+        <DialogTitle id="alert-dialog-title">Konfirmasi Hapus</DialogTitle>
         <DialogContent>
           <Typography>
             Apakah Anda yakin ingin menghapus permintaan pengambilan ini?
@@ -999,13 +1131,17 @@ const PickupPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Snackbar untuk notifikasi */}
-      <Snackbar open={!!error || !!success} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={error ? 'error' : 'success'} 
-          sx={{ width: '100%' }}
+      <Snackbar
+        open={!!error || !!success}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={error ? "error" : "success"}
+          sx={{ width: "100%" }}
         >
           {error || success}
         </Alert>

@@ -50,7 +50,6 @@ import {
   VpnKey as VpnKeyIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
-  Business as BusinessIcon,
   Work as WorkIcon
 } from '@mui/icons-material';
 import Head from 'next/head';
@@ -66,12 +65,13 @@ import {
 } from '../../store/slices/employeeSlice';
 import { getBranches } from '../../store/slices/branchSlice';
 import { clearError, clearSuccess } from '../../store/slices/uiSlice';
-import { Employee, EmployeeFormInputs } from '../../types/employee';
+import { Employee } from '../../types/employee';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import withAuth from '../../components/auth/withAuth';
 import { useRouter } from 'next/router';
+
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -353,12 +353,19 @@ const EmployeePage = () => {
   return (
     <>
       <Head>
-        <title>Pegawai - Samudra ERP</title>
+        <title>Manajemen Pengguna - Samudra ERP</title>
       </Head>
-      
-      <Box>
+
+      <Box p={3}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4">Manajemen Pegawai</Typography>
+          <Box>
+            <Typography variant="h4" gutterBottom>
+              Manajemen Pengguna
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Kelola data pegawai dan hak akses pengguna sistem
+            </Typography>
+          </Box>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -367,21 +374,18 @@ const EmployeePage = () => {
             Tambah Pegawai
           </Button>
         </Box>
-        
+
+        <Tabs 
+          value={tabValue} 
+          onChange={handleTabChange}
+          sx={{ mb: 3 }}
+        >
+          <Tab label="Daftar Pegawai" />
+          <Tab label="Admin" />
+          <Tab label="Operasional" />
+        </Tabs>
+
         <Paper sx={{ width: '100%', mb: 2 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              variant="fullWidth"
-              aria-label="employee role tabs"
-            >
-              <Tab icon={<PersonIcon />} label="Semua Pegawai" />
-              <Tab icon={<BusinessIcon />} label="Admin" />
-              <Tab icon={<WorkIcon />} label="Operasional" />
-            </Tabs>
-          </Box>
-          
           <Box p={2}>
             <Grid container spacing={2} alignItems="center" mb={2}>
               <Grid item xs={12} md={7}>
@@ -510,442 +514,455 @@ const EmployeePage = () => {
             </TabPanel>
           </Box>
         </Paper>
-      </Box>
-      
-      {/* Employee Form Dialog */}
-      <Dialog open={openEmployeeDialog} onClose={handleCloseEmployeeDialog} maxWidth="lg" fullWidth>
-        <DialogTitle>{editingEmployee ? 'Edit Pegawai' : 'Tambah Pegawai'}</DialogTitle>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+
+        {/* Employee Form Dialog */}
+        <Dialog 
+          open={openEmployeeDialog} 
+          onClose={handleCloseEmployeeDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <DialogTitle>
+              {editingEmployee ? 'Edit Pegawai' : 'Tambah Pegawai'}
+            </DialogTitle>
+            <DialogContent>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" fontWeight="bold">Informasi Pegawai</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="nama"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Nama Pegawai"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.nama}
+                        helperText={errors.nama?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="roleId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        select
+                        label="Role"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.roleId}
+                        helperText={errors.roleId?.message}
+                      >
+                        {roles.map((role) => (
+                          <MenuItem key={role._id} value={role._id}>
+                            {role.namaRole}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="jabatan"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Jabatan"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.jabatan}
+                        helperText={errors.jabatan?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <WorkIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="cabangId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        select
+                        label="Cabang"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.cabangId}
+                        helperText={errors.cabangId?.message}
+                        disabled={!!user?.cabangId}
+                      >
+                        {branches.map((branch) => (
+                          <MenuItem key={branch._id} value={branch._id}>
+                            {branch.namaCabang}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Controller
+                    name="telepon"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Nomor Telepon"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.telepon}
+                        helperText={errors.telepon?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PhoneIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Controller
+                    name="email"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Email"
+                        type="email"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.email}
+                        helperText={errors.email?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <EmailIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Controller
+                    name="aktif"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={<Switch checked={field.value} onChange={field.onChange} />}
+                        label="Aktif"
+                        sx={{ mt: 3 }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Controller
+                    name="alamat"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Alamat"
+                        fullWidth
+                        margin="normal"
+                        multiline
+                        rows={2}
+                        error={!!errors.alamat}
+                        helperText={errors.alamat?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <HomeIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" fontWeight="bold" mt={2}>Credentials</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="username"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Username"
+                        fullWidth
+                        margin="normal"
+                        error={!!errors.username}
+                        helperText={errors.username?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="password"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label={editingEmployee ? 'Password (Kosongkan jika tidak diubah)' : 'Password'}
+                        fullWidth
+                        margin="normal"
+                        type={showPassword ? 'text' : 'password'}
+                        error={!!errors.password}
+                        helperText={errors.password?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <VpnKeyIcon />
+                            </InputAdornment>
+                          ),
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                aria-label="toggle password visibility"
+                                onClick={toggleShowPassword}
+                                edge="end"
+                              >
+                                {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="confirmPassword"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Konfirmasi Password"
+                        fullWidth
+                        margin="normal"
+                        type={showPassword ? 'text' : 'password'}
+                        error={!!errors.confirmPassword}
+                        helperText={errors.confirmPassword?.message}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <VpnKeyIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" fontWeight="bold" mt={2}>Dokumen</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Controller
+                    name="fotoProfil"
+                    control={control}
+                    render={({ field: { value, onChange, ...field } }) => (
+                      <>
+                        <input
+                          {...field}
+                          ref={fotoProfilRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              onChange(e.target.files);
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="outlined"
+                          startIcon={<PhotoCameraIcon />}
+                          fullWidth
+                          sx={{ mt: 2, height: '56px' }}
+                          onClick={() => fotoProfilRef.current?.click()}
+                        >
+                          {value?.[0]?.name || (editingEmployee?.fotoProfil ? 'Ganti Foto Profil' : 'Upload Foto Profil')}
+                        </Button>
+                      </>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Controller
+                    name="dokumen.ktp"
+                    control={control}
+                    render={({ field: { value, onChange, ...field } }) => (
+                      <>
+                        <input
+                          {...field}
+                          ref={ktpRef}
+                          type="file"
+                          accept="image/*,.pdf"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              onChange(e.target.files);
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="outlined"
+                          startIcon={<BadgeIcon />}
+                          fullWidth
+                          sx={{ mt: 2, height: '56px' }}
+                          onClick={() => ktpRef.current?.click()}
+                        >
+                          {value?.[0]?.name || (editingEmployee?.dokumen?.ktp ? 'Ganti KTP' : 'Upload KTP')}
+                        </Button>
+                      </>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Controller
+                    name="dokumen.npwp"
+                    control={control}
+                    render={({ field: { value, onChange, ...field } }) => (
+                      <>
+                        <input
+                          {...field}
+                          ref={npwpRef}
+                          type="file"
+                          accept="image/*,.pdf"
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              onChange(e.target.files);
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="outlined"
+                          startIcon={<BadgeIcon />}
+                          fullWidth
+                          sx={{ mt: 2, height: '56px' }}
+                          onClick={() => npwpRef.current?.click()}
+                        >
+                          {value?.[0]?.name || (editingEmployee?.dokumen?.npwp ? 'Ganti NPWP' : 'Upload NPWP')}
+                        </Button>
+                      </>
+                    )}
+                  />
+                </Grid>
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseEmployeeDialog}>Batal</Button>
+              <Button type="submit" variant="contained">
+                {editingEmployee ? 'Perbarui' : 'Simpan'}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
+
+        {/* Confirm Delete Dialog */}
+        <Dialog
+          open={confirmDeleteDialog}
+          onClose={handleCloseDeleteDialog}
+          aria-labelledby="alert-dialog-title"
+          aria-describedby="alert-dialog-description"
+        >
+          <DialogTitle id="alert-dialog-title">
+            Konfirmasi Hapus
+          </DialogTitle>
           <DialogContent>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" fontWeight="bold">Informasi Pegawai</Typography>
-                <Divider sx={{ mb: 2 }} />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="nama"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Nama Pegawai"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.nama}
-                      helperText={errors.nama?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PersonIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="roleId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      select
-                      label="Role"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.roleId}
-                      helperText={errors.roleId?.message}
-                    >
-                      {roles.map((role) => (
-                        <MenuItem key={role._id} value={role._id}>
-                          {role.namaRole}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="jabatan"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Jabatan"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.jabatan}
-                      helperText={errors.jabatan?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <WorkIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="cabangId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      select
-                      label="Cabang"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.cabangId}
-                      helperText={errors.cabangId?.message}
-                      disabled={!!user?.cabangId}
-                    >
-                      {branches.map((branch) => (
-                        <MenuItem key={branch._id} value={branch._id}>
-                          {branch.namaCabang}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="telepon"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Nomor Telepon"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.telepon}
-                      helperText={errors.telepon?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PhoneIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Email"
-                      type="email"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.email}
-                      helperText={errors.email?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <EmailIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="aktif"
-                  control={control}
-                  render={({ field }) => (
-                    <FormControlLabel
-                      control={<Switch checked={field.value} onChange={field.onChange} />}
-                      label="Aktif"
-                      sx={{ mt: 3 }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Controller
-                  name="alamat"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Alamat"
-                      fullWidth
-                      margin="normal"
-                      multiline
-                      rows={2}
-                      error={!!errors.alamat}
-                      helperText={errors.alamat?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <HomeIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" fontWeight="bold" mt={2}>Credentials</Typography>
-                <Divider sx={{ mb: 2 }} />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="username"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Username"
-                      fullWidth
-                      margin="normal"
-                      error={!!errors.username}
-                      helperText={errors.username?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <PersonIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="password"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label={editingEmployee ? 'Password (Kosongkan jika tidak diubah)' : 'Password'}
-                      fullWidth
-                      margin="normal"
-                      type={showPassword ? 'text' : 'password'}
-                      error={!!errors.password}
-                      helperText={errors.password?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <VpnKeyIcon />
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              aria-label="toggle password visibility"
-                              onClick={toggleShowPassword}
-                              edge="end"
-                            >
-                              {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Controller
-                  name="confirmPassword"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Konfirmasi Password"
-                      fullWidth
-                      margin="normal"
-                      type={showPassword ? 'text' : 'password'}
-                      error={!!errors.confirmPassword}
-                      helperText={errors.confirmPassword?.message}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <VpnKeyIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" fontWeight="bold" mt={2}>Dokumen</Typography>
-                <Divider sx={{ mb: 2 }} />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="fotoProfil"
-                  control={control}
-                  render={({ field: { value, onChange, ...field } }) => (
-                    <>
-                      <input
-                        {...field}
-                        ref={fotoProfilRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            onChange(e.target.files);
-                          }
-                        }}
-                      />
-                      <Button
-                        variant="outlined"
-                        startIcon={<PhotoCameraIcon />}
-                        fullWidth
-                        sx={{ mt: 2, height: '56px' }}
-                        onClick={() => fotoProfilRef.current?.click()}
-                      >
-                        {value?.[0]?.name || (editingEmployee?.fotoProfil ? 'Ganti Foto Profil' : 'Upload Foto Profil')}
-                      </Button>
-                    </>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="dokumen.ktp"
-                  control={control}
-                  render={({ field: { value, onChange, ...field } }) => (
-                    <>
-                      <input
-                        {...field}
-                        ref={ktpRef}
-                        type="file"
-                        accept="image/*,.pdf"
-                        style={{ display: 'none' }}
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            onChange(e.target.files);
-                          }
-                        }}
-                      />
-                      <Button
-                        variant="outlined"
-                        startIcon={<BadgeIcon />}
-                        fullWidth
-                        sx={{ mt: 2, height: '56px' }}
-                        onClick={() => ktpRef.current?.click()}
-                      >
-                        {value?.[0]?.name || (editingEmployee?.dokumen?.ktp ? 'Ganti KTP' : 'Upload KTP')}
-                      </Button>
-                    </>
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
-                <Controller
-                  name="dokumen.npwp"
-                  control={control}
-                  render={({ field: { value, onChange, ...field } }) => (
-                    <>
-                      <input
-                        {...field}
-                        ref={npwpRef}
-                        type="file"
-                        accept="image/*,.pdf"
-                        style={{ display: 'none' }}
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            onChange(e.target.files);
-                          }
-                        }}
-                      />
-                      <Button
-                        variant="outlined"
-                        startIcon={<BadgeIcon />}
-                        fullWidth
-                        sx={{ mt: 2, height: '56px' }}
-                        onClick={() => npwpRef.current?.click()}
-                      >
-                        {value?.[0]?.name || (editingEmployee?.dokumen?.npwp ? 'Ganti NPWP' : 'Upload NPWP')}
-                      </Button>
-                    </>
-                  )}
-                />
-              </Grid>
-            </Grid>
+            <Typography>
+              Apakah Anda yakin ingin menghapus pegawai ini?
+            </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseEmployeeDialog}>Batal</Button>
-            <Button type="submit" variant="contained">
-              {editingEmployee ? 'Perbarui' : 'Simpan'}
+            <Button onClick={handleCloseDeleteDialog}>Batal</Button>
+            <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+              Hapus
             </Button>
           </DialogActions>
-        </Box>
-      </Dialog>
-      
-      {/* Confirm Delete Dialog */}
-      <Dialog
-        open={confirmDeleteDialog}
-        onClose={handleCloseDeleteDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">
-          Konfirmasi Hapus
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Apakah Anda yakin ingin menghapus pegawai ini?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>Batal</Button>
-          <Button onClick={handleDeleteConfirm} color="error" autoFocus>
-            Hapus
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Snackbar untuk notifikasi */}
-      <Snackbar open={!!error || !!success} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={error ? 'error' : 'success'} 
-          sx={{ width: '100%' }}
+        </Dialog>
+
+        {/* Snackbar untuk notifikasi */}
+        <Snackbar 
+          open={!!error || !!success} 
+          autoHideDuration={6000} 
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
-          {error || success}
-        </Alert>
-      </Snackbar>
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={error ? 'error' : 'success'} 
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {error || success}
+          </Alert>
+        </Snackbar>
+      </Box>
     </>
   );
 };

@@ -4,7 +4,7 @@ import financeService from '../../services/financeService';
 import { setLoading, setError, setSuccess } from './uiSlice';
 import { 
   Account, 
-  Journal, 
+  JournalEntry, 
   Cash, 
   AccountFormInputs, 
   JournalFormInputs,
@@ -14,8 +14,8 @@ import {
 interface FinanceState {
   accounts: Account[];
   currentAccount: Account | null;
-  journals: Journal[];
-  currentJournal: Journal | null;
+  journals: JournalEntry[];
+  currentJournal: JournalEntry | null;
   cashTransactions: Cash[];
   currentCashTransaction: Cash | null;
   loading: boolean;
@@ -85,12 +85,12 @@ export const updateAccount = createAsyncThunk(
 );
 
 // Journal Operations
-export const getJournals = createAsyncThunk(
-  'finance/getJournals',
-  async (_, { dispatch, rejectWithValue }) => {
+export const getJournalEntries = createAsyncThunk(
+  'finance/getJournalEntries',
+  async (filters: any = {}, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
-      const response = await financeService.getJournals();
+      const response = await financeService.getJournals(filters);
       dispatch(setLoading(false));
       return response;
     } catch (error: any) {
@@ -101,8 +101,8 @@ export const getJournals = createAsyncThunk(
   }
 );
 
-export const createJournal = createAsyncThunk(
-  'finance/createJournal',
+export const createJournalEntry = createAsyncThunk(
+  'finance/createJournalEntry',
   async (journalData: JournalFormInputs, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
@@ -114,6 +114,40 @@ export const createJournal = createAsyncThunk(
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Gagal membuat jurnal'));
       return rejectWithValue(error.response?.data || { message: 'Gagal membuat jurnal' });
+    }
+  }
+);
+
+export const updateJournalEntry = createAsyncThunk(
+  'finance/updateJournalEntry',
+  async ({ id, journalData }: { id: string; journalData: Partial<JournalFormInputs> }, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await financeService.updateJournal(id, journalData);
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Jurnal berhasil diperbarui'));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Gagal memperbarui jurnal'));
+      return rejectWithValue(error.response?.data || { message: 'Gagal memperbarui jurnal' });
+    }
+  }
+);
+
+export const deleteJournalEntry = createAsyncThunk(
+  'finance/deleteJournalEntry',
+  async (id: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await financeService.deleteJournal(id);
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Jurnal berhasil dihapus'));
+      return id;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Gagal menghapus jurnal'));
+      return rejectWithValue(error.response?.data || { message: 'Gagal menghapus jurnal' });
     }
   }
 );
@@ -192,12 +226,24 @@ const financeSlice = createSlice({
         state.currentAccount = action.payload;
       })
       // Journal reducers
-      .addCase(getJournals.fulfilled, (state, action) => {
+      .addCase(getJournalEntries.fulfilled, (state, action) => {
         state.journals = action.payload;
       })
-      .addCase(createJournal.fulfilled, (state, action) => {
+      .addCase(createJournalEntry.fulfilled, (state, action) => {
         state.journals.push(action.payload);
         state.currentJournal = action.payload;
+      })
+      .addCase(updateJournalEntry.fulfilled, (state, action) => {
+        state.journals = state.journals.map((journal) =>
+          journal._id === action.payload._id ? action.payload : journal
+        );
+        state.currentJournal = action.payload;
+      })
+      .addCase(deleteJournalEntry.fulfilled, (state, action) => {
+        state.journals = state.journals.filter(journal => journal._id !== action.payload);
+        if (state.currentJournal && state.currentJournal._id === action.payload) {
+          state.currentJournal = null;
+        }
       })
       // Cash Transaction reducers
       .addCase(getCashTransactions.fulfilled, (state, action) => {

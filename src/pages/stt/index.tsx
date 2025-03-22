@@ -30,28 +30,23 @@ import {
   InputLabel,
   Select,
   Tab,
-  Tabs
+  Tabs,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Search as SearchIcon,
   Print as PrintIcon,
-  LocalShipping as LocalShippingIcon,
   Assignment as AssignmentIcon,
-  FilterList as FilterListIcon,
-  QrCode as QrCodeIcon
 } from '@mui/icons-material';
 import Head from 'next/head';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import {
   getSTTs,
-  getSTTById,
   createSTT,
   updateSTT,
-  updateSTTStatus,
-  generateSTTPDF,
   getSTTsByBranch,
   getSTTsByStatus
 } from '../../store/slices/sttSlice';
@@ -59,12 +54,12 @@ import { getBranches } from '../../store/slices/branchSlice';
 import { getSenders, getRecipients } from '../../store/slices/customerSlice';
 import { clearError, clearSuccess } from '../../store/slices/uiSlice';
 import { STT, STTFormInputs } from '../../types/stt';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import sttService from '../../services/sttService';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import withAuth from '../../components/auth/withAuth';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -101,18 +96,18 @@ const sttSchema = z.object({
   berat: z.number().min(0.1, 'Berat minimal 0.1 kg'),
   hargaPerKilo: z.number().min(0, 'Harga per kilo minimal 0'),
   harga: z.number().min(0, 'Harga minimal 0'),
-  keterangan: z.string().optional(),
+  keterangan: z.string().min(1, 'Keterangan wajib diisi'),
   kodePenerus: z.string().min(1, 'Kode penerus wajib dipilih'),
   penerusId: z.string().optional(),
   paymentType: z.enum(['CASH', 'COD', 'CAD'], {
     errorMap: () => ({ message: 'Metode pembayaran wajib dipilih' }),
   }),
-});
+}) satisfies z.ZodType<STTFormInputs>;
 
 const STTListPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const { sttList, pdfUrl } = useSelector((state: RootState) => state.stt);
+  const { sttList } = useSelector((state: RootState) => state.stt);
   const { branches } = useSelector((state: RootState) => state.branch);
   const { senders, recipients } = useSelector((state: RootState) => state.customer);
   const { user } = useSelector((state: RootState) => state.auth);
@@ -271,10 +266,6 @@ const STTListPage = () => {
     setEditingSTT(null);
   };
 
-  const handlePrintSTT = (id: string) => {
-    dispatch(generateSTTPDF(id));
-  };
-
   const onSubmit = (data: STTFormInputs) => {
     if (editingSTT) {
       dispatch(updateSTT({ id: editingSTT._id, sttData: data }));
@@ -326,7 +317,9 @@ const STTListPage = () => {
   const paginatedSTTs = filteredSTTs.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   // Get status chip color
-  const getStatusColor = (status: string) => {
+  type ChipColor = 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
+
+  const getStatusColor = (status: STT['status']): ChipColor => {
     switch (status) {
       case 'PENDING':
         return 'default';
@@ -346,7 +339,7 @@ const STTListPage = () => {
   };
 
   // Get payment type chip color
-  const getPaymentTypeColor = (type: string) => {
+  const getPaymentTypeColor = (type: STTFormInputs['paymentType']): ChipColor => {
     switch (type) {
       case 'CASH':
         return 'success';
@@ -359,12 +352,17 @@ const STTListPage = () => {
     }
   };
 
-  // Effect for PDF URL
-  useEffect(() => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank');
+  // Handle PDF generation
+  const handlePrintSTT = async (id: string) => {
+    try {
+      const response = await sttService.generatePDF(id);
+      if (response?.url) {
+        window.open(response.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
     }
-  }, [pdfUrl]);
+  };
 
   return (
     <>
@@ -431,11 +429,11 @@ const STTListPage = () => {
                     onChange={handleBranchFilter as any}
                   >
                     <MenuItem value="">Semua Cabang</MenuItem>
-                    {branches.map((branch) => (
+                    {Array.isArray(branches) ? branches.map((branch) => (
                       <MenuItem key={branch._id} value={branch._id}>
                         {branch.namaCabang}
                       </MenuItem>
-                    ))}
+                    )) : null}
                   </Select>
                 </FormControl>
               </Grid>
@@ -498,17 +496,17 @@ const STTListPage = () => {
                             }).format(stt.harga)}
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={stt.paymentType} 
-                              color={getPaymentTypeColor(stt.paymentType) as any} 
-                              size="small" 
+                            <Chip
+                              label={stt.paymentType}
+                              color={getPaymentTypeColor(stt.paymentType)}
+                              size="small"
                             />
                           </TableCell>
                           <TableCell>
-                            <Chip 
-                              label={stt.status} 
-                              color={getStatusColor(stt.status) as any} 
-                              size="small" 
+                            <Chip
+                              label={stt.status}
+                              color={getStatusColor(stt.status)}
+                              size="small"
                             />
                           </TableCell>
                           <TableCell>
@@ -585,11 +583,11 @@ const STTListPage = () => {
                       helperText={errors.cabangAsalId?.message}
                       disabled={!!user?.cabangId}
                     >
-                      {branches.map((branch) => (
+                      {Array.isArray(branches) ? branches.map((branch) => (
                         <MenuItem key={branch._id} value={branch._id}>
                           {branch.namaCabang}
                         </MenuItem>
-                      ))}
+                      )) : null}
                     </TextField>
                   )}
                 />
@@ -609,11 +607,12 @@ const STTListPage = () => {
                       error={!!errors.cabangTujuanId}
                       helperText={errors.cabangTujuanId?.message}
                     >
-                      {branches.map((branch) => (
+                      <MenuItem value="">Semua Cabang</MenuItem>
+                      {Array.isArray(branches) ? branches.map((branch) => (
                         <MenuItem key={branch._id} value={branch._id}>
                           {branch.namaCabang}
                         </MenuItem>
-                      ))}
+                      )) : null}
                     </TextField>
                   )}
                 />
@@ -638,11 +637,13 @@ const STTListPage = () => {
                       error={!!errors.pengirimId}
                       helperText={errors.pengirimId?.message}
                     >
-                      {senders.map((sender) => (
+                      {Array.isArray(senders) ? senders.map((sender) => (
                         <MenuItem key={sender._id} value={sender._id}>
                           {sender.nama} {sender.perusahaan ? ` - ${sender.perusahaan}` : ''}
                         </MenuItem>
-                      ))}
+                      )) : (
+                        <MenuItem value="">No senders available</MenuItem>
+                      )}
                     </TextField>
                   )}
                 />
@@ -662,11 +663,13 @@ const STTListPage = () => {
                       error={!!errors.penerimaId}
                       helperText={errors.penerimaId?.message}
                     >
-                      {recipients.map((recipient) => (
+                      {Array.isArray(recipients) ? recipients.map((recipient) => (
                         <MenuItem key={recipient._id} value={recipient._id}>
                           {recipient.nama} {recipient.perusahaan ? ` - ${recipient.perusahaan}` : ''}
                         </MenuItem>
-                      ))}
+                      )) : (
+                        <MenuItem value="">No recipients available</MenuItem>
+                      )}
                     </TextField>
                   )}
                 />
@@ -742,7 +745,7 @@ const STTListPage = () => {
                       inputProps={{ min: 1 }}
                       error={!!errors.jumlahColly}
                       helperText={errors.jumlahColly?.message}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.setOnChange(Number(e.target.value))}
                     />
                   )}
                 />
@@ -762,7 +765,7 @@ const STTListPage = () => {
                       inputProps={{ step: "0.1", min: 0.1 }}
                       error={!!errors.berat}
                       helperText={errors.berat?.message}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.setOnChange(Number(e.target.value))}
                     />
                   )}
                 />
@@ -782,7 +785,7 @@ const STTListPage = () => {
                       inputProps={{ min: 0 }}
                       error={!!errors.hargaPerKilo}
                       helperText={errors.hargaPerKilo?.message}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.setOnChange(Number(e.target.value))}
                     />
                   )}
                 />
@@ -802,7 +805,7 @@ const STTListPage = () => {
                       inputProps={{ min: 0 }}
                       error={!!errors.harga}
                       helperText={errors.harga?.message}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.setOnChange(Number(e.target.value))}
                       InputProps={{
                         startAdornment: <InputAdornment position="start">Rp</InputAdornment>,
                       }}

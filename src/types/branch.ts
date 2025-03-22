@@ -13,9 +13,9 @@ export interface Branch {
   kota: string;
   provinsi: string;
   kontakPenanggungJawab: {
-    nama?: string;
-    telepon?: string;
-    email?: string;
+    nama: string;
+    telepon: string;
+    email: string;
   };
   createdAt: string;
   updatedAt: string;

@@ -14,7 +14,7 @@ import {
 import { RootState, AppDispatch } from '../../store';
 import { getRoles, createRole, updateRole, deleteRole } from '../../store/slices/employeeSlice';
 import { useToast } from '@/components/ui/use-toast';
-import { Trash2, Edit } from 'lucide-react';
+import { Delete as Trash2, Edit } from '@mui/icons-material';
 
 // Daftar permission yang tersedia
 const ALL_PERMISSIONS = [

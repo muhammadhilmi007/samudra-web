@@ -1,5 +1,5 @@
 // src/pages/branch/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -25,56 +25,60 @@ import {
   Snackbar,
   Alert,
   TablePagination,
-  CircularProgress
-} from '@mui/material';
+  CircularProgress,
+} from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   BusinessCenter as BusinessIcon,
-  Domain as DomainIcon
-} from '@mui/icons-material';
-import Head from 'next/head';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
+  Domain as DomainIcon,
+} from "@mui/icons-material";
+import Head from "next/head";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../store";
 import {
   getBranches,
   createBranch,
   updateBranch,
   deleteBranch,
-  getBranchesByDivision
-} from '../../store/slices/branchSlice';
+  getBranchesByDivision,
+} from "../../store/slices/branchSlice";
 import {
   getDivisions,
   createDivision,
   updateDivision,
-  deleteDivision
-} from '../../store/slices/divisionSlice';
-import { clearError, clearSuccess } from '../../store/slices/uiSlice';
-import { Branch, BranchFormInputs } from '../../types/branch';
-import { Division, DivisionFormInputs } from '../../types/division';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import withAuth from '../../components/auth/withAuth';
+  deleteDivision,
+} from "../../store/slices/divisionSlice";
+import { clearError, clearSuccess } from "../../store/slices/uiSlice";
+import { Branch } from "../../types/branch";
+import { Division, DivisionFormInputs } from "../../types/division";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import withAuth from "../../components/auth/withAuth";
 
 // Schema for division form validation
 const divisionSchema = z.object({
-  namaDivisi: z.string().min(1, 'Nama divisi wajib diisi'),
+  namaDivisi: z.string().min(1, "Nama divisi wajib diisi"),
 });
 
 // Schema for branch form validation
 const branchSchema = z.object({
-  namaCabang: z.string().min(1, 'Nama cabang wajib diisi'),
-  divisiId: z.string().min(1, 'Divisi wajib dipilih'),
-  alamat: z.string().min(1, 'Alamat wajib diisi'),
-  kelurahan: z.string().min(1, 'Kelurahan wajib diisi'),
-  kecamatan: z.string().min(1, 'Kecamatan wajib diisi'),
-  kota: z.string().min(1, 'Kota wajib diisi'),
-  provinsi: z.string().min(1, 'Provinsi wajib diisi'),
-  'kontakPenanggungJawab.nama': z.string().optional(),
-  'kontakPenanggungJawab.telepon': z.string().optional(),
-  'kontakPenanggungJawab.email': z.string().email('Email tidak valid').optional().or(z.literal('')),
+  namaCabang: z.string().min(1, "Nama cabang wajib diisi"),
+  divisiId: z.string().min(1, "Divisi wajib dipilih"),
+  alamat: z.string().min(1, "Alamat wajib diisi"),
+  kelurahan: z.string().min(1, "Kelurahan wajib diisi"),
+  kecamatan: z.string().min(1, "Kecamatan wajib diisi"),
+  kota: z.string().min(1, "Kota wajib diisi"),
+  provinsi: z.string().min(1, "Provinsi wajib diisi"),
+  "kontakPenanggungJawab.nama": z.string().optional(),
+  "kontakPenanggungJawab.telepon": z.string().optional(),
+  "kontakPenanggungJawab.email": z
+    .string()
+    .email("Email tidak valid")
+    .optional()
+    .or(z.literal("")),
 });
 
 interface TabPanelProps {
@@ -92,6 +96,11 @@ function TabPanel(props: TabPanelProps) {
       hidden={value !== index}
       id={`simple-tabpanel-${index}`}
       aria-labelledby={`simple-tab-${index}`}
+      tabIndex={0}
+      onClick={() => {
+        const element = document.querySelector(`[role="tabpanel"][hidden="false"]`);
+        if (element) (element as HTMLElement).focus();
+      }}
       {...other}
     >
       {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
@@ -101,9 +110,23 @@ function TabPanel(props: TabPanelProps) {
 
 const BranchAndDivisionPage = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { branches } = useSelector((state: RootState) => state.branch);
-  const { divisions } = useSelector((state: RootState) => state.division);
-  const { loading, error, success } = useSelector((state: RootState) => state.ui);
+  // Ensure branches are initialized as arrays
+  // Branch state
+  const { branches, isLoading, error: branchError } = useSelector((state: RootState) => {
+    const { branches, loading, error } = state.branch;
+    console.log("Branch state from store:", { branches, loading, error });
+    return {
+      branches: Array.isArray(branches) ? branches : [],
+      isLoading: loading,
+      error
+    };
+  });
+
+  // Division state
+  const { divisions = [] } = useSelector((state: RootState) => state.division);
+  
+  // UI state
+  const { loading: uiLoading, error: uiError, success } = useSelector((state: RootState) => state.ui);
 
   const [tabValue, setTabValue] = useState(0);
   const [openDivisionDialog, setOpenDivisionDialog] = useState(false);
@@ -111,10 +134,13 @@ const BranchAndDivisionPage = () => {
   const [editingDivision, setEditingDivision] = useState<Division | null>(null);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'branch' | 'division' } | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{
+    id: string;
+    type: "branch" | "division";
+  } | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [filterDivision, setFilterDivision] = useState<string>('');
+  const [filterDivision, setFilterDivision] = useState<string>("");
 
   const {
     control: divisionControl,
@@ -124,7 +150,7 @@ const BranchAndDivisionPage = () => {
   } = useForm<DivisionFormInputs>({
     resolver: zodResolver(divisionSchema),
     defaultValues: {
-      namaDivisi: '',
+      namaDivisi: "",
     },
   });
 
@@ -133,25 +159,29 @@ const BranchAndDivisionPage = () => {
     handleSubmit: handleBranchSubmit,
     reset: resetBranchForm,
     formState: { errors: branchErrors },
-  } = useForm<any>({
+  } = useForm<z.infer<typeof branchSchema>>({
     resolver: zodResolver(branchSchema),
     defaultValues: {
-      namaCabang: '',
-      divisiId: '',
-      alamat: '',
-      kelurahan: '',
-      kecamatan: '',
-      kota: '',
-      provinsi: '',
-      'kontakPenanggungJawab.nama': '',
-      'kontakPenanggungJawab.telepon': '',
-      'kontakPenanggungJawab.email': '',
+      namaCabang: "",
+      divisiId: "",
+      alamat: "",
+      kelurahan: "",
+      kecamatan: "",
+      kota: "",
+      provinsi: "",
+      "kontakPenanggungJawab.nama": "",
+      "kontakPenanggungJawab.telepon": "",
+      "kontakPenanggungJawab.email": "",
     },
   });
 
   useEffect(() => {
+    dispatch(getBranches())
+      .unwrap()
+      .then((data) => console.log("Branches loaded:", data))
+      .catch((err) => console.error("Error loading branches:", err));
+
     dispatch(getDivisions());
-    dispatch(getBranches());
   }, [dispatch]);
 
   useEffect(() => {
@@ -175,7 +205,7 @@ const BranchAndDivisionPage = () => {
     } else {
       setEditingDivision(null);
       resetDivisionForm({
-        namaDivisi: '',
+        namaDivisi: "",
       });
     }
     setOpenDivisionDialog(true);
@@ -197,23 +227,23 @@ const BranchAndDivisionPage = () => {
         kecamatan: branch.kecamatan,
         kota: branch.kota,
         provinsi: branch.provinsi,
-        'kontakPenanggungJawab.nama': branch.kontakPenanggungJawab?.nama || '',
-        'kontakPenanggungJawab.telepon': branch.kontakPenanggungJawab?.telepon || '',
-        'kontakPenanggungJawab.email': branch.kontakPenanggungJawab?.email || '',
+        "kontakPenanggungJawab.nama": branch.kontakPenanggungJawab?.nama || "",
+        "kontakPenanggungJawab.telepon": branch.kontakPenanggungJawab?.telepon || "",
+        "kontakPenanggungJawab.email": branch.kontakPenanggungJawab?.email || "",
       });
     } else {
       setEditingBranch(null);
       resetBranchForm({
-        namaCabang: '',
-        divisiId: '',
-        alamat: '',
-        kelurahan: '',
-        kecamatan: '',
-        kota: '',
-        provinsi: '',
-        'kontakPenanggungJawab.nama': '',
-        'kontakPenanggungJawab.telepon': '',
-        'kontakPenanggungJawab.email': '',
+        namaCabang: "",
+        divisiId: "",
+        alamat: "",
+        kelurahan: "",
+        kecamatan: "",
+        kota: "",
+        provinsi: "",
+        "kontakPenanggungJawab.nama": "",
+        "kontakPenanggungJawab.telepon": "",
+        "kontakPenanggungJawab.email": "",
       });
     }
     setOpenBranchDialog(true);
@@ -224,7 +254,7 @@ const BranchAndDivisionPage = () => {
     setEditingBranch(null);
   };
 
-  const handleOpenDeleteDialog = (id: string, type: 'branch' | 'division') => {
+  const handleOpenDeleteDialog = (id: string, type: "branch" | "division") => {
     setItemToDelete({ id, type });
     setConfirmDeleteDialog(true);
   };
@@ -236,7 +266,7 @@ const BranchAndDivisionPage = () => {
 
   const handleDeleteConfirm = () => {
     if (itemToDelete) {
-      if (itemToDelete.type === 'division') {
+      if (itemToDelete.type === "division") {
         dispatch(deleteDivision(itemToDelete.id));
       } else {
         dispatch(deleteBranch(itemToDelete.id));
@@ -254,7 +284,7 @@ const BranchAndDivisionPage = () => {
     handleCloseDivisionDialog();
   };
 
-  const onSubmitBranch = (data: any) => {
+  const onSubmitBranch = (data: z.infer<typeof branchSchema>) => {
     const branchData: Partial<Branch> = {
       namaCabang: data.namaCabang,
       divisiId: data.divisiId,
@@ -264,12 +294,14 @@ const BranchAndDivisionPage = () => {
       kota: data.kota,
       provinsi: data.provinsi,
       kontakPenanggungJawab: {
-        nama: data['kontakPenanggungJawab.nama'],
-        telepon: data['kontakPenanggungJawab.telepon'],
-        email: data['kontakPenanggungJawab.email'],
+        nama: data["kontakPenanggungJawab.nama"] || "",
+        telepon: data["kontakPenanggungJawab.telepon"] || "",
+        email: data["kontakPenanggungJawab.email"] || "",
       },
     };
-    
+
+    console.log("Submitting branch data:", branchData);
+
     if (editingBranch) {
       dispatch(updateBranch({ id: editingBranch._id, branchData }));
     } else {
@@ -282,7 +314,9 @@ const BranchAndDivisionPage = () => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -296,22 +330,42 @@ const BranchAndDivisionPage = () => {
     setFilterDivision(event.target.value);
   };
 
+  // Add this helper function
+  const branchesInDivision = (divisionId: string) => {
+    return Array.isArray(branches)
+      ? branches.filter((branch) => branch.divisiId === divisionId)
+      : [];
+  };
+
   // Pagination
-  const paginatedDivisions = divisions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  const paginatedBranches = branches.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const startIndex = page * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedBranches = useMemo(() => {
+    if (!Array.isArray(branches)) {
+      console.warn("Branches is not an array:", branches);
+      return [];
+    }
+    return branches.slice(startIndex, endIndex);
+  }, [branches, startIndex, endIndex]);
+  const paginatedDivisions = divisions.slice(startIndex, endIndex);
 
   return (
     <>
       <Head>
         <title>Cabang & Divisi - Samudra ERP</title>
       </Head>
-      
+
       <Box>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={3}
+        >
           <Typography variant="h4">Cabang & Divisi</Typography>
         </Box>
-        
-        <Paper sx={{ width: '100%', mb: 2 }}>
+
+        <Paper sx={{ width: "100%", mb: 2 }}>
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
@@ -322,9 +376,14 @@ const BranchAndDivisionPage = () => {
             <Tab label="Cabang" icon={<BusinessIcon />} iconPosition="start" />
             <Tab label="Divisi" icon={<DomainIcon />} iconPosition="start" />
           </Tabs>
-          
+
           <TabPanel value={tabValue} index={0}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={2}
+            >
               <TextField
                 select
                 label="Filter Divisi"
@@ -339,7 +398,7 @@ const BranchAndDivisionPage = () => {
                   </MenuItem>
                 ))}
               </TextField>
-              
+
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
@@ -348,7 +407,7 @@ const BranchAndDivisionPage = () => {
                 Tambah Cabang
               </Button>
             </Box>
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -362,7 +421,7 @@ const BranchAndDivisionPage = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {loading ? (
+                  {isLoading ? (
                     <TableRow>
                       <TableCell colSpan={6} align="center">
                         <CircularProgress />
@@ -379,19 +438,26 @@ const BranchAndDivisionPage = () => {
                       <TableRow key={branch._id}>
                         <TableCell>{branch.namaCabang}</TableCell>
                         <TableCell>
-                          {divisions.find((div) => div._id === branch.divisiId)?.namaDivisi || '-'}
+                          {divisions.find((div) => div._id === branch.divisiId)
+                            ?.namaDivisi || "-"}
                         </TableCell>
                         <TableCell>{branch.alamat}</TableCell>
                         <TableCell>{branch.kota}</TableCell>
                         <TableCell>{branch.provinsi}</TableCell>
                         <TableCell>
                           <Tooltip title="Edit">
-                            <IconButton onClick={() => handleOpenBranchDialog(branch)}>
+                            <IconButton
+                              onClick={() => handleOpenBranchDialog(branch)}
+                            >
                               <EditIcon />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Hapus">
-                            <IconButton onClick={() => handleOpenDeleteDialog(branch._id, 'branch')}>
+                            <IconButton
+                              onClick={() =>
+                                handleOpenDeleteDialog(branch._id, "branch")
+                              }
+                            >
                               <DeleteIcon />
                             </IconButton>
                           </Tooltip>
@@ -402,18 +468,18 @@ const BranchAndDivisionPage = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-            
+
             <TablePagination
               rowsPerPageOptions={[5, 10, 25]}
               component="div"
-              count={branches.length}
+              count={Array.isArray(branches) ? branches.length : 0}
               rowsPerPage={rowsPerPage}
               page={page}
               onPageChange={handleChangePage}
               onRowsPerPageChange={handleChangeRowsPerPage}
             />
           </TabPanel>
-          
+
           <TabPanel value={tabValue} index={1}>
             <Box display="flex" justifyContent="flex-end" mb={2}>
               <Button
@@ -424,7 +490,7 @@ const BranchAndDivisionPage = () => {
                 Tambah Divisi
               </Button>
             </Box>
-            
+
             <TableContainer>
               <Table>
                 <TableHead>
@@ -436,7 +502,7 @@ const BranchAndDivisionPage = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {loading ? (
+                  {isLoading ? (
                     <TableRow>
                       <TableCell colSpan={4} align="center">
                         <CircularProgress />
@@ -453,23 +519,32 @@ const BranchAndDivisionPage = () => {
                       <TableRow key={division._id}>
                         <TableCell>{division.namaDivisi}</TableCell>
                         <TableCell>
-                          {branches.filter((branch) => branch.divisiId === division._id).length}
+                          {branchesInDivision(division._id).length}
                         </TableCell>
                         <TableCell>
-                          {new Date(division.createdAt).toLocaleDateString('id-ID', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
+                          {new Date(division.createdAt).toLocaleDateString(
+                            "id-ID",
+                            {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            }
+                          )}
                         </TableCell>
                         <TableCell>
                           <Tooltip title="Edit">
-                            <IconButton onClick={() => handleOpenDivisionDialog(division)}>
+                            <IconButton
+                              onClick={() => handleOpenDivisionDialog(division)}
+                            >
                               <EditIcon />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Hapus">
-                            <IconButton onClick={() => handleOpenDeleteDialog(division._id, 'division')}>
+                            <IconButton
+                              onClick={() =>
+                                handleOpenDeleteDialog(division._id, "division")
+                              }
+                            >
                               <DeleteIcon />
                             </IconButton>
                           </Tooltip>
@@ -480,7 +555,7 @@ const BranchAndDivisionPage = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-            
+
             <TablePagination
               rowsPerPageOptions={[5, 10, 25]}
               component="div"
@@ -493,10 +568,17 @@ const BranchAndDivisionPage = () => {
           </TabPanel>
         </Paper>
       </Box>
-      
+
       {/* Division Dialog */}
-      <Dialog open={openDivisionDialog} onClose={handleCloseDivisionDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingDivision ? 'Edit Divisi' : 'Tambah Divisi'}</DialogTitle>
+      <Dialog
+        open={openDivisionDialog}
+        onClose={handleCloseDivisionDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingDivision ? "Edit Divisi" : "Tambah Divisi"}
+        </DialogTitle>
         <Box component="form" onSubmit={handleDivisionSubmit(onSubmitDivision)}>
           <DialogContent>
             <Controller
@@ -509,7 +591,7 @@ const BranchAndDivisionPage = () => {
                   fullWidth
                   margin="normal"
                   error={!!divisionErrors.namaDivisi}
-                  helperText={divisionErrors.namaDivisi?.message}
+                  helperText={(divisionErrors.namaDivisi?.message || '') as string}
                 />
               )}
             />
@@ -517,15 +599,22 @@ const BranchAndDivisionPage = () => {
           <DialogActions>
             <Button onClick={handleCloseDivisionDialog}>Batal</Button>
             <Button type="submit" variant="contained">
-              {editingDivision ? 'Perbarui' : 'Simpan'}
+              {editingDivision ? "Perbarui" : "Simpan"}
             </Button>
           </DialogActions>
         </Box>
       </Dialog>
-      
+
       {/* Branch Dialog */}
-      <Dialog open={openBranchDialog} onClose={handleCloseBranchDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{editingBranch ? 'Edit Cabang' : 'Tambah Cabang'}</DialogTitle>
+      <Dialog
+        open={openBranchDialog}
+        onClose={handleCloseBranchDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingBranch ? "Edit Cabang" : "Tambah Cabang"}
+        </DialogTitle>
         <Box component="form" onSubmit={handleBranchSubmit(onSubmitBranch)}>
           <DialogContent>
             <Grid container spacing={2}>
@@ -540,7 +629,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.namaCabang}
-                      helperText={branchErrors.namaCabang?.message}
+                      helperText={branchErrors.namaCabang?.message as string}
                     />
                   )}
                 />
@@ -557,7 +646,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.divisiId}
-                      helperText={branchErrors.divisiId?.message}
+                      helperText={branchErrors.divisiId?.message as string}
                     >
                       {divisions.map((division) => (
                         <MenuItem key={division._id} value={division._id}>
@@ -579,7 +668,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.alamat}
-                      helperText={branchErrors.alamat?.message}
+                      helperText={(branchErrors.alamat?.message || '') as string}
                     />
                   )}
                 />
@@ -595,7 +684,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.kelurahan}
-                      helperText={branchErrors.kelurahan?.message}
+                      helperText={branchErrors.kelurahan?.message as string}
                     />
                   )}
                 />
@@ -611,7 +700,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.kecamatan}
-                      helperText={branchErrors.kecamatan?.message}
+                      helperText={(branchErrors.kecamatan?.message || '') as string}
                     />
                   )}
                 />
@@ -627,7 +716,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.kota}
-                      helperText={branchErrors.kota?.message}
+                      helperText={(branchErrors.kota?.message || '') as string}
                     />
                   )}
                 />
@@ -643,7 +732,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.provinsi}
-                      helperText={branchErrors.provinsi?.message}
+                      helperText={(branchErrors.provinsi?.message || '') as string}
                     />
                   )}
                 />
@@ -663,8 +752,8 @@ const BranchAndDivisionPage = () => {
                       label="Nama Penanggung Jawab"
                       fullWidth
                       margin="normal"
-                      error={!!branchErrors['kontakPenanggungJawab.nama']}
-                      helperText={branchErrors['kontakPenanggungJawab.nama']?.message}
+                      error={!!branchErrors["kontakPenanggungJawab.nama"]}
+                      helperText={(branchErrors["kontakPenanggungJawab.nama"]?.message || '') as string}
                     />
                   )}
                 />
@@ -679,8 +768,8 @@ const BranchAndDivisionPage = () => {
                       label="Telepon Penanggung Jawab"
                       fullWidth
                       margin="normal"
-                      error={!!branchErrors['kontakPenanggungJawab.telepon']}
-                      helperText={branchErrors['kontakPenanggungJawab.telepon']?.message}
+                      error={!!branchErrors["kontakPenanggungJawab.telepon"]}
+                      helperText={(branchErrors["kontakPenanggungJawab.telepon"]?.message || '') as string}
                     />
                   )}
                 />
@@ -695,8 +784,8 @@ const BranchAndDivisionPage = () => {
                       label="Email Penanggung Jawab"
                       fullWidth
                       margin="normal"
-                      error={!!branchErrors['kontakPenanggungJawab.email']}
-                      helperText={branchErrors['kontakPenanggungJawab.email']?.message}
+                      error={!!branchErrors["kontakPenanggungJawab.email"]}
+                      helperText={(branchErrors["kontakPenanggungJawab.email"]?.message || '') as string}
                     />
                   )}
                 />
@@ -706,12 +795,12 @@ const BranchAndDivisionPage = () => {
           <DialogActions>
             <Button onClick={handleCloseBranchDialog}>Batal</Button>
             <Button type="submit" variant="contained">
-              {editingBranch ? 'Perbarui' : 'Simpan'}
+              {editingBranch ? "Perbarui" : "Simpan"}
             </Button>
           </DialogActions>
         </Box>
       </Dialog>
-      
+
       {/* Confirm Delete Dialog */}
       <Dialog
         open={confirmDeleteDialog}
@@ -719,16 +808,16 @@ const BranchAndDivisionPage = () => {
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">
-          Konfirmasi Hapus
-        </DialogTitle>
+        <DialogTitle id="alert-dialog-title">Konfirmasi Hapus</DialogTitle>
         <DialogContent>
           <Typography>
-            Apakah Anda yakin ingin menghapus {itemToDelete?.type === 'division' ? 'divisi' : 'cabang'} ini?
-            {itemToDelete?.type === 'division' && (
+            Apakah Anda yakin ingin menghapus{" "}
+            {itemToDelete?.type === "division" ? "divisi" : "cabang"} ini?
+            {itemToDelete?.type === "division" && (
               <Box mt={1}>
                 <Typography color="error">
-                  Perhatian: Menghapus divisi akan menghapus semua cabang yang terkait dengan divisi tersebut!
+                  Perhatian: Menghapus divisi akan menghapus semua cabang yang
+                  terkait dengan divisi tersebut!
                 </Typography>
               </Box>
             )}
@@ -741,15 +830,19 @@ const BranchAndDivisionPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Snackbar untuk notifikasi */}
-      <Snackbar open={!!error || !!success} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={error ? 'error' : 'success'} 
-          sx={{ width: '100%' }}
+      <Snackbar
+        open={!!uiError || !!success}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={uiError ? "error" : "success"}
+          sx={{ width: "100%" }}
         >
-          {error || success}
+          {uiError || success}
         </Alert>
       </Snackbar>
     </>

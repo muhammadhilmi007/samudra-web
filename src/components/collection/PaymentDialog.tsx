@@ -16,7 +16,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { PaymentInput, Collection } from '../../types/collection';
-import { makePayment } from '../../store/slices/collectionSlice';
+import { addPayment } from '../../store/slices/collectionSlice';
 import { AppDispatch } from '../../store';
 
 interface PaymentDialogProps {
@@ -35,7 +35,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   loading = false,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const [amount, setAmount] = useState<number>(collection.totalTagihan);
+  const [amount, setAmount] = useState<number>(getRemainingBalance());
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +52,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   // Handle amount change
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
+    const remainingBalance = getRemainingBalance();
+    
     if (isNaN(value) || value <= 0) {
       setError('Jumlah pembayaran harus lebih besar dari 0');
-    } else if (value > collection.totalTagihan) {
-      setError('Jumlah pembayaran tidak boleh melebihi total tagihan');
+    } else if (value > remainingBalance) {
+      setError(`Jumlah pembayaran tidak boleh melebihi sisa tagihan (${formatCurrency(remainingBalance)})`);
     } else {
       setError(null);
     }
@@ -69,8 +71,17 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       return;
     }
 
-    if (amount > collection.totalTagihan) {
-      setError('Jumlah pembayaran tidak boleh melebihi total tagihan');
+    const remainingBalance = getRemainingBalance();
+    if (amount > remainingBalance) {
+      setError(`Jumlah pembayaran tidak boleh melebihi sisa tagihan (${formatCurrency(remainingBalance)})`);
+      return;
+    }
+
+    // Validate payment date
+    const paymentDate = new Date(date);
+    const today = new Date();
+    if (paymentDate > today) {
+      setError('Tanggal pembayaran tidak boleh lebih dari hari ini');
       return;
     }
 
@@ -81,16 +92,20 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       keterangan: notes,
     };
 
-    // Dispatch the payment action
-    dispatch(makePayment(paymentData));
+    try {
+      // Dispatch the payment action
+      await dispatch(addPayment(paymentData)).unwrap();
 
-    // Call the onSubmit callback if provided
-    if (onSubmit) {
-      onSubmit(paymentData);
+      // Call the onSubmit callback if provided
+      if (onSubmit) {
+        onSubmit(paymentData);
+      }
+
+      // Close the dialog
+      onClose();
+    } catch (error: any) {
+      setError(error.message || 'Gagal memproses pembayaran');
     }
-
-    // Close the dialog
-    onClose();
   };
 
   // Calculate max payment amount (remaining balance)

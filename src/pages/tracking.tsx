@@ -1,35 +1,56 @@
-// src/pages/tracking.tsx
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Paper,
-  Grid,
-  Card,
-  CardContent,
-  Divider,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  CircularProgress,
-  InputAdornment,
-  Container
-} from '@mui/material';
-import {
-  Search as SearchIcon,
-  LocalShipping as LocalShippingIcon,
-  CheckCircle as CheckCircleIcon,
-  Store as StoreIcon,
-  ReceiptLong as ReceiptLongIcon,
-  QueryBuilder as QueryBuilderIcon
-} from '@mui/icons-material';
 import Head from 'next/head';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
-import { trackSTT, clearTrackingData } from '../store/slices/sttSlice';
+import { trackSTT, clearSTTs } from '../store/slices/sttSlice';
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  TextField,
+  Button,
+  Paper,
+  Divider,
+  CircularProgress,
+  styled
+} from '@mui/material';
+import {
+  LocalShipping as TruckIcon,
+  CheckCircle as CheckCircleIcon,
+  Store as BuildingIcon,
+  ReceiptLong as FileIcon,
+  QueryBuilder as ClockIcon,
+  Search as SearchIcon
+} from '@mui/icons-material';
+
+const StepIcon = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 36,
+  height: 36,
+  borderRadius: '50%',
+  border: `2px solid ${theme.palette.divider}`,
+  backgroundColor: theme.palette.background.paper,
+  marginRight: theme.spacing(2),
+}));
+
+const StepConnector = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  left: 17,
+  top: 36,
+  height: 'calc(100% - 36px)',
+  width: 2,
+  backgroundColor: theme.palette.divider,
+}));
+
+const StepContent = styled(Box)(({ theme }) => ({
+  flex: 1,
+  paddingTop: theme.spacing(1),
+}));
 
 const TrackingPage = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -37,7 +58,8 @@ const TrackingPage = () => {
   
   const [sttNumber, setSTTNumber] = useState<string>('');
   
-  const handleTrack = () => {
+  const handleTrack = (e: React.FormEvent) => {
+    e.preventDefault();
     if (sttNumber) {
       dispatch(trackSTT(sttNumber));
     }
@@ -45,7 +67,7 @@ const TrackingPage = () => {
   
   const handleReset = () => {
     setSTTNumber('');
-    dispatch(clearTrackingData());
+    dispatch(clearSTTs());
   };
   
   const getSteps = () => {
@@ -53,22 +75,22 @@ const TrackingPage = () => {
       {
         label: 'STT Dibuat',
         description: 'STT telah dibuat di sistem',
-        icon: <ReceiptLongIcon />,
+        icon: <FileIcon />,
       },
       {
         label: 'Barang Dimuat',
         description: 'Barang dimuat ke dalam truk untuk pengiriman',
-        icon: <LocalShippingIcon />,
+        icon: <TruckIcon />,
       },
       {
         label: 'Dalam Perjalanan',
         description: 'Barang dalam perjalanan ke cabang tujuan',
-        icon: <QueryBuilderIcon />,
+        icon: <ClockIcon />,
       },
       {
         label: 'Tiba di Cabang Tujuan',
         description: 'Barang telah tiba di cabang tujuan',
-        icon: <StoreIcon />,
+        icon: <BuildingIcon />,
       },
       {
         label: 'Terkirim',
@@ -77,7 +99,6 @@ const TrackingPage = () => {
       },
     ];
     
-    // If tracking data is returned, determine the active step
     if (trackingData) {
       const statusMap: { [key: string]: number } = {
         'PENDING': 0,
@@ -85,18 +106,17 @@ const TrackingPage = () => {
         'TRANSIT': 2,
         'LANSIR': 3,
         'TERKIRIM': 4,
-        'RETURN': -1, // Special case
+        'RETURN': -1,
       };
       
       const activeStep = statusMap[trackingData.status] || 0;
       
-      // Handle return case
       if (trackingData.status === 'RETURN') {
-        steps.splice(4, 1, {
+        steps[4] = {
           label: 'Barang Diretur',
           description: 'Barang dikembalikan ke cabang asal',
           icon: <CheckCircleIcon color="error" />,
-        });
+        };
       }
       
       return {
@@ -113,6 +133,17 @@ const TrackingPage = () => {
   
   const { steps, activeStep } = getSteps();
   
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'TERKIRIM':
+        return 'success.main';
+      case 'RETURN':
+        return 'error.main';
+      default:
+        return 'text.primary';
+    }
+  };
+  
   return (
     <>
       <Head>
@@ -120,7 +151,7 @@ const TrackingPage = () => {
       </Head>
       
       <Container maxWidth="md">
-        <Box pt={4} pb={8}>
+        <Box py={4}>
           <Typography variant="h4" align="center" gutterBottom>
             Lacak Pengiriman
           </Typography>
@@ -131,6 +162,7 @@ const TrackingPage = () => {
           <Box display="flex" justifyContent="center" mb={4}>
             <Paper
               component="form"
+              onSubmit={handleTrack}
               sx={{
                 p: '2px 4px',
                 display: 'flex',
@@ -138,30 +170,23 @@ const TrackingPage = () => {
                 width: 500,
                 maxWidth: '100%',
               }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleTrack();
-              }}
             >
+              <SearchIcon sx={{ ml: 1, color: 'text.secondary' }} />
               <TextField
+                name="sttNumber"
                 fullWidth
                 placeholder="Masukkan nomor STT (contoh: JKT-010224-0001)"
                 value={sttNumber}
                 onChange={(e) => setSTTNumber(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
+                variant="standard"
                 sx={{ ml: 1, flex: 1 }}
+                InputProps={{ disableUnderline: true }}
               />
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ p: '10px', m: '5px' }}
                 disabled={!sttNumber || loading}
+                sx={{ p: '10px', m: '5px' }}
               >
                 {loading ? <CircularProgress size={24} /> : 'Lacak'}
               </Button>
@@ -176,7 +201,7 @@ const TrackingPage = () => {
             <Box>
               <Card sx={{ mb: 4 }}>
                 <CardContent>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={4}>
                     <Grid item xs={12} md={6}>
                       <Typography variant="h6" gutterBottom>
                         Detail Pengiriman
@@ -196,12 +221,10 @@ const TrackingPage = () => {
                         <Typography variant="body2" color="text.secondary">
                           Status
                         </Typography>
-                        <Typography 
-                          variant="body1" 
+                        <Typography
+                          variant="body1"
                           fontWeight="medium"
-                          color={trackingData.status === 'TERKIRIM' ? 'success.main' : 
-                                 trackingData.status === 'RETURN' ? 'error.main' : 
-                                 'inherit'}
+                          color={getStatusColor(trackingData.status)}
                         >
                           {trackingData.status}
                         </Typography>
@@ -289,33 +312,41 @@ const TrackingPage = () => {
                   </Typography>
                   <Divider sx={{ mb: 4 }} />
                   
-                  <Stepper activeStep={activeStep} orientation="vertical">
+                  <Box>
                     {steps.map((step, index) => (
-                      <Step key={index}>
-                        <StepLabel StepIconComponent={() => (
-                          <Box 
-                            sx={{ 
-                              display: 'inline-flex', 
-                              color: index <= activeStep ? 'primary.main' : 'text.disabled',
-                              mr: 1
-                            }}
-                          >
-                            {step.icon}
-                          </Box>
-                        )}>
-                          <Typography variant="subtitle1">{step.label}</Typography>
-                        </StepLabel>
+                      <Box
+                        key={index}
+                        sx={{
+                          display: 'flex',
+                          position: 'relative',
+                          pb: index === steps.length - 1 ? 0 : 3,
+                        }}
+                      >
+                        {index !== steps.length - 1 && <StepConnector />}
+                        <StepIcon
+                          sx={{
+                            borderColor: index <= activeStep ? 'primary.main' : 'divider',
+                            color: index <= activeStep ? 'primary.main' : 'text.disabled',
+                          }}
+                        >
+                          {step.icon}
+                        </StepIcon>
                         <StepContent>
-                          <Typography>{step.description}</Typography>
+                          <Typography variant="subtitle1" fontWeight="medium">
+                            {step.label}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {step.description}
+                          </Typography>
                           {trackingData.status === 'RETURN' && index === 4 && (
-                            <Typography color="error.main" sx={{ mt: 1 }}>
+                            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
                               Barang diretur karena: {trackingData.keterangan || 'Alasan tidak tersedia'}
                             </Typography>
                           )}
                         </StepContent>
-                      </Step>
+                      </Box>
                     ))}
-                  </Stepper>
+                  </Box>
                 </CardContent>
               </Card>
               
@@ -326,15 +357,15 @@ const TrackingPage = () => {
               </Box>
             </Box>
           ) : (
-            <Box 
-              display="flex" 
-              flexDirection="column" 
-              alignItems="center" 
-              justifyContent="center" 
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
               minHeight="50vh"
               sx={{ opacity: 0.7 }}
             >
-              <LocalShippingIcon sx={{ fontSize: 100, mb: 2, color: 'text.secondary' }} />
+              <TruckIcon sx={{ fontSize: 100, mb: 2, color: 'text.secondary' }} />
               <Typography variant="h6" color="text.secondary" align="center">
                 Masukkan nomor STT untuk melihat status pengiriman
               </Typography>

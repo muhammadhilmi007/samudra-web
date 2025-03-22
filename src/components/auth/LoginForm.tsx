@@ -11,7 +11,6 @@ import {
   InputAdornment,
   IconButton,
   CircularProgress,
-  useTheme,
   Alert,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
@@ -21,6 +20,7 @@ import * as z from 'zod';
 import { useDispatch } from 'react-redux';
 import { login } from '../../store/slices/authSlice';
 import { unwrapResult } from '@reduxjs/toolkit';
+import { AppDispatch } from '../../store';
 
 // Define the validation schema
 const loginSchema = z.object({
@@ -32,8 +32,7 @@ type LoginFormInputs = z.infer<typeof loginSchema>;
 
 const LoginForm: React.FC = () => {
   const router = useRouter();
-  const dispatch = useDispatch();
-  const theme = useTheme();
+  const dispatch = useDispatch<AppDispatch>();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,8 +50,11 @@ const LoginForm: React.FC = () => {
     setError(null);
     
     try {
-      // @ts-ignore (dispatch is typed incorrectly for async thunks)
-      const resultAction = await dispatch(login({ username: data.username, password: data.password }));
+      const resultAction = await dispatch(login({ 
+        username: data.username, 
+        password: data.password 
+      })) as ReturnType<typeof login.fulfilled>;
+      
       unwrapResult(resultAction);
       
       // Redirect to dashboard on successful login

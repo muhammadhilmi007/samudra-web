@@ -1,6 +1,7 @@
 // src/components/stt/STTTracker.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { debounce } from 'lodash';
 import {
   Box,
   Paper,
@@ -33,7 +34,7 @@ import {
   WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 import { RootState, AppDispatch } from '../../store';
-import { trackSTT } from '../../store/slices/sttSlice';
+import { trackSTT, clearTrackingData } from '../../store/slices/sttSlice';
 
 // Track status order for stepper
 const trackingOrder = [
@@ -77,13 +78,40 @@ const STTTracker: React.FC = () => {
     }
   };
 
-  // Handle search
-  const handleSearch = () => {
-    if (trackingNumber.trim()) {
-      dispatch(trackSTT(trackingNumber.trim()));
+  // Handle search with enhanced error handling and validation
+  const handleSearch = async () => {
+    const trimmedNumber = trackingNumber.trim();
+    if (!trimmedNumber) {
+      return;
+    }
+
+    try {
       setHasSearched(true);
+      await dispatch(trackSTT(trimmedNumber)).unwrap();
+    } catch (error: any) {
+      console.error('Tracking error:', error);
+      // Use clearTrackingData from the slice instead of setTrackingData
+      dispatch(clearTrackingData());
     }
   };
+
+  // Improved debounce implementation with proper cleanup
+  const debouncedSearch = useMemo(
+    () => debounce(async (value: string) => {
+      if (value.trim()) {
+        await handleSearch();
+      }
+    }, 500),
+    [handleSearch]
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
 
   // Handle keypress
   const handleKeyPress = (e: React.KeyboardEvent) => {

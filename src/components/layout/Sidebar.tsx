@@ -9,7 +9,7 @@ import {
   ListItemIcon,
   ListItemText,
   Collapse,
-  Divider,
+  Divider, // Add this import
   useTheme,
   IconButton,
   Typography
@@ -218,8 +218,10 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
   // Handle menu item click
   const handleMenuClick = (path: string, hasChildren: boolean, key: string) => {
     if (hasChildren) {
+      // Only toggle submenu for parent items, don't navigate
       setOpenSubmenu(prev => ({ ...prev, [key]: !prev[key] }));
-    } else {
+    } else if (path !== router.pathname) {
+      // Only navigate if the path is different from current path
       router.push(path);
       if (variant === 'temporary') {
         onClose();
@@ -243,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
   const drawerWidth = open ? 240 : 72;
   
   const renderMenuItems = (items: MenuItem[], isSubmenu = false) => {
-    return items.map((item, index) => {
+    return items.map((item) => {
       // Skip menu items that the user doesn't have permission to see
       if (!hasPermission(item) && !hasAccessibleChildren(item)) {
         return null;
@@ -292,7 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
           {hasChildren && (
             <Collapse in={isMenuOpen && open} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
-                {renderMenuItems(item.children.filter(child => hasPermission(child)), true)}
+                {item.children && renderMenuItems(item.children.filter(child => hasPermission(child)), true)}
               </List>
             </Collapse>
           )}

@@ -31,7 +31,15 @@ export interface Employee {
     };
   }
   
-  export interface EmployeeFormInputs {
+  export interface Role {
+  _id: string;
+  namaRole: string;
+  permissions: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface EmployeeFormInputs {
     nama: string;
     jabatan: string;
     roleId: string;

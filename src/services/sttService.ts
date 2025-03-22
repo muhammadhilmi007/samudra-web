@@ -40,8 +40,31 @@ const sttService = {
   },
 
   // Update STT status
+  // Update STT status with enhanced error handling
   async updateSTTStatus(id: string, statusData: STTStatusUpdate) {
-    const response = await api.put(`/stt/${id}/status`, statusData);
+      try {
+          const response = await api.put(`/stt/${id}/status`, statusData);
+          return response.data;
+      } catch (error: any) {
+          throw new Error(error.response?.data?.message || 'Failed to update STT status');
+      }
+  },
+
+  // Add method for batch status updates
+  async updateMultipleSTTStatus(ids: string[], statusData: STTStatusUpdate) {
+      try {
+          const response = await api.put('/stt/batch-status-update', {
+              ids,
+              ...statusData
+          });
+          return response.data;
+      } catch (error: any) {
+          throw new Error(error.response?.data?.message || 'Failed to update multiple STT status');
+      }
+  },
+
+  async deleteSTT(id: string) {
+    const response = await api.delete(`/stt/${id}`);
     return response.data;
   },
 

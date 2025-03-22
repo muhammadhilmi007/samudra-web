@@ -1,37 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { 
+import React, { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage 
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { 
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
-import { createTruckQueue, updateTruckQueue } from '../../store/slices/truckQueueSlice';
-import { getVehicles } from '../../store/slices/vehicleSlice';
-import { getEmployees } from '../../store/slices/employeeSlice';
+  SelectValue,
+} from "@/components/ui/select";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../store";
+import {
+  createTruckQueue,
+  updateTruckQueue,
+} from "../../store/slices/truckQueueSlice";
+import { getVehicles } from "../../store/slices/vehicleSlice";
+import { getEmployees } from "../../store/slices/employeeSlice";
 
-// Skema validasi untuk form antrian truck
 const truckQueueFormSchema = z.object({
-  truckId: z.string().min(1, 'Truck harus dipilih'),
-  supirId: z.string().min(1, 'Supir harus dipilih'),
-  kenekId: z.string().optional(),
-  urutan: z.coerce.number().min(1, 'Urutan harus lebih dari 0'),
-  status: z.string().default('MENUNGGU')
+  truckId: z.string().min(1, "Truck harus dipilih"),
+  supirId: z.string().min(1, "Supir harus dipilih"),
+  kenekId: z.string().min(1, "Kenek harus dipilih"),
+  urutan: z.coerce.number().min(1, "Urutan harus lebih dari 0"),
+  status: z.string().default("MENUNGGU"),
 });
 
 type TruckQueueFormInputs = z.infer<typeof truckQueueFormSchema>;
@@ -40,75 +42,104 @@ interface TruckQueueFormProps {
   initialData?: any;
   onSubmit?: (data: any) => void;
   loading?: boolean;
+  onCancel?: () => void;
 }
 
-const TruckQueueForm: React.FC<TruckQueueFormProps> = ({ 
-  initialData, 
-  onSubmit, 
-  loading = false 
+const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
+  initialData,
+  onSubmit,
+  loading = false,
+  onCancel,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { vehicles } = useSelector((state: RootState) => state.vehicle);
-  const { employees } = useSelector((state: RootState) => state.employee);
+  const { vehicles, loading: vehiclesLoading } = useSelector(
+    (state: RootState) => state.vehicle
+  );
+  const { employees, loading: employeesLoading } = useSelector(
+    (state: RootState) => state.employee
+  );
   const { user } = useSelector((state: RootState) => state.auth);
 
-  // Fetch vehicles and employees on component mount
   useEffect(() => {
     dispatch(getVehicles());
     dispatch(getEmployees());
   }, [dispatch]);
 
-  // Filter drivers and assistants
-  const drivers = employees.filter(emp => 
-    emp.jabatan?.toLowerCase() === 'supir' || 
-    emp.jabatan?.toLowerCase() === 'driver'
+  const drivers = employees.filter(
+    (emp) =>
+      emp.jabatan?.toLowerCase() === "supir" ||
+      emp.jabatan?.toLowerCase() === "driver"
   );
 
-  const assistants = employees.filter(emp => 
-    emp.jabatan?.toLowerCase() === 'kenek' || 
-    emp.jabatan?.toLowerCase() === 'assistant driver'
+  const assistants = employees.filter(
+    (emp) =>
+      emp.jabatan?.toLowerCase() === "kenek" ||
+      emp.jabatan?.toLowerCase() === "assistant driver"
   );
 
-  // Initialize form
   const form = useForm<TruckQueueFormInputs>({
     resolver: zodResolver(truckQueueFormSchema),
     defaultValues: {
-      truckId: initialData?.truckId || '',
-      supirId: initialData?.supirId || '',
-      kenekId: initialData?.kenekId || '',
+      truckId: initialData?.truckId || "",
+      supirId: initialData?.supirId || "",
+      kenekId: initialData?.kenekId || "",
       urutan: initialData?.urutan || 1,
-      status: initialData?.status || 'MENUNGGU'
-    }
+      status: initialData?.status || "MENUNGGU",
+    },
   });
 
-  // Handle form submission
-  const handleFormSubmit = (data: TruckQueueFormInputs) => {
-    const submitData = {
-      ...data,
-      cabangId: user?.cabangId,
-      createdBy: user?._id
-    };
+  const handleFormSubmit = async (data: TruckQueueFormInputs) => {
+    try {
+      const submitData = {
+        ...data,
+        cabangId: user?.cabangId,
+        createdBy: user?._id,
+      };
 
-    if (initialData) {
-      // Update existing truck queue
-      dispatch(updateTruckQueue({ 
-        id: initialData._id, 
-        truckQueueData: submitData 
-      })).unwrap();
-    } else {
-      // Create new truck queue
-      dispatch(createTruckQueue(submitData)).unwrap();
+      if (initialData) {
+        await dispatch(
+          updateTruckQueue({
+            id: initialData._id,
+            truckData: {
+              ...submitData,
+              status: submitData.status as
+                | "waiting"
+                | "processing"
+                | "completed",
+            },
+          })
+        ).unwrap();
+      } else {
+        const vehicle = vehicles.find((v) => v._id === submitData.truckId);
+        const driver = drivers.find((d) => d._id === submitData.supirId);
+        await dispatch(
+          createTruckQueue({
+            ...submitData,
+            licensePlate: vehicle?.noPolisi || "",
+            driverName: driver?.nama || "",
+            arrivalTime: new Date().toISOString(),
+            status: submitData.status,
+          })
+        ).unwrap();
+      }
+
+      onSubmit?.(submitData);
+      form.reset();
+    } catch (error) {
+      console.error("Error submitting form:", error);
     }
-
-    // Call optional onSubmit prop if provided
-    onSubmit?.(submitData);
   };
+
+  const isFormProcessing =
+    loading ||
+    form.formState.isSubmitting ||
+    vehiclesLoading ||
+    employeesLoading;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Truck Selection */}
           <FormField
             control={form.control}
             name="truckId"
@@ -118,7 +149,7 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  disabled={loading}
+                  disabled={isFormProcessing}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -127,13 +158,16 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
                   </FormControl>
                   <SelectContent>
                     {vehicles
-                      .filter(vehicle => vehicle.tipe === 'Truck')
+                      .filter(
+                        (vehicle) =>
+                          vehicle.tipe === "Lansir" ||
+                          vehicle.tipe === "Antar Cabang"
+                      )
                       .map((vehicle) => (
                         <SelectItem key={vehicle._id} value={vehicle._id}>
                           {vehicle.noPolisi} - {vehicle.namaKendaraan}
                         </SelectItem>
-                      ))
-                    }
+                      ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -141,7 +175,6 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
             )}
           />
 
-          {/* Driver Selection */}
           <FormField
             control={form.control}
             name="supirId"
@@ -151,7 +184,7 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  disabled={loading}
+                  disabled={isFormProcessing}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -171,17 +204,16 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
             )}
           />
 
-          {/* Assistant Driver Selection (Optional) */}
           <FormField
             control={form.control}
             name="kenekId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Pilih Kenek (Opsional)</FormLabel>
+                <FormLabel>Pilih Kenek</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  disabled={loading}
+                  disabled={isFormProcessing}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -189,7 +221,6 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Tidak Ada Kenek</SelectItem>
                     {assistants.map((assistant) => (
                       <SelectItem key={assistant._id} value={assistant._id}>
                         {assistant.nama} - {assistant.telepon}
@@ -202,7 +233,6 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
             )}
           />
 
-          {/* Queue Order */}
           <FormField
             control={form.control}
             name="urutan"
@@ -210,10 +240,10 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
               <FormItem>
                 <FormLabel>Urutan Antrian</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    {...field} 
-                    disabled={loading}
+                  <Input
+                    type="number"
+                    {...field}
+                    disabled={isFormProcessing}
                     placeholder="Masukkan urutan antrian"
                   />
                 </FormControl>
@@ -222,7 +252,6 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
             )}
           />
 
-          {/* Status */}
           <FormField
             control={form.control}
             name="status"
@@ -232,7 +261,7 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  disabled={loading}
+                  disabled={isFormProcessing}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -252,24 +281,35 @@ const TruckQueueForm: React.FC<TruckQueueFormProps> = ({
         </div>
 
         <div className="flex justify-end space-x-4">
-          <Button 
-            type="button" 
-            variant="outline"
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={onCancel}
+              disabled={isFormProcessing}
+            >
+              Batal
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outlined"
             onClick={() => form.reset()}
-            disabled={loading}
+            disabled={isFormProcessing}
           >
             Reset
           </Button>
-          <Button 
-            type="submit" 
-            disabled={loading || form.formState.isSubmitting}
-          >
-            {loading || form.formState.isSubmitting ? (
+          <Button type="submit" disabled={isFormProcessing}>
+            {isFormProcessing ? (
               <>
                 <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
                 Menyimpan...
               </>
-            ) : initialData ? 'Perbarui Antrian' : 'Tambah Antrian'}
+            ) : initialData ? (
+              "Perbarui Antrian"
+            ) : (
+              "Tambah Antrian"
+            )}
           </Button>
         </div>
       </form>

@@ -14,8 +14,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  IconButton,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -45,9 +43,8 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import { PaymentInput, Collection } from '../../types/collection';
-import { STT } from '../../types/stt';
-import { Customer } from '../../types/customer';
-import { addCollectionPayment, generateCollectionInvoice } from '../../store/slices/collectionSlice';
+
+import { addPayment, generateInvoice } from '../../store/slices/collectionSlice';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -157,14 +154,44 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
   };
   
   // Handle payment submission
-  const handlePaymentSubmit = (data: PaymentInput) => {
-    dispatch(addCollectionPayment(data));
-    handleClosePaymentDialog();
+  const handlePaymentSubmit = async (data: PaymentInput) => {
+    try {
+      if (data.jumlah <= 0) {
+        throw new Error('Jumlah pembayaran harus lebih besar dari 0');
+      }
+
+      const remainingAmount = getRemainingAmount();
+      if (data.jumlah > remainingAmount) {
+        throw new Error(`Jumlah pembayaran tidak boleh melebihi sisa tagihan (${formatCurrency(remainingAmount)})`);
+      }
+
+      const paymentDate = new Date(data.tanggal);
+      if (paymentDate > new Date()) {
+        throw new Error('Tanggal pembayaran tidak boleh lebih dari hari ini');
+      }
+
+      await dispatch(addPayment(data)).unwrap();
+      handleClosePaymentDialog();
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      // Re-throw error to be handled by form's error handling
+      throw new Error(error.message || 'Gagal memproses pembayaran');
+    }
   };
   
   // Handle generate invoice
-  const handleGenerateInvoice = () => {
-    dispatch(generateCollectionInvoice(collection._id));
+  const handleGenerateInvoice = async () => {
+    try {
+      if (collection.status === 'LUNAS' || getRemainingAmount() === 0) {
+        await dispatch(generateInvoice(collection._id)).unwrap();
+      } else {
+        throw new Error('Tidak dapat mencetak invoice untuk penagihan yang belum lunas');
+      }
+    } catch (error: any) {
+      console.error('Generate invoice error:', error);
+      // Handle error appropriately in the UI
+      throw new Error(error.message || 'Gagal mencetak invoice');
+    }
   };
   
   return (

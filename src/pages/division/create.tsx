@@ -54,4 +54,4 @@ const CreateDivisionPage: NextPage = () => {
   );
 };
 
-export default withAuth()(CreateDivisionPage);
+export default withAuth(CreateDivisionPage);

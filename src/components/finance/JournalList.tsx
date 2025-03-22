@@ -47,10 +47,14 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { JournalEntry } from '../../types/finance';
-import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
-import { getJournalEntries, deleteJournalEntry } from '../../store/slices/financeSlice';
+import { 
+  getJournalEntries, 
+  deleteJournalEntry, 
+  createJournalEntry, 
+  updateJournalEntry 
+} from '../../store/slices/financeSlice';
 import { getBranches } from '../../store/slices/branchSlice';
 import { 
   AlertDialog, 
@@ -60,8 +64,7 @@ import {
   AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import JournalForm from './JournalForm';
 import { 
@@ -69,10 +72,7 @@ import {
   MoreVertical, 
   Edit, 
   Trash2, 
-  Eye, 
-  FileDown, 
   Search,
-  Filter,
   Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -90,7 +90,7 @@ const JournalList: React.FC<JournalListProps> = ({
   createOnly = false
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { journalEntries, loading } = useSelector((state: RootState) => state.finance);
+  const { journals: journalEntries, loading } = useSelector((state: RootState) => state.finance);
   const { branches } = useSelector((state: RootState) => state.branch);
   const { accounts } = useSelector((state: RootState) => state.finance);
   const { user } = useSelector((state: RootState) => state.auth);

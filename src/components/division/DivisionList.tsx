@@ -1,15 +1,24 @@
 // src/components/division/DivisionList.tsx
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Box, Button, IconButton, Tooltip } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { Division } from '../../types/division';
-import DataTable from '../shared/DataTable';
-import { RootState, AppDispatch } from '../../store';
-import FormDialog from '../shared/FormDialog';
-import ConfirmDialog from '../shared/ConfirmDialog';
-import DivisionForm from './DivisionForm';
-import { getDivisions, createDivision, updateDivision, deleteDivision } from '../../store/slices/divisionSlice';
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Box, Button, IconButton, Tooltip } from "@mui/material";
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+} from "@mui/icons-material";
+import { Division } from "../../types/division";
+import DataTable from "../shared/DataTable";
+import { RootState, AppDispatch } from "../../store";
+import FormDialog from "../shared/FormDialog";
+import ConfirmDialog from "../shared/ConfirmDialog";
+import DivisionForm from "./DivisionForm";
+import {
+  getDivisions,
+  createDivision,
+  updateDivision,
+  deleteDivision,
+} from "../../store/slices/divisionSlice";
 
 interface DivisionListProps {
   onEdit?: (division: Division) => void;
@@ -17,25 +26,27 @@ interface DivisionListProps {
 
 const DivisionList: React.FC<DivisionListProps> = ({ onEdit }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { divisions, loading } = useSelector((state: RootState) => state.division);
+  const { divisions, loading } = useSelector(
+    (state: RootState) => state.division
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<Division | null>(null);
 
   // Columns for the data table
   const columns = [
-    { id: 'namaDivisi', label: 'Nama Divisi', minWidth: 200 },
-    { 
-      id: 'createdAt', 
-      label: 'Tanggal Dibuat', 
+    { id: "namaDivisi", label: "Nama Divisi", minWidth: 200 },
+    {
+      id: "createdAt",
+      label: "Tanggal Dibuat",
       minWidth: 150,
-      format: (value: string) => new Date(value).toLocaleDateString('id-ID'),
+      format: (value: string) => new Date(value).toLocaleDateString("id-ID"),
     },
-    { 
-      id: 'updatedAt', 
-      label: 'Terakhir Diperbarui', 
+    {
+      id: "updatedAt",
+      label: "Terakhir Diperbarui",
       minWidth: 150,
-      format: (value: string) => new Date(value).toLocaleDateString('id-ID'),
+      format: (value: string) => new Date(value).toLocaleDateString("id-ID"),
     },
   ];
 
@@ -43,6 +54,11 @@ const DivisionList: React.FC<DivisionListProps> = ({ onEdit }) => {
   useEffect(() => {
     dispatch(getDivisions());
   }, [dispatch]);
+
+  // Add this to debug
+  useEffect(() => {
+    console.log("Current divisions data:", divisions);
+  }, [divisions]);
 
   // Handle opening the form dialog for creating
   const handleOpenCreate = () => {
@@ -66,7 +82,9 @@ const DivisionList: React.FC<DivisionListProps> = ({ onEdit }) => {
   const handleFormSubmit = async (data: { namaDivisi: string }) => {
     if (selectedDivision) {
       // Update existing division
-      await dispatch(updateDivision({ id: selectedDivision._id, divisionData: data }));
+      await dispatch(
+        updateDivision({ id: selectedDivision._id, divisionData: data })
+      );
     } else {
       // Create new division
       await dispatch(createDivision(data));

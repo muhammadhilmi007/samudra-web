@@ -8,7 +8,7 @@ export interface Loading {
     waktuBerangkat?: string;
     waktuSampai?: string;
     keterangan?: string;
-    status: 'MUAT' | 'BERANGKAT' | 'SAMPAI';
+    status?: 'MUAT' | 'BERANGKAT' | 'SAMPAI';
     cabangMuatId: string;
     cabangBongkarId: string;
     createdAt: string;

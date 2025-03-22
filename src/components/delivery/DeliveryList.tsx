@@ -1,15 +1,14 @@
 // src/components/delivery/DeliveryList.tsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Box, Button, Chip, IconButton, Tooltip, Tab, Tabs } from '@mui/material';
+import { Box, Button, IconButton, Tooltip, Tab, Tabs } from '@mui/material';
 import {
   Add as AddIcon,
-  Edit as EditIcon,
   PictureAsPdf as PdfIcon,
   CheckCircle as CompleteIcon,
   Speed as SpeedIcon,
 } from '@mui/icons-material';
-import { Delivery, DeliveryStatusUpdate } from '../../types/delivery';
+import { Delivery, DeliveryStatusUpdate, DeliveryFormInputs } from '../../types/delivery';
 import DataTable from '../shared/DataTable';
 import { RootState, AppDispatch } from '../../store';
 import FormDialog from '../shared/FormDialog';
@@ -20,11 +19,10 @@ import StatusBadge from '../shared/StatusBadge';
 import {
   getDeliveries,
   getDeliveriesByBranch,
-  getDeliveriesByStatus,
   createDelivery,
   updateDelivery,
   updateDeliveryStatus,
-  generateDeliveryPDF,
+  generateDeliveryForm,
 } from '../../store/slices/deliverySlice';
 import { getBranches } from '../../store/slices/branchSlice';
 
@@ -92,7 +90,18 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
       label: 'Supir',
       minWidth: 150,
       format: (value: string, row: Delivery) => {
-        return row.antrianKendaraan?.supir?.nama || '-';
+        const truckQueues = row.antrianKendaraan?.truckQueues;
+        const filteredQueues = truckQueues
+          .filter((queue) => queue.status === 'waiting')
+          .map((queue) => {
+            const truckInfo = getTruckInfo(queue._id);
+            return queue._id ? (
+              <SelectItem key={queue._id as string} value={queue._id as string}>
+                {truckInfo?.noPolisi}
+              </SelectItem>
+            ) : null;
+          });
+        return filteredQueues.length > 0 ? filteredQueues[0]?.props.children : '-';
       },
     },
     {
@@ -154,7 +163,7 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
           color="primary"
           onClick={(e) => {
             e.stopPropagation();
-            handleGeneratePDF(row);
+            handleGenerateForm(row);
           }}
         >
           <PdfIcon />
@@ -195,23 +204,9 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
   useEffect(() => {
     dispatch(getBranches());
 
-    // Set tab value based on status filter
-    if (statusFilter) {
-      const statusToTabIndex: Record<string, number> = {
-        LANSIR: 1,
-        TERKIRIM: 2,
-        BELUM_SELESAI: 3,
-      };
-      if (statusToTabIndex[statusFilter]) {
-        setTabValue(statusToTabIndex[statusFilter]);
-      }
-    }
-
-    // Fetch deliveries based on filters
+    // Fetch deliveries based on branch filter
     if (branchId) {
       dispatch(getDeliveriesByBranch(branchId));
-    } else if (statusFilter) {
-      dispatch(getDeliveriesByStatus(statusFilter));
     } else {
       dispatch(getDeliveries());
     }
@@ -220,21 +215,10 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
   // Handle tab change and fetch corresponding data
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-    
-    // Map tab index to status filter
-    const tabToStatus: Record<number, string | undefined> = {
-      0: undefined, // All
-      1: 'LANSIR',
-      2: 'TERKIRIM',
-      3: 'BELUM_SELESAI',
-    };
-    
-    const newStatus = tabToStatus[newValue];
-    
-    if (newStatus) {
-      dispatch(getDeliveriesByStatus(newStatus));
+    if (branchId) {
+      dispatch(getDeliveriesByBranch(branchId));
     } else {
-      branchId ? dispatch(getDeliveriesByBranch(branchId)) : dispatch(getDeliveries());
+      dispatch(getDeliveries());
     }
   };
 
@@ -263,13 +247,13 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
     }
   };
 
-  // Handle generating PDF
-  const handleGeneratePDF = (delivery: Delivery) => {
-    dispatch(generateDeliveryPDF(delivery._id));
+  // Handle generating form
+  const handleGenerateForm = (delivery: Delivery) => {
+    dispatch(generateDeliveryForm(delivery._id));
   };
 
   // Handle form submission (create/update)
-  const handleFormSubmit = async (data: any) => {
+  const handleFormSubmit = async (data: DeliveryFormInputs) => {
     if (selectedDelivery) {
       // Update existing delivery
       await dispatch(
@@ -322,7 +306,7 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
       return 'Daftar Pengiriman Sedang Berlangsung';
     } else if (statusFilter === 'TERKIRIM') {
       return 'Daftar Pengiriman Selesai';
-    } else if (statusFilter === 'BELUM_SELESAI') {
+    } else if (statusFilter === 'BELUM SELESAI') {
       return 'Daftar Pengiriman Belum Selesai';
     } else if (branchId) {
       const branch = branches.find((b) => b._id === branchId);
@@ -334,6 +318,10 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
 
   // Filter deliveries based on tab
   const getFilteredDeliveries = () => {
+    if (!Array.isArray(deliveries)) {
+      return [];
+    }
+
     if (tabValue === 0) {
       return deliveries;
     }
@@ -341,7 +329,7 @@ const DeliveryList: React.FC<DeliveryListProps> = ({
     const statusMapping: Record<number, string> = {
       1: 'LANSIR',
       2: 'TERKIRIM',
-      3: 'BELUM_SELESAI',
+      3: 'BELUM SELESAI',
     };
     
     return deliveries.filter(delivery => delivery.status === statusMapping[tabValue]);

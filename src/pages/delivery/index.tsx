@@ -34,11 +34,9 @@ import {
   Visibility as VisibilityIcon,
   Print as PrintIcon,
   FilterList as FilterListIcon,
-  CheckCircle as CheckCircleIcon,
   DirectionsCar as CarIcon,
   Person as PersonIcon,
   Edit as EditIcon,
-  Route as RouteIcon,
 } from '@mui/icons-material';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -48,7 +46,7 @@ import { AppDispatch, RootState } from '../../store';
 import { getDeliveries, getDeliveriesByBranch, generateDeliveryForm, clearPDFUrl } from '../../store/slices/deliverySlice';
 import { getBranches } from '../../store/slices/branchSlice';
 import { format } from 'date-fns';
-import idLocale from 'date-fns/locale/id';
+import { id as idLocale } from 'date-fns/locale';
 import withAuth from '../../components/auth/withAuth';
 import { clearError, clearSuccess } from '../../store/slices/uiSlice';
 
@@ -115,9 +113,9 @@ const DeliveryPage = () => {
   };
   
   // Filter deliveries by search term and status
-  const filteredDeliveries = deliveries.filter((delivery) => {
+  const filteredDeliveries = Array.isArray(deliveries) ? deliveries.filter((delivery) => {
     const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       delivery.idLansir.toLowerCase().includes(searchLower) ||
       (delivery.checker?.nama?.toLowerCase() || '').includes(searchLower) ||
       (delivery.antrianKendaraan?.kendaraan?.noPolisi?.toLowerCase() || '').includes(searchLower);
@@ -125,10 +123,10 @@ const DeliveryPage = () => {
     const matchesStatus = statusFilter ? delivery.status === statusFilter : true;
     
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
   
   // Get status chip color
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     switch (status) {
       case 'LANSIR':
         return 'info';
@@ -177,7 +175,7 @@ const DeliveryPage = () => {
             <Paper sx={{ p: 2, backgroundColor: '#f9f9f9', height: '100%' }}>
               <Typography variant="subtitle2" color="text.secondary">Total Pengiriman</Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold', my: 1 }}>
-                {deliveries.length}
+                {Array.isArray(deliveries) ? deliveries.length : 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Pengiriman
@@ -188,7 +186,7 @@ const DeliveryPage = () => {
             <Paper sx={{ p: 2, backgroundColor: '#e8f5e9', height: '100%' }}>
               <Typography variant="subtitle2" color="text.secondary">Pengiriman Selesai</Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main', my: 1 }}>
-                {deliveries.filter(d => d.status === 'TERKIRIM').length}
+              {Array.isArray(deliveries) ? deliveries.filter(d => d.status === 'TERKIRIM').length : 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Terkirim
@@ -199,7 +197,7 @@ const DeliveryPage = () => {
             <Paper sx={{ p: 2, backgroundColor: '#fff8e1', height: '100%' }}>
               <Typography variant="subtitle2" color="text.secondary">Pengiriman Dalam Proses</Typography>
               <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'info.main', my: 1 }}>
-                {deliveries.filter(d => d.status === 'LANSIR' || d.status === 'BELUM SELESAI').length}
+                {Array.isArray(deliveries) ? deliveries.filter(d => d.status === 'LANSIR' || d.status === 'BELUM SELESAI').length : 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Sedang Berlangsung
@@ -328,7 +326,7 @@ const DeliveryPage = () => {
                         <Chip
                           label={delivery.status}
                           size="small"
-                          color={getStatusColor(delivery.status) as any}
+                          color={getStatusColor(delivery.status)}
                         />
                       </TableCell>
                       <TableCell>{delivery.cabang?.namaCabang || 'N/A'}</TableCell>
