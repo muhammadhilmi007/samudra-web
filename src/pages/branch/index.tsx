@@ -36,7 +36,12 @@ import {
 } from "@mui/icons-material";
 import Head from "next/head";
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "../../store";
+import { AppDispatch } from "../../store";
+import {
+  selectBranchData,
+  selectDivisionList,
+  selectUiState
+} from "../../store/selectors/branchSelectors";
 import {
   getBranches,
   createBranch,
@@ -52,7 +57,7 @@ import {
 } from "../../store/slices/divisionSlice";
 import { clearError, clearSuccess } from "../../store/slices/uiSlice";
 import { Branch } from "../../types/branch";
-import { Division, DivisionFormInputs } from "../../types/division";
+import type { Division, DivisionFormInputs } from "../../types/division";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -112,21 +117,9 @@ const BranchAndDivisionPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   // Ensure branches are initialized as arrays
   // Branch state
-  const { branches, isLoading, error: branchError } = useSelector((state: RootState) => {
-    const { branches, loading, error } = state.branch;
-    console.log("Branch state from store:", { branches, loading, error });
-    return {
-      branches: Array.isArray(branches) ? branches : [],
-      isLoading: loading,
-      error
-    };
-  });
-
-  // Division state
-  const { divisions = [] } = useSelector((state: RootState) => state.division);
-  
-  // UI state
-  const { loading: uiLoading, error: uiError, success } = useSelector((state: RootState) => state.ui);
+  const { branches, isLoading } = useSelector(selectBranchData);
+  const divisions = useSelector(selectDivisionList);
+  const { error: uiError, success } = useSelector(selectUiState);
 
   const [tabValue, setTabValue] = useState(0);
   const [openDivisionDialog, setOpenDivisionDialog] = useState(false);
@@ -176,12 +169,16 @@ const BranchAndDivisionPage = () => {
   });
 
   useEffect(() => {
-    dispatch(getBranches())
-      .unwrap()
-      .then((data) => console.log("Branches loaded:", data))
-      .catch((err) => console.error("Error loading branches:", err));
-
-    dispatch(getDivisions());
+    const loadInitialData = async () => {
+      try {
+        await dispatch(getDivisions()).unwrap();
+        const branchesResult = await dispatch(getBranches()).unwrap();
+        console.log("Branches loaded:", branchesResult);
+      } catch (err) {
+        console.error("Error loading initial data:", err);
+      }
+    };
+    loadInitialData();
   }, [dispatch]);
 
   useEffect(() => {
@@ -221,7 +218,7 @@ const BranchAndDivisionPage = () => {
       setEditingBranch(branch);
       resetBranchForm({
         namaCabang: branch.namaCabang,
-        divisiId: branch.divisiId,
+        divisiId: branch.divisiId._id,
         alamat: branch.alamat,
         kelurahan: branch.kelurahan,
         kecamatan: branch.kecamatan,
@@ -285,9 +282,10 @@ const BranchAndDivisionPage = () => {
   };
 
   const onSubmitBranch = (data: z.infer<typeof branchSchema>) => {
+    // Transform data from form format to API format
     const branchData: Partial<Branch> = {
       namaCabang: data.namaCabang,
-      divisiId: data.divisiId,
+      divisiId: { _id: data.divisiId, namaDivisi: '', createdAt: '', updatedAt: '', __v: 0 },
       alamat: data.alamat,
       kelurahan: data.kelurahan,
       kecamatan: data.kecamatan,
@@ -305,7 +303,20 @@ const BranchAndDivisionPage = () => {
     if (editingBranch) {
       dispatch(updateBranch({ id: editingBranch._id, branchData }));
     } else {
-      dispatch(createBranch(branchData));
+      dispatch(createBranch({
+        namaCabang: branchData.namaCabang!,
+        divisiId: data.divisiId,
+        alamat: branchData.alamat!,
+        kelurahan: branchData.kelurahan!,
+        kecamatan: branchData.kecamatan!,
+        kota: branchData.kota!,
+        provinsi: branchData.provinsi!,
+        kontakPenanggungJawab: branchData.kontakPenanggungJawab || {
+          nama: "",
+          telepon: "",
+          email: ""
+        }
+      }));
     }
     handleCloseBranchDialog();
   };
@@ -333,7 +344,7 @@ const BranchAndDivisionPage = () => {
   // Add this helper function
   const branchesInDivision = (divisionId: string) => {
     return Array.isArray(branches)
-      ? branches.filter((branch) => branch.divisiId === divisionId)
+      ? branches.filter((branch) => branch.divisiId._id === divisionId)
       : [];
   };
 
@@ -438,8 +449,13 @@ const BranchAndDivisionPage = () => {
                       <TableRow key={branch._id}>
                         <TableCell>{branch.namaCabang}</TableCell>
                         <TableCell>
-                          {divisions.find((div) => div._id === branch.divisiId)
-                            ?.namaDivisi || "-"}
+                          {isLoading ? (
+                            <CircularProgress size={20} />
+                          ) : divisions && Array.isArray(divisions) && divisions.length > 0 && branch.divisiId ? (
+                            branch.divisiId?.namaDivisi || "-"
+                          ) : (
+                            "-"
+                          )}
                         </TableCell>
                         <TableCell>{branch.alamat}</TableCell>
                         <TableCell>{branch.kota}</TableCell>

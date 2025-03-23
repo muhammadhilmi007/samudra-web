@@ -1,5 +1,5 @@
 // src/components/branch/BranchDetail.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
@@ -18,6 +18,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -28,9 +31,10 @@ import {
   Person as PersonIcon,
 } from '@mui/icons-material';
 import { RootState, AppDispatch } from '../../store';
-import { getBranchById } from '../../store/slices/branchSlice';
+import { getBranchById, updateBranch } from '../../store/slices/branchSlice';
 import { getEmployeesByBranch } from '../../store/slices/employeeSlice';
 import { getVehiclesByBranch } from '../../store/slices/vehicleSlice';
+import BranchForm from '../../components/branch/BranchForm';
 
 interface BranchDetailProps {
   id: string;
@@ -43,6 +47,9 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ id, onEdit }) => {
   const { divisions } = useSelector((state: RootState) => state.division);
   const { employees } = useSelector((state: RootState) => state.employee);
   const { vehicles } = useSelector((state: RootState) => state.vehicle);
+
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [branchLoading, setBranchLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -67,6 +74,10 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ id, onEdit }) => {
     );
   }
 
+  const handleEditDialogClose = () => {
+    setOpenEditDialog(false);
+  };
+
   return (
     <Box>
       {/* Branch Summary Card */}
@@ -89,7 +100,7 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ id, onEdit }) => {
             <Button
               variant="outlined"
               startIcon={<EditIcon />}
-              onClick={onEdit}
+              onClick={() => setOpenEditDialog(true)}
             >
               Edit
             </Button>
@@ -351,6 +362,36 @@ const BranchDetail: React.FC<BranchDetailProps> = ({ id, onEdit }) => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={openEditDialog} onClose={handleEditDialogClose} maxWidth="md" fullWidth>
+        <DialogTitle>Edit Cabang</DialogTitle>
+        <DialogContent>
+          {branch && (
+            <BranchForm 
+              initialData={branch} 
+              onSubmit={async (formData) => {
+                try {
+                  setBranchLoading(true);
+                  console.log("Updating branch with data:", formData);
+                  await dispatch(updateBranch({
+                    id: branch._id,
+                    branchData: formData
+                  })).unwrap();
+                  handleEditDialogClose();
+                  // Refresh branch data
+                  dispatch(getBranchById(id as string));
+                } catch (error) {
+                  console.error("Error updating branch:", error);
+                } finally {
+                  setBranchLoading(false);
+                }
+              }}
+              loading={branchLoading} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

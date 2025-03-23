@@ -122,10 +122,13 @@ const divisionSlice = createSlice({
       .addCase(getDivisions.fulfilled, (state, action) => {
         // Check if payload is an array
         if (Array.isArray(action.payload)) {
-          state.divisions = action.payload.filter((division: Division) => division && division._id) || [];
-        } else if (action.payload && action.payload.data && Array.isArray(action.payload.data)) {
+          state.divisions = action.payload.filter(division => division && division._id) || [];
+        } else if (action.payload?.data && Array.isArray(action.payload.data)) {
           // If payload is an object with a data property that's an array
           state.divisions = action.payload.data.filter((division: Division) => division && division._id) || [];
+        } else if (action.payload?.divisions && Array.isArray(action.payload.divisions)) {
+          // If payload has divisions property that's an array
+          state.divisions = action.payload.divisions.filter((division: Division) => division && division._id) || [];
         } else {
           // Fallback if payload structure is unexpected
           state.divisions = [];

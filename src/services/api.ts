@@ -1,4 +1,3 @@
-// src/services/api.ts
 import axios from 'axios';
 import { store } from '../store';
 import { clearCredentials } from '../store/slices/authSlice';
@@ -36,6 +35,15 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    
+    // Enhanced error logging
+    console.error('API Error:', {
+      url: originalRequest?.url,
+      method: originalRequest?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
     
     // If the error is 401 Unauthorized and not already retried
     if (error.response?.status === 401 && !originalRequest._retry) {

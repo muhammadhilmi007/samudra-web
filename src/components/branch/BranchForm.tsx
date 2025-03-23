@@ -1,339 +1,357 @@
-import React, { useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  TextField,
-  Button,
-  Grid,
-  Box,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+import React, { useState } from 'react';
+import { 
+  TextField, 
+  Button, 
+  Grid, 
+  MenuItem, 
+  Box, 
   Typography,
-  Divider,
-} from "@mui/material";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState, AppDispatch } from "../../store";
-import { getDivisions } from "../../store/slices/divisionSlice";
-import { getBranches, createBranch } from "../../store/slices/branchSlice";
-import { Branch } from "../../types/branch";
-import { useNavigate } from "react-router-dom";
+  CircularProgress,
+  Paper 
+} from '@mui/material';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { Branch } from '../../types/branch';
 
-// Validation schema
-const branchSchema = z.object({
-  namaCabang: z.string().min(1, "Nama cabang harus diisi"),
-  divisiId: z.string().min(1, "Divisi harus dipilih"),
-  alamat: z.string().min(1, "Alamat harus diisi"),
-  kelurahan: z.string().min(1, "Kelurahan harus diisi"),
-  kecamatan: z.string().min(1, "Kecamatan harus diisi"),
-  kota: z.string().min(1, "Kota harus diisi"),
-  provinsi: z.string().min(1, "Provinsi harus diisi"),
-  kontakPenanggungJawab: z.object({
-    nama: z.string().min(1, "Nama penanggung jawab harus diisi"),
-    telepon: z.string().min(1, "Telepon penanggung jawab harus diisi"),
-    email: z.string().email("Format email tidak valid"),
-  }),
-});
-
-type BranchFormInputs = z.infer<typeof branchSchema>;
+// Direct interface that matches backend expectations
+interface FormData {
+  namaCabang: string;
+  divisiId: string;
+  alamat: string;
+  kelurahan: string;
+  kecamatan: string;
+  kota: string;
+  provinsi: string;
+  kontakPenanggungJawab: {
+    nama: string;
+    telepon: string;
+    email: string;
+  };
+}
 
 interface BranchFormProps {
   initialData?: Branch;
-  onSubmit: (data: BranchFormInputs) => void;
+  onSubmit: (data: FormData) => void;
   loading?: boolean;
 }
 
-const BranchForm: React.FC<BranchFormProps> = ({
-  initialData,
-  onSubmit,
-  loading = false,
-}) => {
-  const dispatch = useDispatch<AppDispatch>();
+const BranchForm: React.FC<BranchFormProps> = ({ initialData, onSubmit, loading = false }) => {
   const { divisions } = useSelector((state: RootState) => state.division);
-  const router = useNavigate();
-
-  const {
-    control,
-    handleSubmit: handleFormSubmit,
-    formState: { errors },
-  } = useForm<BranchFormInputs>({
-    resolver: zodResolver(branchSchema),
-    defaultValues: {
-      namaCabang: initialData?.namaCabang || "",
-      divisiId: initialData?.divisiId || "",
-      alamat: initialData?.alamat || "",
-      kelurahan: initialData?.kelurahan || "",
-      kecamatan: initialData?.kecamatan || "",
-      kota: initialData?.kota || "",
-      provinsi: initialData?.provinsi || "",
-      kontakPenanggungJawab: {
-        nama: initialData?.kontakPenanggungJawab?.nama || "",
-        telepon: initialData?.kontakPenanggungJawab?.telepon || "",
-        email: initialData?.kontakPenanggungJawab?.email || "",
-      },
-    },
-  });
-
-  useEffect(() => {
-    dispatch(getDivisions());
-  }, [dispatch]);
-
-  const handleBranchSubmit = async (branchData: BranchFormInputs) => {
-    try {
-      if (onSubmit) {
-        onSubmit(branchData);
-        return;
-      }
-
-      const result = await dispatch(createBranch(branchData)).unwrap();
-      console.log("Branch created successfully:", result);
-      router("/branch");
-    } catch (error) {
-      console.error("Failed to create branch:", error);
-      // Handle error appropriately
-      throw error; // Re-throw to be handled by the parent component
+  
+  // Initialize form data with proper structure
+  const [formData, setFormData] = useState<FormData>({
+    namaCabang: initialData?.namaCabang || '',
+    divisiId: initialData?.divisiId?._id || '',
+    alamat: initialData?.alamat || '',
+    kelurahan: initialData?.kelurahan || '',
+    kecamatan: initialData?.kecamatan || '',
+    kota: initialData?.kota || '',
+    provinsi: initialData?.provinsi || '',
+    kontakPenanggungJawab: {
+      nama: initialData?.kontakPenanggungJawab?.nama || '',
+      telepon: initialData?.kontakPenanggungJawab?.telepon || '',
+      email: initialData?.kontakPenanggungJawab?.email || ''
     }
+  });
+  
+  // Separate state for form errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [debug, setDebug] = useState<{
+    originalData: FormData;
+    submissionData: FormData;
+    hasKontakNama: boolean;
+    hasKontakTelepon: boolean;
+    timestamp: string;
+  } | null>(null);
+  
+  // Handle input changes for regular fields
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
   };
-
+  
+  // Handle changes for nested kontakPenanggungJawab fields
+  const handleKontakChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    // Ensure we're updating the state correctly with the latest value
+    const updatedKontak = {
+      ...formData.kontakPenanggungJawab,
+      [name]: value
+    };
+    
+    setFormData({
+      ...formData,
+      kontakPenanggungJawab: updatedKontak
+    });
+    
+    // Debug log untuk memastikan nilai tersimpan dengan benar
+    console.log(`Field ${name} diubah menjadi: ${value}`);
+    console.log('Current kontakPenanggungJawab state:', updatedKontak);
+  };
+  
+  // Validate form before submission
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    // Check all required fields
+    if (!formData.namaCabang) newErrors.namaCabang = 'Nama cabang wajib diisi';
+    if (!formData.divisiId) newErrors.divisiId = 'Divisi wajib dipilih';
+    if (!formData.alamat) newErrors.alamat = 'Alamat wajib diisi';
+    if (!formData.kelurahan) newErrors.kelurahan = 'Kelurahan wajib diisi';
+    if (!formData.kecamatan) newErrors.kecamatan = 'Kecamatan wajib diisi';
+    if (!formData.kota) newErrors.kota = 'Kota wajib diisi';
+    if (!formData.provinsi) newErrors.provinsi = 'Provinsi wajib diisi';
+    
+    // Check kontakPenanggungJawab fields - ensure we're checking for empty strings too
+    if (!formData.kontakPenanggungJawab.nama || formData.kontakPenanggungJawab.nama.trim() === '') {
+      newErrors['kontakPenanggungJawab.nama'] = 'Nama penanggung jawab wajib diisi';
+    }
+    
+    if (!formData.kontakPenanggungJawab.telepon || formData.kontakPenanggungJawab.telepon.trim() === '') {
+      newErrors['kontakPenanggungJawab.telepon'] = 'Telepon penanggung jawab wajib diisi';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Run validation first
+    if (!validateForm()) {
+      return;
+    }
+    
+    // Create clean data for submission
+    const submissionData: FormData = {
+      namaCabang: formData.namaCabang.trim(),
+      divisiId: formData.divisiId,
+      alamat: formData.alamat.trim(),
+      kelurahan: formData.kelurahan.trim(),
+      kecamatan: formData.kecamatan.trim(),
+      kota: formData.kota.trim(),
+      provinsi: formData.provinsi.trim(),
+      kontakPenanggungJawab: {
+        nama: formData.kontakPenanggungJawab.nama?.trim() || '',
+        telepon: formData.kontakPenanggungJawab.telepon?.trim() || '',
+        email: formData.kontakPenanggungJawab.email?.trim() || ''
+      }
+    };
+    
+    // Final validation for required contact fields
+    if (!submissionData.kontakPenanggungJawab.nama) {
+      console.error('Nama penanggung jawab masih kosong setelah validasi');
+      setErrors(prev => ({
+        ...prev,
+        'kontakPenanggungJawab.nama': 'Nama penanggung jawab wajib diisi'
+      }));
+      return;
+    }
+    
+    if (!submissionData.kontakPenanggungJawab.telepon) {
+      console.error('Telepon penanggung jawab masih kosong setelah validasi');
+      setErrors(prev => ({
+        ...prev,
+        'kontakPenanggungJawab.telepon': 'Telepon penanggung jawab wajib diisi'
+      }));
+      return;
+    }
+    
+    // Save debug info
+    setDebug({
+      originalData: formData,
+      submissionData: submissionData,
+      hasKontakNama: !!submissionData.kontakPenanggungJawab.nama,
+      hasKontakTelepon: !!submissionData.kontakPenanggungJawab.telepon,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('Submitting branch data:', JSON.stringify(submissionData, null, 2));
+    onSubmit(submissionData);
+  };
+  
   return (
-    <Box
-      component="form"
-      onSubmit={handleFormSubmit(handleBranchSubmit)}
-      noValidate
-    >
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-            Informasi Cabang
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Controller
-            name="namaCabang"
-            control={control}
-            render={({ field }) => (
+    <Box>
+      <Paper elevation={0} sx={{ p: 3, mb: 3 }}>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            {/* Branch Info Section */}
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Informasi Cabang
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
+                name="namaCabang"
                 label="Nama Cabang"
-                variant="outlined"
+                value={formData.namaCabang}
+                onChange={handleChange}
                 fullWidth
                 error={!!errors.namaCabang}
-                helperText={errors.namaCabang?.message}
-                disabled={loading}
-                autoFocus
+                helperText={errors.namaCabang}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Controller
-            name="divisiId"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth error={!!errors.divisiId}>
-                <InputLabel id="divisi-label">Divisi</InputLabel>
-                <Select
-                  {...field}
-                  labelId="divisi-label"
-                  label="Divisi"
-                  disabled={loading}
-                >
-                  {divisions.map((division) => (
-                    <MenuItem key={division._id} value={division._id}>
-                      {division.namaDivisi}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {errors.divisiId && (
-                  <Typography variant="caption" color="error">
-                    {errors.divisiId.message}
-                  </Typography>
-                )}
-              </FormControl>
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Controller
-            name="alamat"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
-                label="Alamat"
-                variant="outlined"
+                name="divisiId"
+                select
+                label="Divisi"
+                value={formData.divisiId}
+                onChange={handleChange}
                 fullWidth
-                multiline
-                rows={2}
-                error={!!errors.alamat}
-                helperText={errors.alamat?.message}
-                disabled={loading}
-              />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Controller
-            name="kelurahan"
-            control={control}
-            render={({ field }) => (
+                error={!!errors.divisiId}
+                helperText={errors.divisiId}
+                required
+              >
+                {divisions.map((division) => (
+                  <MenuItem key={division._id} value={division._id}>
+                    {division.namaDivisi}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            
+            <Grid item xs={12}>
               <TextField
-                {...field}
+                name="alamat"
+                label="Alamat"
+                value={formData.alamat}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.alamat}
+                helperText={errors.alamat}
+                required
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="kelurahan"
                 label="Kelurahan"
-                variant="outlined"
+                value={formData.kelurahan}
+                onChange={handleChange}
                 fullWidth
                 error={!!errors.kelurahan}
-                helperText={errors.kelurahan?.message}
-                disabled={loading}
+                helperText={errors.kelurahan}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Controller
-            name="kecamatan"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
+                name="kecamatan"
                 label="Kecamatan"
-                variant="outlined"
+                value={formData.kecamatan}
+                onChange={handleChange}
                 fullWidth
                 error={!!errors.kecamatan}
-                helperText={errors.kecamatan?.message}
-                disabled={loading}
+                helperText={errors.kecamatan}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Controller
-            name="kota"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
+                name="kota"
                 label="Kota"
-                variant="outlined"
+                value={formData.kota}
+                onChange={handleChange}
                 fullWidth
                 error={!!errors.kota}
-                helperText={errors.kota?.message}
-                disabled={loading}
+                helperText={errors.kota}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Controller
-            name="provinsi"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
+                name="provinsi"
                 label="Provinsi"
-                variant="outlined"
+                value={formData.provinsi}
+                onChange={handleChange}
                 fullWidth
                 error={!!errors.provinsi}
-                helperText={errors.provinsi?.message}
-                disabled={loading}
+                helperText={errors.provinsi}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Typography
-            variant="subtitle1"
-            fontWeight="bold"
-            gutterBottom
-            sx={{ mt: 2 }}
-          >
-            Informasi Penanggung Jawab
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Controller
-            name="kontakPenanggungJawab.nama"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            {/* Contact Person Section */}
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Informasi Penanggung Jawab
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
+                name="nama"
                 label="Nama Penanggung Jawab"
-                variant="outlined"
+                value={formData.kontakPenanggungJawab.nama}
+                onChange={handleKontakChange}
                 fullWidth
-                error={!!errors.kontakPenanggungJawab?.nama}
-                helperText={errors.kontakPenanggungJawab?.nama?.message}
-                disabled={loading}
+                error={!!errors['kontakPenanggungJawab.nama']}
+                helperText={errors['kontakPenanggungJawab.nama']}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Controller
-            name="kontakPenanggungJawab.telepon"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
               <TextField
-                {...field}
+                name="telepon"
                 label="Telepon Penanggung Jawab"
-                variant="outlined"
+                value={formData.kontakPenanggungJawab.telepon}
+                onChange={handleKontakChange}
                 fullWidth
-                error={!!errors.kontakPenanggungJawab?.telepon}
-                helperText={errors.kontakPenanggungJawab?.telepon?.message}
-                disabled={loading}
+                error={!!errors['kontakPenanggungJawab.telepon']}
+                helperText={errors['kontakPenanggungJawab.telepon']}
+                required
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Controller
-            name="kontakPenanggungJawab.email"
-            control={control}
-            render={({ field }) => (
+            </Grid>
+            
+            <Grid item xs={12}>
               <TextField
-                {...field}
+                name="email"
                 label="Email Penanggung Jawab"
-                variant="outlined"
+                value={formData.kontakPenanggungJawab.email}
+                onChange={handleKontakChange}
                 fullWidth
-                error={!!errors.kontakPenanggungJawab?.email}
-                helperText={errors.kontakPenanggungJawab?.email?.message}
-                disabled={loading}
+                error={!!errors['kontakPenanggungJawab.email']}
+                helperText={errors['kontakPenanggungJawab.email']}
               />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            disabled={loading}
-            startIcon={
-              loading ? <CircularProgress size={20} color="inherit" /> : null
-            }
-            fullWidth
-            sx={{ mt: 2 }}
-          >
-            {initialData ? "Perbarui" : "Simpan"}
-          </Button>
-        </Grid>
-      </Grid>
+            </Grid>
+          </Grid>
+          
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : initialData ? 'Perbarui' : 'Simpan'}
+            </Button>
+          </Box>
+        </form>
+      </Paper>
+      
+      {debug && (
+        <Paper sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+          <Typography variant="subtitle2">Debug Information</Typography>
+          <pre style={{ fontSize: '12px', overflow: 'auto' }}>
+            {JSON.stringify(debug, null, 2)}
+          </pre>
+        </Paper>
+      )}
     </Box>
   );
 };

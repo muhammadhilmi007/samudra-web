@@ -2,10 +2,12 @@
 export interface Branch {
   _id: string;
   namaCabang: string;
-  divisiId: string;
-  divisi?: {
+  divisiId: {
     _id: string;
     namaDivisi: string;
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
   };
   alamat: string;
   kelurahan: string;
@@ -15,13 +17,14 @@ export interface Branch {
   kontakPenanggungJawab: {
     nama: string;
     telepon: string;
-    email: string;
+    email?: string;
   };
   createdAt: string;
   updatedAt: string;
 }
 
-export interface BranchFormInputs {
+// This interface represents what we'll submit to the API
+export interface BranchFormSubmitData {
   namaCabang: string;
   divisiId: string;
   alamat: string;
@@ -32,6 +35,6 @@ export interface BranchFormInputs {
   kontakPenanggungJawab: {
     nama: string;
     telepon: string;
-    email: string;
+    email?: string;
   };
 }

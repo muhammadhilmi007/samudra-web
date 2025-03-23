@@ -19,7 +19,7 @@ interface BranchListProps {
 const BranchList: React.FC<BranchListProps> = ({ onViewDetail }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { branches, loading } = useSelector((state: RootState) => state.branch);
-  const { divisions } = useSelector((state: RootState) => state.division);
+// Removed unused divisions selector
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
@@ -31,9 +31,9 @@ const BranchList: React.FC<BranchListProps> = ({ onViewDetail }) => {
       id: 'divisiId', 
       label: 'Divisi', 
       minWidth: 130,
-      format: (value: string) => {
-        const division = divisions.find(div => div._id === value);
-        return division ? division.namaDivisi : '-';
+      format: (value: { namaDivisi?: string } | null) => {
+        if (!value) return '-';
+        return value.namaDivisi || '-';
       }
     },
     { id: 'kota', label: 'Kota', minWidth: 120 },
@@ -92,15 +92,45 @@ const BranchList: React.FC<BranchListProps> = ({ onViewDetail }) => {
   };
 
   // Handle form submission (create/update)
-  const handleFormSubmit = async (data: any) => {
-    if (selectedBranch) {
-      // Update existing branch
-      await dispatch(updateBranch({ id: selectedBranch._id, branchData: data }));
-    } else {
-      // Create new branch
-      await dispatch(createBranch(data));
+  const handleFormSubmit = async (formData: Partial<Branch>) => {
+    console.log("Form data being submitted:", formData);
+    
+    try {
+      const branchData = {
+        ...formData,
+        kontakPenanggungJawab: {
+          nama: formData.kontakPenanggungJawab?.nama || '',
+          telepon: formData.kontakPenanggungJawab?.telepon || '',
+          email: formData.kontakPenanggungJawab?.email || ''
+        }
+      };
+
+      if (selectedBranch) {
+        // Update existing branch
+        await dispatch(updateBranch({
+          id: selectedBranch._id,
+          branchData
+        })).unwrap();
+      } else {
+        // Create new branch
+        await dispatch(createBranch({
+          namaCabang: branchData.namaCabang || '',
+          divisiId: branchData.divisiId?._id || '',
+          alamat: branchData.alamat || '',
+          kelurahan: branchData.kelurahan || '',
+          kecamatan: branchData.kecamatan || '',
+          kota: branchData.kota || '',
+          provinsi: branchData.provinsi || '',
+          kontakPenanggungJawab: branchData.kontakPenanggungJawab
+        })).unwrap();
+      }
+      setFormOpen(false);
+      // Refresh the branches list
+      dispatch(getBranches());
+    } catch (error) {
+      console.error("Error submitting branch data:", error);
+      // Keep form open on error
     }
-    setFormOpen(false);
   };
 
   // Handle branch deletion
@@ -129,6 +159,7 @@ const BranchList: React.FC<BranchListProps> = ({ onViewDetail }) => {
       <DataTable
         columns={columns}
         rows={branches.map(branch => ({
+
           ...branch,
           id: branch._id // Ensure each row has an id property for selection
         }))}
@@ -150,7 +181,19 @@ const BranchList: React.FC<BranchListProps> = ({ onViewDetail }) => {
       >
         <BranchForm
           initialData={selectedBranch || undefined}
-          onSubmit={handleFormSubmit}
+          onSubmit={(data: any) => {
+            const branchData: Partial<Branch> = {
+              ...data,
+              divisiId: typeof data.divisiId === 'string' ? { 
+                _id: data.divisiId,
+                namaDivisi: '',
+                createdAt: '',
+                updatedAt: '',
+                __v: 0
+              } : data.divisiId
+            };
+            handleFormSubmit(branchData);
+          }}
           loading={loading}
         />
       </FormDialog>
