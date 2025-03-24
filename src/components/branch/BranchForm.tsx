@@ -25,7 +25,7 @@ import { createBranch, updateBranch } from "../../store/slices/branchSlice";
 import { Branch, BranchFormInputs } from "../../types/branch";
 import { useNavigate } from "react-router-dom";
 
-// Validation schema - matches the BranchFormInputs type
+// Validation schema
 const branchSchema = z.object({
   namaCabang: z.string().min(1, "Nama cabang harus diisi"),
   divisiId: z.string().min(1, "Divisi harus dipilih"),
@@ -34,12 +34,13 @@ const branchSchema = z.object({
   kecamatan: z.string().min(1, "Kecamatan harus diisi"),
   kota: z.string().min(1, "Kota harus diisi"),
   provinsi: z.string().min(1, "Provinsi harus diisi"),
-  "kontakPenanggungJawab.nama": z.string().default("").optional(),
-  "kontakPenanggungJawab.telepon": z.string().default("").optional(),
-  "kontakPenanggungJawab.email": z.string().email("Format email tidak valid").optional().or(z.literal('')),
+  kontakPenanggungJawab: z.object({
+    nama: z.string().default(""),
+    telepon: z.string().default(""),
+    email: z.string().email("Format email tidak valid").optional().default("")
+  })
 });
 
-// Type from zodResolver should match BranchFormInputs
 type FormInputs = z.infer<typeof branchSchema>;
 
 interface BranchFormProps {
@@ -72,24 +73,26 @@ const BranchForm: React.FC<BranchFormProps> = ({
     resolver: zodResolver(branchSchema),
     defaultValues: {
       namaCabang: initialData?.namaCabang || "",
-      divisiId: initialData?.divisiId || "", // Ensure this is never undefined
+      divisiId: typeof initialData?.divisiId === 'string' ? initialData.divisiId : initialData?.divisiId?._id || "",
       alamat: initialData?.alamat || "",
       kelurahan: initialData?.kelurahan || "",
       kecamatan: initialData?.kecamatan || "",
       kota: initialData?.kota || "",
       provinsi: initialData?.provinsi || "",
-      "kontakPenanggungJawab.nama": initialData?.kontakPenanggungJawab?.nama || "",
-      "kontakPenanggungJawab.telepon": initialData?.kontakPenanggungJawab?.telepon || "",
-      "kontakPenanggungJawab.email": initialData?.kontakPenanggungJawab?.email || "",
+      kontakPenanggungJawab: {
+        nama: initialData?.kontakPenanggungJawab?.nama || "",
+        telepon: initialData?.kontakPenanggungJawab?.telepon || "",
+        email: initialData?.kontakPenanggungJawab?.email || "",
+      }
     },
   });
 
-  // Watch all fields for debugging
-  const watchedFields = watch();
+  // Watch form values for debugging
+  const formValues = watch();
   
   useEffect(() => {
-    console.log("Current form values:", watchedFields);
-  }, [watchedFields]);
+    console.log("Current form values:", formValues);
+  }, [formValues]);
 
   useEffect(() => {
     dispatch(getDivisions());
@@ -100,45 +103,67 @@ const BranchForm: React.FC<BranchFormProps> = ({
     if (initialData) {
       reset({
         namaCabang: initialData.namaCabang || "",
-        divisiId: initialData.divisiId || "", // Using empty string as fallback
+        divisiId: initialData.divisiId?._id || "",
         alamat: initialData.alamat || "",
         kelurahan: initialData.kelurahan || "",
         kecamatan: initialData.kecamatan || "",
         kota: initialData.kota || "",
         provinsi: initialData.provinsi || "",
-        "kontakPenanggungJawab.nama": initialData.kontakPenanggungJawab?.nama || "",
-        "kontakPenanggungJawab.telepon": initialData.kontakPenanggungJawab?.telepon || "",
-        "kontakPenanggungJawab.email": initialData.kontakPenanggungJawab?.email || "",
+        kontakPenanggungJawab: {
+          nama: initialData.kontakPenanggungJawab?.nama || "",
+          telepon: initialData.kontakPenanggungJawab?.telepon || "",
+          email: initialData.kontakPenanggungJawab?.email || ""
+        }
       });
     }
   }, [initialData, reset]);
 
   const handleBranchSubmit = async (data: FormInputs) => {
     setSubmitError(null);
-
-    // Make sure penanggung jawab fields are included even if they're empty
-    const formData = {
-      ...data,
-      "kontakPenanggungJawab.nama": data["kontakPenanggungJawab.nama"] || "",
-      "kontakPenanggungJawab.telepon": data["kontakPenanggungJawab.telepon"] || "",
-      "kontakPenanggungJawab.email": data["kontakPenanggungJawab.email"] || ""
-    };
-
-    console.log("Submitting branch form data:", formData);
+    
+    // Log data untuk debugging
+    console.log("Submitting branch form data:", data);
 
     try {
       // If custom onSubmit is provided, use it
+      // Ensure all required fields are present with valid values
+      // Prepare base data
+      const formattedData: BranchFormInputs = {
+        namaCabang: data.namaCabang,
+        divisiId: data.divisiId,
+        alamat: data.alamat,
+        kelurahan: data.kelurahan,
+        kecamatan: data.kecamatan,
+        kota: data.kota,
+        provinsi: data.provinsi,
+        kontakPenanggungJawab: {
+          nama: "",
+          telepon: "",
+          email: ""
+        }
+      };
+
+      // Only include non-empty kontakPenanggungJawab fields
+      const { nama, telepon, email } = data.kontakPenanggungJawab;
+      if (nama || telepon || email) {
+        formattedData.kontakPenanggungJawab = {
+          nama: nama || "",
+          telepon: telepon || "",
+          email: email || ""
+        };
+      }
+
       if (onSubmit) {
-        onSubmit(formData);
+        onSubmit(formattedData);
         return;
       }
 
-      // Otherwise, use Redux actions
+      // Use Redux actions with formatted data
       if (initialData?._id) {
-        await dispatch(updateBranch({ id: initialData._id, branchData: formData })).unwrap();
+        await dispatch(updateBranch({ id: initialData._id, branchData: formattedData })).unwrap();
         navigate("/branch");
       } else {
-        await dispatch(createBranch(formData)).unwrap();
+        await dispatch(createBranch(formattedData)).unwrap();
         navigate("/branch");
       }
     } catch (err: any) {
@@ -349,59 +374,50 @@ const BranchForm: React.FC<BranchFormProps> = ({
             <Divider sx={{ mb: 2 }} />
           </Grid>
 
-          <Grid item xs={12} md={4}>
-            <Controller
-              name="kontakPenanggungJawab.nama"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nama Penanggung Jawab"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors["kontakPenanggungJawab.nama"]}
-                  helperText={errors["kontakPenanggungJawab.nama"]?.message}
-                  disabled={loading || isSubmitting || branchLoading}
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <Controller
-              name="kontakPenanggungJawab.telepon"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Telepon Penanggung Jawab"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors["kontakPenanggungJawab.telepon"]}
-                  helperText={errors["kontakPenanggungJawab.telepon"]?.message}
-                  disabled={loading || isSubmitting || branchLoading}
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <Controller
-              name="kontakPenanggungJawab.email"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Email Penanggung Jawab"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors["kontakPenanggungJawab.email"]}
-                  helperText={errors["kontakPenanggungJawab.email"]?.message}
-                  disabled={loading || isSubmitting || branchLoading}
-                />
-              )}
-            />
-          </Grid>
+          <Controller
+            name="kontakPenanggungJawab"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    value={field.value.nama || ""}
+                    onChange={(e) => field.onChange({ ...field.value, nama: e.target.value })}
+                    label="Nama Penanggung Jawab"
+                    variant="outlined"
+                    fullWidth
+                    error={!!errors.kontakPenanggungJawab?.nama}
+                    helperText={errors.kontakPenanggungJawab?.nama?.message}
+                    disabled={loading || isSubmitting || branchLoading}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    value={field.value.telepon || ""}
+                    onChange={(e) => field.onChange({ ...field.value, telepon: e.target.value })}
+                    label="Telepon Penanggung Jawab"
+                    variant="outlined"
+                    fullWidth
+                    error={!!errors.kontakPenanggungJawab?.telepon}
+                    helperText={errors.kontakPenanggungJawab?.telepon?.message}
+                    disabled={loading || isSubmitting || branchLoading}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    value={field.value.email || ""}
+                    onChange={(e) => field.onChange({ ...field.value, email: e.target.value })}
+                    label="Email Penanggung Jawab"
+                    variant="outlined"
+                    fullWidth
+                    error={!!errors.kontakPenanggungJawab?.email}
+                    helperText={errors.kontakPenanggungJawab?.email?.message}
+                    disabled={loading || isSubmitting || branchLoading}
+                  />
+                </Grid>
+              </>
+            )}
+          />
 
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>

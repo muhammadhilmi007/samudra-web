@@ -38,6 +38,7 @@ export interface BranchFormInputs {
   kontakPenanggungJawab: {
     nama: string;
     telepon: string;
+    email: string; // Add this line
   };
 }
 

@@ -1,6 +1,6 @@
 // src/services/branchService.ts
 import api from "./api";
-import { Branch, BranchFormInputs, BranchCreateData } from "../types/branch";
+import { Branch, BranchFormInputs } from "../types/branch";
 
 const branchService = {
   // Get all branches
@@ -61,10 +61,32 @@ const branchService = {
   // Create branch
   async createBranch(branchData: BranchFormInputs) {
     try {
-      // Format data exactly as is (no need to transform dot notation fields)
-      console.log("Sending branch data to API:", branchData);
+      // Format data for backend - transform from dot notation to nested object
+      // This is critical for ensuring kontakPenanggungJawab data is properly saved
+      const formattedData: any = {
+        namaCabang: branchData.namaCabang,
+        divisiId: branchData.divisiId,
+        alamat: branchData.alamat,
+        kelurahan: branchData.kelurahan,
+        kecamatan: branchData.kecamatan,
+        kota: branchData.kota,
+        provinsi: branchData.provinsi,
+      };
+
+      // Only include kontakPenanggungJawab if at least one field has a value
+      const { nama, telepon, email } = branchData.kontakPenanggungJawab || {};
+      if (nama || telepon || email) {
+        formattedData.kontakPenanggungJawab = {
+          nama: nama || "",
+          telepon: telepon || "",
+          email: email || ""
+        };
+      }
       
-      const response = await api.post("/branches", branchData);
+      // Log the formatted data for debugging
+      console.log("Formatted branch data for API:", formattedData);
+      
+      const response = await api.post("/branches", formattedData);
       
       if (response.data.success && response.data.data) {
         return response.data.data;
@@ -90,9 +112,25 @@ const branchService = {
   // Update branch
   async updateBranch(id: string, branchData: Partial<BranchFormInputs>) {
     try {
-      console.log("Updating branch data:", branchData);
+      // Format data for backend - similar to createBranch
+      const formattedData: any = {...branchData};
       
-      const response = await api.put(`/branches/${id}`, branchData);
+      // Only include kontakPenanggungJawab if at least one field has a value
+      if (branchData.kontakPenanggungJawab) {
+        const { nama, telepon, email } = branchData.kontakPenanggungJawab;
+        if (nama || telepon || email) {
+          formattedData.kontakPenanggungJawab = {
+            nama: nama || "",
+            telepon: telepon || "",
+            email: email || ""
+          };
+        }
+      }
+      
+      // Log the formatted data for debugging
+      console.log("Formatted branch update data for API:", formattedData);
+      
+      const response = await api.put(`/branches/${id}`, formattedData);
       
       if (response.data.success && response.data.data) {
         return response.data.data;
