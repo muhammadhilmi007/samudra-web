@@ -1,108 +1,174 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import branchService from '../../services/branchService';
-import { Branch, BranchFormSubmitData } from '../../types/branch';
-import { setError, setSuccess } from './uiSlice';
+import { Branch, BranchFormInputs, BranchStats } from '../../types/branch';
+import { setLoading, setError, setSuccess, clearError, clearSuccess } from './uiSlice';
 
 interface BranchState {
   branches: Branch[];
   branch: Branch | null;
+  branchStats: BranchStats | null;
   loading: boolean;
   error: string | null;
+  success: string | null;
 }
 
 const initialState: BranchState = {
   branches: [],
   branch: null,
+  branchStats: null,
   loading: false,
   error: null,
-};
-
-const handleThunkError = (error: any, thunkAPI: any, message: string) => {
-  let errorMsg = message;
-  if (error.response?.data?.message) {
-    errorMsg = error.response.data.message;
-  } else if (error.message) {
-    errorMsg = error.message;
-  }
-  thunkAPI.dispatch(setError(errorMsg));
-  return thunkAPI.rejectWithValue(errorMsg);
+  success: null,
 };
 
 export const getBranches = createAsyncThunk(
   'branch/getBranches',
-  async (_, thunkAPI) => {
+  async (_, { dispatch, rejectWithValue }) => {
     try {
-      const data = await branchService.getBranches();
-      return data;
-    } catch (error) {
-      return handleThunkError(error, thunkAPI, 'Failed to fetch branches');
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      
+      const branches = await branchService.getBranches();
+      
+      dispatch(setLoading(false));
+      return branches;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || 'Gagal mengambil data cabang'));
+      
+      return rejectWithValue(error.message || 'Gagal mengambil data cabang');
     }
   }
 );
 
 export const getBranchById = createAsyncThunk(
   'branch/getBranchById',
-  async (id: string, thunkAPI) => {
+  async (id: string, { dispatch, rejectWithValue }) => {
     try {
-      const data = await branchService.getBranchById(id);
-      return data;
-    } catch (error) {
-      return handleThunkError(error, thunkAPI, `Failed to fetch branch with ID ${id}`);
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      
+      const branch = await branchService.getBranchById(id);
+      
+      dispatch(setLoading(false));
+      return branch;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || `Gagal mengambil data cabang dengan ID ${id}`));
+      
+      return rejectWithValue(error.message || `Gagal mengambil data cabang dengan ID ${id}`);
+    }
+  }
+);
+
+export const getBranchStats = createAsyncThunk(
+  'branch/getBranchStats',
+  async (id: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      
+      const stats = await branchService.getBranchStats(id);
+      
+      dispatch(setLoading(false));
+      return stats;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || `Gagal mengambil statistik cabang dengan ID ${id}`));
+      
+      return rejectWithValue(error.message || `Gagal mengambil statistik cabang dengan ID ${id}`);
     }
   }
 );
 
 export const createBranch = createAsyncThunk(
   'branch/createBranch',
-  async (branchData: BranchFormSubmitData, thunkAPI) => {
+  async (branchData: BranchFormInputs, { dispatch, rejectWithValue }) => {
     try {
-      console.log('Creating branch with data:', JSON.stringify(branchData, null, 2));
-      const data = await branchService.createBranch(branchData);
-      thunkAPI.dispatch(setSuccess('Cabang berhasil dibuat'));
-      return data;
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      dispatch(clearSuccess());
+      
+      // Log data being sent to createBranch
+      console.log('Creating branch with data:', branchData);
+      
+      const newBranch = await branchService.createBranch(branchData);
+      
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Cabang berhasil dibuat'));
+      
+      return newBranch;
     } catch (error: any) {
-      console.error('Error in createBranch thunk:', error);
-      // Use the specific error message if available
-      const errorMessage = error.message || 'Gagal membuat cabang baru';
-      return handleThunkError(error, thunkAPI, errorMessage);
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || 'Gagal membuat cabang'));
+      
+      return rejectWithValue(error.message || 'Gagal membuat cabang');
     }
   }
 );
 
 export const updateBranch = createAsyncThunk(
   'branch/updateBranch',
-  async ({ id, branchData }: { id: string; branchData: Partial<Branch> }, thunkAPI) => {
+  async ({ id, branchData }: { id: string; branchData: Partial<BranchFormInputs> }, { dispatch, rejectWithValue }) => {
     try {
-      const data = await branchService.updateBranch(id, branchData);
-      thunkAPI.dispatch(setSuccess('Branch updated successfully'));
-      return data;
-    } catch (error) {
-      return handleThunkError(error, thunkAPI, `Failed to update branch with ID ${id}`);
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      dispatch(clearSuccess());
+      
+      const updatedBranch = await branchService.updateBranch(id, branchData);
+      
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Cabang berhasil diperbarui'));
+      
+      return updatedBranch;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || `Gagal memperbarui cabang dengan ID ${id}`));
+      
+      return rejectWithValue(error.message || `Gagal memperbarui cabang dengan ID ${id}`);
     }
   }
 );
 
 export const deleteBranch = createAsyncThunk(
   'branch/deleteBranch',
-  async (id: string, thunkAPI) => {
+  async (id: string, { dispatch, rejectWithValue }) => {
     try {
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      dispatch(clearSuccess());
+      
       await branchService.deleteBranch(id);
-      thunkAPI.dispatch(setSuccess('Branch deleted successfully'));
+      
+      dispatch(setLoading(false));
+      dispatch(setSuccess('Cabang berhasil dihapus'));
+      
       return id;
-    } catch (error) {
-      return handleThunkError(error, thunkAPI, `Failed to delete branch with ID ${id}`);
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || `Gagal menghapus cabang dengan ID ${id}`));
+      
+      return rejectWithValue(error.message || `Gagal menghapus cabang dengan ID ${id}`);
     }
   }
 );
 
 export const getBranchesByDivision = createAsyncThunk(
   'branch/getBranchesByDivision',
-  async (divisionId: string, thunkAPI) => {
+  async (divisionId: string, { dispatch, rejectWithValue }) => {
     try {
-      const data = await branchService.getBranchesByDivision(divisionId);
-      return data;
-    } catch (error) {
-      return handleThunkError(error, thunkAPI, `Failed to fetch branches for division ${divisionId}`);
+      dispatch(setLoading(true));
+      dispatch(clearError());
+      
+      const branches = await branchService.getBranchesByDivision(divisionId);
+      
+      dispatch(setLoading(false));
+      return branches;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.message || `Gagal mengambil cabang untuk divisi dengan ID ${divisionId}`));
+      
+      return rejectWithValue(error.message || `Gagal mengambil cabang untuk divisi dengan ID ${divisionId}`);
     }
   }
 );
@@ -113,106 +179,156 @@ const branchSlice = createSlice({
   reducers: {
     clearBranch: (state) => {
       state.branch = null;
+      state.error = null;
+      state.success = null;
     },
     clearBranches: (state) => {
       state.branches = [];
-    },
-    clearBranchErrors: (state) => {
       state.error = null;
-    }
+      state.success = null;
+    },
+    clearBranchStats: (state) => {
+      state.branchStats = null;
+    },
+    setErrorState: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+    },
+    clearErrorState: (state) => {
+      state.error = null;
+    },
+    setSuccessState: (state, action: PayloadAction<string>) => {
+      state.success = action.payload;
+    },
+    clearSuccessState: (state) => {
+      state.success = null;
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Get Branches
       .addCase(getBranches.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getBranches.fulfilled, (state, action: PayloadAction<Branch[]>) => {
+      .addCase(getBranches.fulfilled, (state, action) => {
         state.loading = false;
-        state.branches = action.payload || [];
-        state.error = null;
+        if (Array.isArray(action.payload)) {
+          state.branches = action.payload;
+        } else {
+          // Handle unexpected data format (should be an array)
+          console.error("Invalid branch data format:", action.payload);
+          state.branches = [];
+          state.error = "Format data cabang tidak valid";
+        }
       })
       .addCase(getBranches.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
       
+      // Get Branch By Id
       .addCase(getBranchById.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getBranchById.fulfilled, (state, action: PayloadAction<Branch>) => {
+      .addCase(getBranchById.fulfilled, (state, action) => {
         state.loading = false;
         state.branch = action.payload;
-        state.error = null;
       })
       .addCase(getBranchById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
       
-      .addCase(createBranch.pending, (state) => {
+      // Get Branch Stats
+      .addCase(getBranchStats.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(createBranch.fulfilled, (state, action: PayloadAction<Branch>) => {
+      .addCase(getBranchStats.fulfilled, (state, action) => {
+        state.loading = false;
+        state.branchStats = action.payload;
+      })
+      .addCase(getBranchStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      
+      // Create Branch
+      .addCase(createBranch.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.success = null;
+      })
+      .addCase(createBranch.fulfilled, (state, action) => {
         state.loading = false;
         if (action.payload) {
           state.branches.push(action.payload);
+          state.branch = action.payload;
+          state.success = "Cabang berhasil dibuat";
         }
-        state.error = null;
       })
       .addCase(createBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.success = null;
       })
       
+      // Update Branch
       .addCase(updateBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.success = null;
       })
-      .addCase(updateBranch.fulfilled, (state, action: PayloadAction<Branch>) => {
+      .addCase(updateBranch.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload) {
-          state.branches = state.branches.map(branch =>
-            branch._id === action.payload._id ? action.payload : branch
-          );
-          if (state.branch?._id === action.payload._id) {
-            state.branch = action.payload;
-          }
-        }
-        state.error = null;
+        state.branches = state.branches.map(branch =>
+          branch._id === action.payload._id ? action.payload : branch
+        );
+        state.branch = action.payload;
+        state.success = "Cabang berhasil diperbarui";
       })
       .addCase(updateBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.success = null;
       })
       
+      // Delete Branch
       .addCase(deleteBranch.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.success = null;
       })
-      .addCase(deleteBranch.fulfilled, (state, action: PayloadAction<string>) => {
+      .addCase(deleteBranch.fulfilled, (state, action) => {
         state.loading = false;
         state.branches = state.branches.filter(branch => branch._id !== action.payload);
         if (state.branch?._id === action.payload) {
           state.branch = null;
         }
-        state.error = null;
+        state.success = "Cabang berhasil dihapus";
       })
       .addCase(deleteBranch.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.success = null;
       })
       
+      // Get Branches By Division
       .addCase(getBranchesByDivision.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getBranchesByDivision.fulfilled, (state, action: PayloadAction<Branch[]>) => {
+      .addCase(getBranchesByDivision.fulfilled, (state, action) => {
         state.loading = false;
-        state.branches = action.payload || [];
-        state.error = null;
+        if (Array.isArray(action.payload)) {
+          state.branches = action.payload;
+        } else {
+          // Handle unexpected data format (should be an array)
+          console.error("Invalid branch data format:", action.payload);
+          state.branches = [];
+          state.error = "Format data cabang tidak valid";
+        }
       })
       .addCase(getBranchesByDivision.rejected, (state, action) => {
         state.loading = false;
@@ -221,5 +337,14 @@ const branchSlice = createSlice({
   },
 });
 
-export const { clearBranch, clearBranches, clearBranchErrors } = branchSlice.actions;
+export const { 
+  clearBranch, 
+  clearBranches, 
+  clearBranchStats, 
+  setErrorState, 
+  clearErrorState,
+  setSuccessState,
+  clearSuccessState
+} = branchSlice.actions;
+
 export default branchSlice.reducer;

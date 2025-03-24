@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/branch/create.tsx
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -6,85 +7,61 @@ import {
   Button,
   Breadcrumbs,
   Link as MuiLink,
-  Snackbar,
   Alert,
-  CircularProgress
+  Container,
+  Stepper,
+  Step,
+  StepLabel,
+  Card,
+  CardContent,
 } from '@mui/material';
-import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import {
+  ArrowBack as ArrowBackIcon,
+  Business as BusinessIcon,
+  LocationOn as LocationIcon,
+  Person as PersonIcon,
+  Save as SaveIcon,
+} from '@mui/icons-material';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useDispatch, useSelector } from 'react-redux';
 import BranchForm from '../../components/branch/BranchForm';
 import withAuth from '../../components/auth/withAuth';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
-import { createBranch } from '../../store/slices/branchSlice';
-import { getDivisions } from '../../store/slices/divisionSlice';
-import { clearError, clearSuccess, setError } from '../../store/slices/uiSlice';
-import { BranchFormSubmitData } from '@/types/branch';
+import { RootState, AppDispatch } from '../../store';
+import { createBranch, clearBranch } from '../../store/slices/branchSlice';
+import { BranchFormInputs } from '../../types/branch';
 
 const CreateBranchPage = () => {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { loading } = useSelector((state: RootState) => state.branch);
-  const { divisions } = useSelector((state: RootState) => state.division);
-  const { error, success } = useSelector((state: RootState) => state.ui);
-  const [submitting, setSubmitting] = useState(false);
+  const { loading, error } = useSelector((state: RootState) => state.branch);
+  const [formData, setFormData] = useState<BranchFormInputs | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  useEffect(() => {
-    dispatch(getDivisions());
+  // Clean up when leaving page
+  React.useEffect(() => {
+    return () => {
+      dispatch(clearBranch());
+    };
   }, [dispatch]);
 
-  const handleSubmit = async (data: BranchFormSubmitData) => {
+  const handleSubmit = async (data: BranchFormInputs) => {
+    setFormData(data);
+    setLocalError(null);
+    
     try {
-      setSubmitting(true);
-      
-      // Ensure the nested kontakPenanggungJawab object is properly formed
-      const formattedData = {
-        ...data,
-        kontakPenanggungJawab: {
-          nama: data.kontakPenanggungJawab?.nama || '',
-          telepon: data.kontakPenanggungJawab?.telepon || '',
-          email: data.kontakPenanggungJawab?.email || ''
-        }
-      };
-      
-      // Log the formatted data for debugging
-      console.log("Submitting branch data:", JSON.stringify(formattedData, null, 2));
-      
-      // Validate required fields before dispatching
-      if (!formattedData.kontakPenanggungJawab.nama) {
-        throw new Error('Nama penanggung jawab wajib diisi');
-      }
-      
-      if (!formattedData.kontakPenanggungJawab.telepon) {
-        throw new Error('Telepon penanggung jawab wajib diisi');
-      }
-      
-      await dispatch(createBranch(formattedData)).unwrap();
+      await dispatch(createBranch(data)).unwrap();
       router.push('/branch');
     } catch (error: any) {
       console.error('Error creating branch:', error);
-      // Set error message in UI state
-      dispatch(setError(error.message || 'Gagal membuat cabang baru'));
-    } finally {
-      setSubmitting(false);
+      setLocalError(error.message || 'Gagal membuat cabang baru. Silakan coba lagi.');
     }
   };
 
-  const handleCloseSnackbar = () => {
-    dispatch(clearError());
-    dispatch(clearSuccess());
+  const handleCancel = () => {
+    router.push('/branch');
   };
-
-  // Show loading indicator if divisions are not yet loaded
-  if (divisions.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <>
@@ -92,50 +69,99 @@ const CreateBranchPage = () => {
         <title>Tambah Cabang Baru | Samudra ERP</title>
       </Head>
       
-      <Box sx={{ p: 3 }}>
-        <Breadcrumbs sx={{ mb: 2 }}>
-          <Link href="/dashboard" passHref>
-            <MuiLink underline="hover" color="inherit">Dashboard</MuiLink>
-          </Link>
-          <Link href="/branch" passHref>
-            <MuiLink underline="hover" color="inherit">Cabang</MuiLink>
-          </Link>
-          <Typography color="text.primary">Tambah Cabang Baru</Typography>
-        </Breadcrumbs>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <Button 
-            startIcon={<ArrowBackIcon />} 
-            onClick={() => router.push('/branch')}
-            sx={{ mr: 2 }}
+      <Container maxWidth="lg">
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          <Breadcrumbs sx={{ mb: 2 }}>
+            <Link href="/dashboard" passHref>
+              <MuiLink underline="hover" color="inherit">Dashboard</MuiLink>
+            </Link>
+            <Link href="/branch" passHref>
+              <MuiLink underline="hover" color="inherit">Cabang</MuiLink>
+            </Link>
+            <Typography color="text.primary">Tambah Cabang Baru</Typography>
+          </Breadcrumbs>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: 3,
+            flexWrap: 'wrap',
+            gap: 2
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button 
+                startIcon={<ArrowBackIcon />} 
+                onClick={handleCancel}
+                variant="outlined"
+              >
+                Kembali
+              </Button>
+              <Typography variant="h4" component="h1">
+                Tambah Cabang Baru
+              </Typography>
+            </Box>
+          </Box>
+          
+          {/* Stepper - Optional for visual guidance */}
+          <Stepper 
+            activeStep={1} 
+            alternativeLabel 
+            sx={{ mb: 4, display: { xs: 'none', md: 'flex' } }}
           >
-            Kembali
-          </Button>
-          <Typography variant="h4">Tambah Cabang Baru</Typography>
-        </Box>
-        
-        <Paper sx={{ p: 3 }}>
-          <BranchForm 
-            onSubmit={handleSubmit}
-            loading={submitting || loading}
-          />
-        </Paper>
-      </Box>
+            <Step completed>
+              <StepLabel StepIconProps={{ icon: <BusinessIcon /> }}>
+                Pilih Divisi
+              </StepLabel>
+            </Step>
+            <Step active>
+              <StepLabel StepIconProps={{ icon: <LocationIcon /> }}>
+                Isi Data Cabang
+              </StepLabel>
+            </Step>
+            <Step>
+              <StepLabel StepIconProps={{ icon: <PersonIcon /> }}>
+                Tentukan Penanggung Jawab
+              </StepLabel>
+            </Step>
+            <Step>
+              <StepLabel StepIconProps={{ icon: <SaveIcon /> }}>
+                Simpan Cabang
+              </StepLabel>
+            </Step>
+          </Stepper>
 
-      <Snackbar
-        open={!!error || !!success}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={error ? "error" : "success"}
-          sx={{ width: "100%" }}
-        >
-          {error || success}
-        </Alert>
-      </Snackbar>
+          {/* Info Card */}
+          <Card sx={{ mb: 3, borderLeft: 5, borderColor: 'primary.main' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Membuat Cabang Baru
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Cabang merupakan bagian penting dalam struktur perusahaan. Lengkapi semua data yang diperlukan
+                untuk membuat cabang baru. Pastikan telah memilih divisi yang benar dan mengisi alamat lengkap
+                serta informasi penanggung jawab cabang.
+              </Typography>
+            </CardContent>
+          </Card>
+          
+          {/* Errors */}
+          {(error || localError) && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error || localError}
+            </Alert>
+          )}
+          
+          {/* Form */}
+          <Paper sx={{ p: 3 }}>
+            <BranchForm
+              loading={loading}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+            />
+          </Paper>
+        </Box>
+      </Container>
     </>
   );
 };

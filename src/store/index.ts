@@ -42,6 +42,8 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
+      // Disable immutable state invariant middleware in development
+      immutableCheck: false,
       serializableCheck: {
         ignoredActions: [
           'auth/login/fulfilled',

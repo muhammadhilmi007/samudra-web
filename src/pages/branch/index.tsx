@@ -40,7 +40,7 @@ import { AppDispatch } from "../../store";
 import {
   selectBranchData,
   selectDivisionList,
-  selectUiState
+  selectUiState,
 } from "../../store/selectors/branchSelectors";
 import {
   getBranches,
@@ -103,7 +103,9 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       tabIndex={0}
       onClick={() => {
-        const element = document.querySelector(`[role="tabpanel"][hidden="false"]`);
+        const element = document.querySelector(
+          `[role="tabpanel"][hidden="false"]`
+        );
         if (element) (element as HTMLElement).focus();
       }}
       {...other}
@@ -225,14 +227,18 @@ const BranchAndDivisionPage = () => {
         kota: branch.kota,
         provinsi: branch.provinsi,
         "kontakPenanggungJawab.nama": branch.kontakPenanggungJawab?.nama || "",
-        "kontakPenanggungJawab.telepon": branch.kontakPenanggungJawab?.telepon || "",
-        "kontakPenanggungJawab.email": branch.kontakPenanggungJawab?.email || "",
+        "kontakPenanggungJawab.telepon":
+          branch.kontakPenanggungJawab?.telepon || "",
+        "kontakPenanggungJawab.email":
+          branch.kontakPenanggungJawab?.email || "",
       });
     } else {
       setEditingBranch(null);
+      // If there are divisions available, use the first one as default
+      const defaultDivisionId = divisions.length > 0 ? divisions[0]._id : "";
       resetBranchForm({
         namaCabang: "",
-        divisiId: "",
+        divisiId: defaultDivisionId, // Set default division
         alamat: "",
         kelurahan: "",
         kecamatan: "",
@@ -285,7 +291,13 @@ const BranchAndDivisionPage = () => {
     // Transform data from form format to API format
     const branchData: Partial<Branch> = {
       namaCabang: data.namaCabang,
-      divisiId: { _id: data.divisiId, namaDivisi: '', createdAt: '', updatedAt: '', __v: 0 },
+      divisiId: {
+        _id: data.divisiId,
+        namaDivisi: "",
+        createdAt: "",
+        updatedAt: "",
+        __v: 0,
+      },
       alamat: data.alamat,
       kelurahan: data.kelurahan,
       kecamatan: data.kecamatan,
@@ -301,22 +313,35 @@ const BranchAndDivisionPage = () => {
     console.log("Submitting branch data:", branchData);
 
     if (editingBranch) {
-      dispatch(updateBranch({ id: editingBranch._id, branchData }));
+      const updatedBranchData = {
+        ...branchData,
+        // Extract just the ID from the divisiId object if it exists
+        divisiId:
+          branchData.divisiId && typeof branchData.divisiId === "object"
+            ? branchData.divisiId._id
+            : branchData.divisiId,
+      };
+
+      dispatch(
+        updateBranch({ id: editingBranch._id, branchData: updatedBranchData })
+      );
     } else {
-      dispatch(createBranch({
-        namaCabang: branchData.namaCabang!,
-        divisiId: data.divisiId,
-        alamat: branchData.alamat!,
-        kelurahan: branchData.kelurahan!,
-        kecamatan: branchData.kecamatan!,
-        kota: branchData.kota!,
-        provinsi: branchData.provinsi!,
-        kontakPenanggungJawab: branchData.kontakPenanggungJawab || {
-          nama: "",
-          telepon: "",
-          email: ""
-        }
-      }));
+      dispatch(
+        createBranch({
+          namaCabang: branchData.namaCabang!,
+          divisiId: data.divisiId,
+          alamat: branchData.alamat!,
+          kelurahan: branchData.kelurahan!,
+          kecamatan: branchData.kecamatan!,
+          kota: branchData.kota!,
+          provinsi: branchData.provinsi!,
+          kontakPenanggungJawab: branchData.kontakPenanggungJawab || {
+            nama: "",
+            telepon: "",
+            email: "",
+          },
+        })
+      );
     }
     handleCloseBranchDialog();
   };
@@ -410,13 +435,27 @@ const BranchAndDivisionPage = () => {
                 ))}
               </TextField>
 
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => handleOpenBranchDialog()}
-              >
-                Tambah Cabang
-              </Button>
+              {divisions.length > 0 ? (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleOpenBranchDialog()}
+                >
+                  Tambah Cabang
+                </Button>
+              ) : (
+                <Tooltip title="Tambahkan divisi terlebih dahulu">
+                  <span>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      disabled
+                    >
+                      Tambah Cabang
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
             </Box>
 
             <TableContainer>
@@ -451,7 +490,10 @@ const BranchAndDivisionPage = () => {
                         <TableCell>
                           {isLoading ? (
                             <CircularProgress size={20} />
-                          ) : divisions && Array.isArray(divisions) && divisions.length > 0 && branch.divisiId ? (
+                          ) : divisions &&
+                            Array.isArray(divisions) &&
+                            divisions.length > 0 &&
+                            branch.divisiId ? (
                             branch.divisiId?.namaDivisi || "-"
                           ) : (
                             "-"
@@ -607,7 +649,9 @@ const BranchAndDivisionPage = () => {
                   fullWidth
                   margin="normal"
                   error={!!divisionErrors.namaDivisi}
-                  helperText={(divisionErrors.namaDivisi?.message || '') as string}
+                  helperText={
+                    (divisionErrors.namaDivisi?.message || "") as string
+                  }
                 />
               )}
             />
@@ -684,7 +728,9 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.alamat}
-                      helperText={(branchErrors.alamat?.message || '') as string}
+                      helperText={
+                        (branchErrors.alamat?.message || "") as string
+                      }
                     />
                   )}
                 />
@@ -716,7 +762,9 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.kecamatan}
-                      helperText={(branchErrors.kecamatan?.message || '') as string}
+                      helperText={
+                        (branchErrors.kecamatan?.message || "") as string
+                      }
                     />
                   )}
                 />
@@ -732,7 +780,7 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.kota}
-                      helperText={(branchErrors.kota?.message || '') as string}
+                      helperText={(branchErrors.kota?.message || "") as string}
                     />
                   )}
                 />
@@ -748,7 +796,9 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors.provinsi}
-                      helperText={(branchErrors.provinsi?.message || '') as string}
+                      helperText={
+                        (branchErrors.provinsi?.message || "") as string
+                      }
                     />
                   )}
                 />
@@ -769,7 +819,10 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors["kontakPenanggungJawab.nama"]}
-                      helperText={(branchErrors["kontakPenanggungJawab.nama"]?.message || '') as string}
+                      helperText={
+                        (branchErrors["kontakPenanggungJawab.nama"]?.message ||
+                          "") as string
+                      }
                     />
                   )}
                 />
@@ -785,7 +838,10 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors["kontakPenanggungJawab.telepon"]}
-                      helperText={(branchErrors["kontakPenanggungJawab.telepon"]?.message || '') as string}
+                      helperText={
+                        (branchErrors["kontakPenanggungJawab.telepon"]
+                          ?.message || "") as string
+                      }
                     />
                   )}
                 />
@@ -801,7 +857,10 @@ const BranchAndDivisionPage = () => {
                       fullWidth
                       margin="normal"
                       error={!!branchErrors["kontakPenanggungJawab.email"]}
-                      helperText={(branchErrors["kontakPenanggungJawab.email"]?.message || '') as string}
+                      helperText={
+                        (branchErrors["kontakPenanggungJawab.email"]?.message ||
+                          "") as string
+                      }
                     />
                   )}
                 />
