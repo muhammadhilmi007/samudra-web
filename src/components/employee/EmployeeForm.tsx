@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+// src/components/employee/EmployeeForm.tsx
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
@@ -27,18 +28,11 @@ import {
   TabsTrigger 
 } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Employee } from '../../types/employee';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { Upload, X, Camera } from 'lucide-react';
+import { Upload, X, Camera, Eye, EyeOff } from 'lucide-react';
 
 // Schema validation for employee form
 const employeeFormSchema = z.object({
@@ -52,8 +46,12 @@ const employeeFormSchema = z.object({
   password: z.string().min(6, 'Password minimal 6 karakter')
     .optional()
     .or(z.literal('')),
+  confirmPassword: z.string().optional().or(z.literal('')),
   cabangId: z.string().min(1, 'Cabang harus dipilih'),
   aktif: z.boolean().default(true),
+}).refine(data => !data.password || data.password === data.confirmPassword, {
+  message: "Password dan konfirmasi password tidak cocok",
+  path: ["confirmPassword"],
 });
 
 type EmployeeFormInputs = z.infer<typeof employeeFormSchema>;
@@ -71,19 +69,15 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
 }) => {
   const { branches } = useSelector((state: RootState) => state.branch);
   const { roles } = useSelector((state: RootState) => state.employee);
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const [profileImage, setProfileImage] = useState<File | null>(null);
-  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(
-    initialData?.fotoProfil || null
-  );
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(initialData?.fotoProfil || null);
   const [ktpImage, setKtpImage] = useState<File | null>(null);
-  const [ktpImagePreview, setKtpImagePreview] = useState<string | null>(
-    initialData?.dokumen?.ktp || null
-  );
+  const [ktpImagePreview, setKtpImagePreview] = useState<string | null>(initialData?.dokumen?.ktp || null);
   const [npwpImage, setNpwpImage] = useState<File | null>(null);
-  const [npwpImagePreview, setNpwpImagePreview] = useState<string | null>(
-    initialData?.dokumen?.npwp || null
-  );
+  const [npwpImagePreview, setNpwpImagePreview] = useState<string | null>(initialData?.dokumen?.npwp || null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<EmployeeFormInputs>({
     resolver: zodResolver(employeeFormSchema),
@@ -95,8 +89,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
       telepon: initialData?.telepon || '',
       alamat: initialData?.alamat || '',
       username: initialData?.username || '',
-      password: '', // Never prefill password
-      cabangId: initialData?.cabangId || '',
+      password: '',
+      confirmPassword: '',
+      cabangId: initialData?.cabangId || user?.cabangId || '',
       aktif: initialData?.aktif !== undefined ? initialData.aktif : true,
     },
   });
@@ -146,6 +141,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     setNpwpImagePreview(null);
   };
 
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   // Handle form submission
   const handleFormSubmit = (data: EmployeeFormInputs) => {
     // Create FormData for file uploads
@@ -153,7 +153,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     
     // Append all form fields
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value !== undefined && value !== null && key !== 'confirmPassword') {
         formData.append(key, value.toString());
       }
     });
@@ -175,25 +175,25 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
   };
 
   return (
-    <Form {...form}>
+    <Form>
       <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-        <Tabs defaultValue="personal" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="personal">Data Pribadi</TabsTrigger>
-            <TabsTrigger value="job">Informasi Pekerjaan</TabsTrigger>
-            <TabsTrigger value="documents">Dokumen</TabsTrigger>
-          </TabsList>
-          
-          {/* Personal Information Tab */}
-          <TabsContent value="personal">
-            <Card>
-              <CardHeader>
-                <CardTitle>Data Pribadi</CardTitle>
-                <CardDescription>
-                  Masukkan informasi pribadi pegawai
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        <div>
+          <Tabs defaultValue="personal" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="personal">
+                <span>Data Pribadi</span>
+              </TabsTrigger>
+              <TabsTrigger value="job">
+                <span>Informasi Pekerjaan</span>
+              </TabsTrigger>
+              <TabsTrigger value="documents">
+                <span>Dokumen</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Personal Information Tab */}
+            <TabsContent value="personal">
+              <div className="space-y-4 py-4">
                 {/* Profile Image */}
                 <div className="flex justify-center mb-6">
                   <div className="relative">
@@ -210,8 +210,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                     <div className="absolute -bottom-2 -right-2 flex space-x-1">
                       <Button
                         type="button"
-                        size="icon"
-                        variant="secondary"
+                        size="medium"
+                        variant="outlined"
                         className="h-8 w-8 rounded-full"
                         onClick={() => document.getElementById('profile-upload')?.click()}
                       >
@@ -229,8 +229,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                       {profileImagePreview && (
                         <Button
                           type="button"
-                          size="icon"
-                          variant="destructive"
+                          size="medium"
+                          variant="outlined"
                           className="h-8 w-8 rounded-full"
                           onClick={removeProfileImage}
                         >
@@ -243,10 +243,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Name */}
-                  <FormField
-                    control={form.control}
-                    name="nama"
-                    render={({ field }) => (
+                  <FormField name="nama">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Nama Lengkap</FormLabel>
                         <FormControl>
@@ -259,13 +257,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Phone */}
-                  <FormField
-                    control={form.control}
-                    name="telepon"
-                    render={({ field }) => (
+                  <FormField name="telepon">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Nomor Telepon</FormLabel>
                         <FormControl>
@@ -278,13 +274,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Email */}
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
+                  <FormField name="email">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Email (Opsional)</FormLabel>
                         <FormControl>
@@ -298,13 +292,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Active Status */}
-                  <FormField
-                    control={form.control}
-                    name="aktif"
-                    render={({ field }) => (
+                  <FormField name="aktif">
+                    {({ field }: { field: any }) => (
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                         <FormControl>
                           <Checkbox
@@ -321,13 +313,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         </div>
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Address */}
-                  <FormField
-                    control={form.control}
-                    name="alamat"
-                    render={({ field }) => (
+                  <FormField name="alamat">
+                    {({ field }: { field: any }) => (
                       <FormItem className="col-span-1 md:col-span-2">
                         <FormLabel>Alamat</FormLabel>
                         <FormControl>
@@ -341,28 +331,18 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Job Information Tab */}
-          <TabsContent value="job">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informasi Pekerjaan</CardTitle>
-                <CardDescription>
-                  Masukkan informasi pekerjaan dan akses sistem
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </div>
+            </TabsContent>
+            
+            {/* Job Information Tab */}
+            <TabsContent value="job">
+              <div className="space-y-4 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Job Position */}
-                  <FormField
-                    control={form.control}
-                    name="jabatan"
-                    render={({ field }) => (
+                  <FormField name="jabatan">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Jabatan</FormLabel>
                         <FormControl>
@@ -375,13 +355,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Role */}
-                  <FormField
-                    control={form.control}
-                    name="roleId"
-                    render={({ field }) => (
+                  <FormField name="roleId">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Role</FormLabel>
                         <Select
@@ -405,17 +383,15 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Branch */}
-                  <FormField
-                    control={form.control}
-                    name="cabangId"
-                    render={({ field }) => (
+                  <FormField name="cabangId">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Cabang</FormLabel>
                         <Select
-                          disabled={loading}
+                          disabled={loading || !!user?.cabangId}
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
@@ -435,13 +411,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Username */}
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
+                  <FormField name="username">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
@@ -454,180 +428,210 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  </FormField>
                   
                   {/* Password */}
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
+                  <FormField name="password">
+                    {({ field }: { field: any }) => (
                       <FormItem>
                         <FormLabel>
                           {initialData ? 'Password (Kosongkan jika tidak diubah)' : 'Password'}
                         </FormLabel>
                         <FormControl>
-                          <Input 
-                            type="password"
-                            placeholder={initialData ? "••••••••" : "Masukkan password"} 
-                            {...field} 
-                            disabled={loading}
-                          />
+                          <div className="relative">
+                            <Input 
+                              type={showPassword ? "text" : "password"}
+                              placeholder={initialData ? "••••••••" : "Masukkan password"} 
+                              {...field} 
+                              disabled={loading}
+                            />
+                            <Button 
+                              type="button"
+                              variant="outlined" 
+                              size="medium"
+                              className="absolute right-1 top-1"
+                              onClick={togglePasswordVisibility}
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
+                  </FormField>
+                  
+                  {/* Confirm Password */}
+                  <FormField name="confirmPassword">
+                    {({ field }: { field: any }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Konfirmasi Password
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input 
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Konfirmasi password" 
+                              {...field} 
+                              disabled={loading}
+                            />
+                            <Button 
+                              type="button"
+                              variant="outlined" 
+                              size="medium"
+                              className="absolute right-1 top-1"
+                              onClick={togglePasswordVisibility}
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  </FormField>
+                </div>
+              </div>
+            </TabsContent>
+            
+            {/* Documents Tab */}
+            <TabsContent value="documents">
+              <div className="space-y-6 py-4">
+                {/* KTP Document */}
+                <div>
+                  <FormLabel className="block text-sm font-medium mb-2">
+                    KTP
+                  </FormLabel>
+                  
+                  {ktpImagePreview ? (
+                    <div className="relative border rounded-md overflow-hidden">
+                      <img 
+                        src={ktpImagePreview} 
+                        alt="KTP" 
+                        className="w-full h-auto max-h-48 object-contain"
+                      />
+                      <div className="absolute top-2 right-2 flex space-x-1">
+                        <Button
+                          type="button"
+                          size="medium"
+                          variant="outlined"
+                          className="h-8 w-8 rounded-full bg-white/80"
+                          onClick={() => document.getElementById('ktp-upload')?.click()}
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="medium"
+                          variant="outlined"
+                          className="h-8 w-8 rounded-full bg-white/80"
+                          onClick={removeKtpImage}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => document.getElementById('ktp-upload')?.click()}
+                    >
+                      <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Klik untuk mengunggah gambar KTP
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    id="ktp-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleKtpImageChange}
+                    disabled={loading}
                   />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Documents Tab */}
-          <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle>Dokumen</CardTitle>
-                <CardDescription>
-                  Unggah dokumen pendukung pegawai
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {/* KTP Document */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      KTP
-                    </label>
-                    
-                    {ktpImagePreview ? (
-                      <div className="relative border rounded-md overflow-hidden">
-                        <img 
-                          src={ktpImagePreview} 
-                          alt="KTP" 
-                          className="w-full h-auto max-h-48 object-contain"
-                        />
-                        <div className="absolute top-2 right-2 flex space-x-1">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="secondary"
-                            className="h-8 w-8 rounded-full bg-white/80"
-                            onClick={() => document.getElementById('ktp-upload')?.click()}
-                          >
-                            <Upload className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="destructive"
-                            className="h-8 w-8 rounded-full bg-white/80"
-                            onClick={removeKtpImage}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div 
-                        className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => document.getElementById('ktp-upload')?.click()}
-                      >
-                        <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Klik untuk mengunggah gambar KTP
-                        </p>
-                      </div>
-                    )}
-                    <input
-                      id="ktp-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleKtpImageChange}
-                      disabled={loading}
-                    />
-                  </div>
+                
+                {/* NPWP Document */}
+                <div>
+                  <FormLabel className="block text-sm font-medium mb-2">
+                    NPWP (Opsional)
+                  </FormLabel>
                   
-                  {/* NPWP Document */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      NPWP (Opsional)
-                    </label>
-                    
-                    {npwpImagePreview ? (
-                      <div className="relative border rounded-md overflow-hidden">
-                        <img 
-                          src={npwpImagePreview} 
-                          alt="NPWP" 
-                          className="w-full h-auto max-h-48 object-contain"
-                        />
-                        <div className="absolute top-2 right-2 flex space-x-1">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="secondary"
-                            className="h-8 w-8 rounded-full bg-white/80"
-                            onClick={() => document.getElementById('npwp-upload')?.click()}
-                          >
-                            <Upload className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="destructive"
-                            className="h-8 w-8 rounded-full bg-white/80"
-                            onClick={removeNpwpImage}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                  {npwpImagePreview ? (
+                    <div className="relative border rounded-md overflow-hidden">
+                      <img 
+                        src={npwpImagePreview} 
+                        alt="NPWP" 
+                        className="w-full h-auto max-h-48 object-contain"
+                      />
+                      <div className="absolute top-2 right-2 flex space-x-1">
+                        <Button
+                          type="button"
+                          size="medium"
+                          variant="outlined"
+                          className="h-8 w-8 rounded-full bg-white/80"
+                          onClick={() => document.getElementById('npwp-upload')?.click()}
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="medium"
+                          variant="outlined"
+                          className="h-8 w-8 rounded-full bg-white/80"
+                          onClick={removeNpwpImage}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                    ) : (
-                      <div 
-                        className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => document.getElementById('npwp-upload')?.click()}
-                      >
-                        <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Klik untuk mengunggah gambar NPWP
-                        </p>
-                      </div>
-                    )}
-                    <input
-                      id="npwp-upload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleNpwpImageChange}
-                      disabled={loading}
-                    />
-                  </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => document.getElementById('npwp-upload')?.click()}
+                    >
+                      <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Klik untuk mengunggah gambar NPWP
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    id="npwp-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleNpwpImageChange}
+                    disabled={loading}
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        
-        <div className="mt-6 flex justify-end space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => form.reset()}
-            disabled={loading}
-          >
-            Reset
-          </Button>
-          <Button
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                Menyimpan...
-              </>
-            ) : initialData ? 'Perbarui Pegawai' : 'Tambah Pegawai'}
-          </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <div className="mt-6 flex justify-end space-x-4">
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={() => form.reset()}
+              disabled={loading}
+            >
+              Reset
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Menyimpan...
+                </>
+              ) : initialData ? 'Perbarui Pegawai' : 'Tambah Pegawai'}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>

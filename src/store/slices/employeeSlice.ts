@@ -1,23 +1,23 @@
 // src/store/slices/employeeSlice.ts
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import employeeService from '../../services/employeeService';
 import { setLoading, setError, setSuccess } from './uiSlice';
 import { Employee, Role } from '../../types/employee';
 
 interface EmployeeState {
   employees: Employee[];
-  employee: Employee | null;
+  selectedEmployee: Employee | null;
   roles: Role[];
-  role: Role | null;
+  selectedRole: Role | null;
   loading: boolean;
   error: string | null;
 }
 
 const initialState: EmployeeState = {
   employees: [],
-  employee: null,
+  selectedEmployee: null,
   roles: [],
-  role: null,
+  selectedRole: null,
   loading: false,
   error: null,
 };
@@ -25,12 +25,12 @@ const initialState: EmployeeState = {
 // Get all employees
 export const getEmployees = createAsyncThunk(
   'employee/getEmployees',
-  async (_, { dispatch, rejectWithValue }) => {
+  async (params: any = {}, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
-      const response = await employeeService.getEmployees();
+      const response = await employeeService.getEmployees(params);
       dispatch(setLoading(false));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to fetch employees'));
@@ -47,7 +47,7 @@ export const getEmployeeById = createAsyncThunk(
       dispatch(setLoading(true));
       const response = await employeeService.getEmployeeById(id);
       dispatch(setLoading(false));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to fetch employee'));
@@ -64,7 +64,7 @@ export const getEmployeesByBranch = createAsyncThunk(
       dispatch(setLoading(true));
       const response = await employeeService.getEmployeesByBranch(branchId);
       dispatch(setLoading(false));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to fetch employees by branch'));
@@ -82,7 +82,7 @@ export const createEmployee = createAsyncThunk(
       const response = await employeeService.createEmployee(employeeData);
       dispatch(setLoading(false));
       dispatch(setSuccess('Pegawai berhasil dibuat'));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to create employee'));
@@ -91,6 +91,7 @@ export const createEmployee = createAsyncThunk(
   }
 );
 
+// src/store/slices/employeeSlice.ts (continued)
 // Update employee
 export const updateEmployee = createAsyncThunk(
   'employee/updateEmployee',
@@ -100,7 +101,7 @@ export const updateEmployee = createAsyncThunk(
       const response = await employeeService.updateEmployee(id, employeeData);
       dispatch(setLoading(false));
       dispatch(setSuccess('Pegawai berhasil diperbarui'));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to update employee'));
@@ -135,7 +136,7 @@ export const getRoles = createAsyncThunk(
       dispatch(setLoading(true));
       const response = await employeeService.getRoles();
       dispatch(setLoading(false));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to fetch roles'));
@@ -153,7 +154,7 @@ export const createRole = createAsyncThunk(
       const response = await employeeService.createRole(roleData);
       dispatch(setLoading(false));
       dispatch(setSuccess('Role berhasil dibuat'));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to create role'));
@@ -171,7 +172,7 @@ export const updateRole = createAsyncThunk(
       const response = await employeeService.updateRole(id, roleData);
       dispatch(setLoading(false));
       dispatch(setSuccess('Role berhasil diperbarui'));
-      return response;
+      return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to update role'));
@@ -202,17 +203,17 @@ const employeeSlice = createSlice({
   name: 'employee',
   initialState,
   reducers: {
-    clearEmployee: (state) => {
-      state.employee = null;
+    setSelectedEmployee: (state, action: PayloadAction<Employee | null>) => {
+      state.selectedEmployee = action.payload;
     },
-    clearEmployees: (state) => {
-      state.employees = [];
+    clearSelectedEmployee: (state) => {
+      state.selectedEmployee = null;
     },
-    clearRole: (state) => {
-      state.role = null;
+    setSelectedRole: (state, action: PayloadAction<Role | null>) => {
+      state.selectedRole = action.payload;
     },
-    clearRoles: (state) => {
-      state.roles = [];
+    clearSelectedRole: (state) => {
+      state.selectedRole = null;
     },
   },
   extraReducers: (builder) => {
@@ -223,7 +224,7 @@ const employeeSlice = createSlice({
       })
       // Get employee by ID
       .addCase(getEmployeeById.fulfilled, (state, action) => {
-        state.employee = action.payload;
+        state.selectedEmployee = action.payload;
       })
       // Get employees by branch
       .addCase(getEmployeesByBranch.fulfilled, (state, action) => {
@@ -232,21 +233,21 @@ const employeeSlice = createSlice({
       // Create employee
       .addCase(createEmployee.fulfilled, (state, action) => {
         state.employees.push(action.payload);
-        state.employee = action.payload;
       })
       // Update employee
       .addCase(updateEmployee.fulfilled, (state, action) => {
         state.employees = state.employees.map((employee) =>
           employee._id === action.payload._id ? action.payload : employee
         );
-        state.employee = action.payload;
+        if (state.selectedEmployee && state.selectedEmployee._id === action.payload._id) {
+          state.selectedEmployee = action.payload;
+        }
       })
       // Delete employee
       .addCase(deleteEmployee.fulfilled, (state, action) => {
         state.employees = state.employees.filter((employee) => employee._id !== action.payload);
-        
-        if (state.employee && state.employee._id === action.payload) {
-          state.employee = null;
+        if (state.selectedEmployee && state.selectedEmployee._id === action.payload) {
+          state.selectedEmployee = null;
         }
       })
       // Get all roles
@@ -256,26 +257,31 @@ const employeeSlice = createSlice({
       // Create role
       .addCase(createRole.fulfilled, (state, action) => {
         state.roles.push(action.payload);
-        state.role = action.payload;
       })
       // Update role
       .addCase(updateRole.fulfilled, (state, action) => {
         state.roles = state.roles.map((role) =>
           role._id === action.payload._id ? action.payload : role
         );
-        state.role = action.payload;
+        if (state.selectedRole && state.selectedRole._id === action.payload._id) {
+          state.selectedRole = action.payload;
+        }
       })
       // Delete role
       .addCase(deleteRole.fulfilled, (state, action) => {
         state.roles = state.roles.filter((role) => role._id !== action.payload);
-        
-        if (state.role && state.role._id === action.payload) {
-          state.role = null;
+        if (state.selectedRole && state.selectedRole._id === action.payload) {
+          state.selectedRole = null;
         }
       });
   },
 });
 
-export const { clearEmployee, clearEmployees, clearRole, clearRoles } = employeeSlice.actions;
+export const {
+  setSelectedEmployee,
+  clearSelectedEmployee,
+  setSelectedRole,
+  clearSelectedRole,
+} = employeeSlice.actions;
 
 export default employeeSlice.reducer;

@@ -1,11 +1,11 @@
 // src/services/employeeService.ts
 import api from './api';
-import { Role } from '../types/employee';
+import { Employee, Role } from '../types/employee';
 
 const employeeService = {
   // Get all employees
-  async getEmployees() {
-    const response = await api.get('/employees');
+  async getEmployees(params = {}) {
+    const response = await api.get('/employees', { params });
     return response.data;
   },
 

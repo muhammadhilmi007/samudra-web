@@ -7,6 +7,7 @@ import { AppDispatch, RootState } from '../../store';
 import { getEmployeeById, updateEmployee } from '../../store/slices/employeeSlice';
 import EmployeeDetail from '../../components/employee/EmployeeDetail';
 import EmployeeForm from '../../components/employee/EmployeeForm';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ArrowLeft, Edit, UserIcon } from 'lucide-react';
 import { 
   Dialog, 
@@ -15,7 +16,6 @@ import {
   DialogTitle,
   DialogDescription
 } from '@/components/ui/dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const EmployeeDetailPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -40,13 +40,18 @@ const EmployeeDetailPage: React.FC = () => {
         .unwrap()
         .catch(() => {
           setNotFound(true);
+          toast({
+            title: "Error",
+            description: "Pegawai tidak ditemukan",
+            variant: "destructive",
+          });
         });
     }
-  }, [dispatch, id, employee, notFound]);
+  }, [dispatch, id, employee, notFound, toast]);
   
   // Check if user has permission to edit
   const canEdit = user?.role && 
-    ['admin', 'direktur', 'managerHRD', 'kepalaAdministrasi'].includes(user.role);
+    ['direktur', 'manajer_admin', 'manajer_sdm', 'kepala_cabang'].includes(user.role);
   
   // Handle edit form submission
   const handleEditSubmit = (data: any) => {
@@ -56,18 +61,18 @@ const EmployeeDetailPage: React.FC = () => {
     
     dispatch(updateEmployee({ id, employeeData: data }))
       .unwrap()
-      .then((result) => {
+      .then(() => {
         toast({
-          title: 'Berhasil',
-          description: `Data pegawai ${result.nama} berhasil diperbarui`,
+          title: "Berhasil",
+          description: "Data pegawai berhasil diperbarui",
         });
         setOpenEditDialog(false);
       })
       .catch((error) => {
         toast({
-          title: 'Gagal',
-          description: error.message || 'Terjadi kesalahan saat memperbarui data pegawai',
-          variant: 'destructive',
+          title: "Gagal",
+          description: error.message || "Terjadi kesalahan saat memperbarui data pegawai",
+          variant: "destructive",
         });
       })
       .finally(() => {
@@ -83,7 +88,7 @@ const EmployeeDetailPage: React.FC = () => {
           variant="ghost" 
           size="sm" 
           className="mb-2"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/employee")}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Kembali
@@ -108,7 +113,7 @@ const EmployeeDetailPage: React.FC = () => {
             variant="ghost" 
             size="sm" 
             className="mb-2"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/employee")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Kembali

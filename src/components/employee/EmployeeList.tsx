@@ -1,18 +1,36 @@
+// src/components/employee/EmployeeList.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow 
+} from '@/components/ui/table';
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogDescription 
 } from '@/components/ui/dialog';
 import { 
   AlertDialog, 
@@ -22,25 +40,28 @@ import {
   AlertDialogDescription, 
   AlertDialogFooter, 
   AlertDialogHeader, 
-  AlertDialogTitle, 
-  AlertDialogTrigger 
+  AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Employee } from '../../types/employee';
-import EmployeeForm from './EmployeeForm';
+import { Search, PlusCircle, Edit, Trash2, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import { 
   getEmployees, 
   createEmployee, 
   updateEmployee,
-  deleteEmployee 
+  deleteEmployee,
+  getRoles
 } from '../../store/slices/employeeSlice';
 import { getBranches } from '../../store/slices/branchSlice';
-import { getRoles } from '../../store/slices/employeeSlice';
+import EmployeeForm from './EmployeeForm';
+import { Employee } from '../../types/employee';
 
 const EmployeeList: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  
   const { employees, roles, loading } = useSelector((state: RootState) => state.employee);
   const { branches } = useSelector((state: RootState) => state.branch);
   const { user } = useSelector((state: RootState) => state.auth);
@@ -48,18 +69,37 @@ const EmployeeList: React.FC = () => {
   const [openForm, setOpenForm] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  
+  // Filtering and searching state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [branchFilter, setBranchFilter] = useState<string>(user?.cabangId || '');
+  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
 
   // Fetch initial data
   useEffect(() => {
     dispatch(getBranches());
     dispatch(getRoles());
-    dispatch(getEmployees());
-  }, [dispatch]);
+    
+    // Build query params for API request
+    const params: any = {};
+    if (branchFilter) params.cabangId = branchFilter;
+    if (roleFilter) params.roleId = roleFilter;
+    if (statusFilter) params.aktif = statusFilter === 'active' ? true : statusFilter === 'inactive' ? false : undefined;
+    if (searchTerm) params.search = searchTerm;
+    
+    dispatch(getEmployees(params));
+  }, [dispatch, branchFilter, roleFilter, statusFilter, searchTerm]);
 
   // Handle opening employee form for create/edit
   const handleOpenForm = (employee?: Employee) => {
     setSelectedEmployee(employee || null);
     setOpenForm(true);
+  };
+
+  // Handle viewing employee details
+  const handleViewEmployee = (id: string) => {
+    navigate(`/employee/${id}`);
   };
 
   // Handle form submission
@@ -69,19 +109,31 @@ const EmployeeList: React.FC = () => {
       dispatch(updateEmployee({ 
         id: selectedEmployee._id, 
         employeeData: data 
-      }));
+      }))
+        .unwrap()
+        .then(() => {
+          setOpenForm(false);
+          setSelectedEmployee(null);
+        });
     } else {
       // Create new employee
-      dispatch(createEmployee(data));
+      dispatch(createEmployee(data))
+        .unwrap()
+        .then(() => {
+          setOpenForm(false);
+        });
     }
-    setOpenForm(false);
   };
 
   // Handle delete confirmation
   const handleDeleteConfirm = () => {
     if (selectedEmployee) {
-      dispatch(deleteEmployee(selectedEmployee._id));
-      setOpenDeleteDialog(false);
+      dispatch(deleteEmployee(selectedEmployee._id))
+        .unwrap()
+        .then(() => {
+          setOpenDeleteDialog(false);
+          setSelectedEmployee(null);
+        });
     }
   };
 
@@ -91,6 +143,9 @@ const EmployeeList: React.FC = () => {
     setOpenDeleteDialog(true);
   };
 
+  // Filter employees based on search term if API filtering is not implemented
+  const filteredEmployees = employees;
+  
   // Get role name by ID
   const getRoleName = (roleId: string) => {
     const role = roles.find(r => r._id === roleId);
@@ -103,111 +158,223 @@ const EmployeeList: React.FC = () => {
     return branch ? branch.namaCabang : '-';
   };
 
+  // Check if user has permissions
+  const canManageUsers = user?.role && ['admin', 'direktur', 'manajer_sdm', 'kepala_cabang'].includes(user.role);
+  const canDeleteUsers = user?.role && ['admin', 'direktur', 'manajer_sdm'].includes(user.role);
+
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>Daftar Pegawai</CardTitle>
-        <Dialog open={openForm} onOpenChange={setOpenForm}>
-          <DialogTrigger asChild>
+        <div>
+          <CardTitle>Daftar Pegawai</CardTitle>
+          <CardDescription>
+            Kelola data dan hak akses pegawai
+          </CardDescription>
+        </div>
+        {canManageUsers && (
+          <Dialog open={openForm} onOpenChange={setOpenForm}>
             <Button onClick={() => handleOpenForm()}>
+              <PlusCircle className="mr-2 h-4 w-4" />
               Tambah Pegawai
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[825px]">
-            <DialogHeader>
-              <DialogTitle>
-                {selectedEmployee ? 'Edit Pegawai' : 'Tambah Pegawai Baru'}
-              </DialogTitle>
-            </DialogHeader>
-            <EmployeeForm
-              initialData={selectedEmployee || undefined}
-              onSubmit={handleSubmit}
-              loading={loading}
-            />
-          </DialogContent>
-        </Dialog>
+            <DialogContent className="sm:max-w-[825px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedEmployee ? 'Edit Pegawai' : 'Tambah Pegawai Baru'}
+                </DialogTitle>
+                <DialogDescription>
+                  {selectedEmployee ? 'Edit data pegawai di bawah ini.' : 'Isi data pegawai di bawah ini.'}
+                </DialogDescription>
+              </DialogHeader>
+              <EmployeeForm
+                initialData={selectedEmployee || undefined}
+                onSubmit={handleSubmit}
+                loading={loading}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </CardHeader>
       <CardContent>
-        <div className="w-full">
-          <div className="grid grid-cols-12 border-b font-bold py-2">
-            <div className="col-span-2">Nama</div>
-            <div className="col-span-2">Username</div>
-            <div className="col-span-2">Role</div>
-            <div className="col-span-2">Cabang</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2 text-right">Aksi</div>
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari pegawai..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)} name={''}            />
           </div>
-          {employees.map((employee) => (
-            <div 
-              key={employee._id} 
-              className="grid grid-cols-12 border-b py-2 items-center"
-            >
-              <div className="col-span-2 flex items-center space-x-2">
-                <Avatar>
-                  <AvatarImage 
-                    src={employee.fotoProfil || undefined} 
-                    alt={employee.nama}
-                  />
-                  <AvatarFallback>
-                    {employee.nama.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span>{employee.nama}</span>
-              </div>
-              <div className="col-span-2">{employee.username}</div>
-              <div className="col-span-2">{getRoleName(employee.roleId)}</div>
-              <div className="col-span-2">{getBranchName(employee.cabangId)}</div>
-              <div className="col-span-2">
-                <Badge 
-                  variant={employee.aktif ? 'default' : 'destructive'}
-                >
-                  {employee.aktif ? 'Aktif' : 'Nonaktif'}
-                </Badge>
-              </div>
-              <div className="col-span-2 text-right space-x-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleOpenForm(employee)}
-                >
-                  Edit
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={() => handleOpenDeleteDialog(employee)}
-                    >
-                      Hapus
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Apakah Anda yakin ingin menghapus pegawai {employee.nama}?
-                        Tindakan ini tidak dapat dibatalkan.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteConfirm}>
-                        Hapus
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          ))}
-          {employees.length === 0 && (
-            <div className="text-center py-4 text-gray-500">
-              Tidak ada data pegawai
-            </div>
-          )}
+          <Select
+            value={branchFilter}
+            onValueChange={setBranchFilter}
+          >
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="Semua Cabang" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Semua Cabang</SelectItem>
+              {branches.map((branch) => (
+                <SelectItem key={branch._id} value={branch._id}>
+                  {branch.namaCabang}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={roleFilter}
+            onValueChange={setRoleFilter}
+          >
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="Semua Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Semua Role</SelectItem>
+              {roles.map((role) => (
+                <SelectItem key={role._id} value={role._id}>
+                  {role.namaRole}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+          >
+            <SelectTrigger className="w-full md:w-[180px]">
+              <SelectValue placeholder="Semua Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Semua Status</SelectItem>
+              <SelectItem value="active">Aktif</SelectItem>
+              <SelectItem value="inactive">Nonaktif</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Employee Table */}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nama</TableHead>
+                <TableHead>Username</TableHead>
+                <TableHead className="hidden md:table-cell">Role</TableHead>
+                <TableHead className="hidden md:table-cell">Cabang</TableHead>
+                <TableHead className="hidden md:table-cell">Status</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground">Memuat data...</div>
+                  </TableCell>
+                </TableRow>
+              ) : filteredEmployees.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Tidak ada data pegawai
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEmployees.map((employee) => (
+                  <TableRow key={employee._id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage 
+                            src={employee.fotoProfil} 
+                            alt={employee.nama}
+                          />
+                          <AvatarFallback>
+                            {employee.nama.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{employee.nama}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{employee.username}</TableCell>
+                    <TableCell className="hidden md:table-cell">{getRoleName(employee.roleId)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{getBranchName(employee.cabangId)}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge 
+                        variant={employee.aktif ? 'default' : 'destructive'}
+                      >
+                        {employee.aktif ? 'Aktif' : 'Nonaktif'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end space-x-1">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleViewEmployee(employee._id)}
+                          title="Lihat Detail"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {canManageUsers && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleOpenForm(employee)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDeleteUsers && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleOpenDeleteDialog(employee)}
+                            title="Hapus"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
+
+      {/* Confirmation Dialog for Delete */}
+      <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus pegawai {selectedEmployee?.nama}?
+              Tindakan ini akan menonaktifkan akun pegawai tersebut.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? (
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Menghapus...
+                </>
+              ) : 'Hapus'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

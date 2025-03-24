@@ -1,11 +1,38 @@
 // src/components/employee/RoleManagement.tsx
 import React, { useState, useEffect } from 'react';
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription, 
+  CardContent 
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@radix-ui/react-label';
-import { Checkbox } from '@radix-ui/react-checkbox';
+import { 
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Edit, Trash2, Plus } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import {
@@ -13,232 +40,181 @@ import {
   createRole,
   updateRole,
   deleteRole,
+  setSelectedRole,
+  clearSelectedRole
 } from '../../store/slices/employeeSlice';
 import { Role } from '../../types/employee';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { Edit, Trash2 } from 'lucide-react';
 
 // Available permissions with descriptions
-const PERMISSIONS = {
-  // Dashboard
-  read_dashboard: 'Melihat dashboard',
-  
-  // User Management
-  manage_users: 'Mengelola pengguna',
-  view_users: 'Melihat daftar pengguna',
-  create_users: 'Membuat pengguna baru',
-  edit_users: 'Mengubah data pengguna',
-  delete_users: 'Menghapus pengguna',
-  
-  // Branch Management
-  manage_branches: 'Mengelola cabang',
-  view_branches: 'Melihat daftar cabang',
-  create_branches: 'Membuat cabang baru',
-  edit_branches: 'Mengubah data cabang',
-  delete_branches: 'Menghapus cabang',
-  
-  // Shipment Management
-  manage_shipments: 'Mengelola pengiriman',
-  view_shipments: 'Melihat daftar pengiriman',
-  create_shipments: 'Membuat pengiriman baru',
-  edit_shipments: 'Mengubah data pengiriman',
-  delete_shipments: 'Menghapus pengiriman',
-  
-  // Finance Management
-  manage_finance: 'Mengelola keuangan',
-  view_finance: 'Melihat data keuangan',
-  create_invoices: 'Membuat faktur',
-  edit_invoices: 'Mengubah faktur',
-  delete_invoices: 'Menghapus faktur',
-  
-  // Customer Management
-  manage_customers: 'Mengelola pelanggan',
-  view_customers: 'Melihat daftar pelanggan',
-  create_customers: 'Membuat pelanggan baru',
-  edit_customers: 'Mengubah data pelanggan',
-  delete_customers: 'Menghapus pelanggan',
-  
-  // Report Management
-  manage_reports: 'Mengelola laporan',
-  view_reports: 'Melihat laporan',
-  create_reports: 'Membuat laporan',
-  export_reports: 'Mengekspor laporan',
+const PERMISSIONS: Record<string, Record<string, string>> = {
+  dashboard: {
+    read_dashboard: 'Melihat dashboard'
+  },
+  user: {
+    manage_users: 'Mengelola pengguna',
+    view_users: 'Melihat daftar pengguna',
+    create_users: 'Membuat pengguna baru',
+    edit_users: 'Mengubah data pengguna',
+    delete_users: 'Menghapus pengguna'
+  },
+  branch: {
+    manage_branches: 'Mengelola cabang',
+    view_branches: 'Melihat daftar cabang',
+    create_branches: 'Membuat cabang baru',
+    edit_branches: 'Mengubah data cabang',
+    delete_branches: 'Menghapus cabang'
+  },
+  shipment: {
+    manage_shipments: 'Mengelola pengiriman',
+    view_shipments: 'Melihat daftar pengiriman',
+    create_shipments: 'Membuat pengiriman baru',
+    edit_shipments: 'Mengubah data pengiriman',
+    delete_shipments: 'Menghapus pengiriman'
+  },
+  finance: {
+    manage_finance: 'Mengelola keuangan',
+    view_finance: 'Melihat data keuangan',
+    create_invoices: 'Membuat faktur',
+    edit_invoices: 'Mengubah faktur',
+    delete_invoices: 'Menghapus faktur'
+  },
+  customer: {
+    manage_customers: 'Mengelola pelanggan',
+    view_customers: 'Melihat daftar pelanggan',
+    create_customers: 'Membuat pelanggan baru',
+    edit_customers: 'Mengubah data pelanggan',
+    delete_customers: 'Menghapus pelanggan'
+  },
+  report: {
+    manage_reports: 'Mengelola laporan',
+    view_reports: 'Melihat laporan',
+    create_reports: 'Membuat laporan',
+    export_reports: 'Mengekspor laporan'
+  }
 };
+
+// Validation schema for the role form
+const roleFormSchema = z.object({
+  namaRole: z.string().min(2, 'Nama role minimal 2 karakter'),
+  permissions: z.array(z.string()).min(1, 'Pilih minimal satu permission')
+});
+
+type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 const RoleManagement: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { toast } = useToast();
-  // Use hardcoded roles from sidebar
-  const HARDCODED_ROLES = [
-    {
-      _id: '1',
-      namaRole: 'direktur',
-      permissions: Object.keys(PERMISSIONS)
-    },
-    {
-      _id: '2',
-      namaRole: 'manajer_operasional',
-      permissions: ['read_dashboard', 'manage_shipments', 'view_shipments', 'create_shipments', 'edit_shipments']
-    },
-    {
-      _id: '3',
-      namaRole: 'manajer_keuangan',
-      permissions: ['read_dashboard', 'manage_finance', 'view_finance', 'create_invoices', 'edit_invoices']
-    },
-    {
-      _id: '4',
-      namaRole: 'kepala_cabang',
-      permissions: ['read_dashboard', 'manage_branches', 'view_branches', 'edit_branches']
-    },
-    {
-      _id: '5',
-      namaRole: 'admin',
-      permissions: ['manage_users', 'view_users', 'create_users', 'edit_users']
-    }
-  ];
-  
-  const [roles, setRoles] = useState(HARDCODED_ROLES);
+  const { roles, selectedRole, loading } = useSelector((state: RootState) => state.employee);
   const { user } = useSelector((state: RootState) => state.auth);
   
-  // Local loading state for UI feedback
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Error boundary effect
-  useEffect(() => {
-    if (error) {
-      toast({
-        message: error,
-        type: 'error'
-      });
-      setError(null);
-    }
-  }, [error, toast]);
-
-  // Check if user has permission to manage roles
-  const canManageRoles = user?.role && ['admin', 'direktur', 'manajerSDM'].includes(user.role);
-
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [roleName, setRoleName] = useState('');
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
+  // Setup form
+  const form = useForm<RoleFormValues>({
+    resolver: zodResolver(roleFormSchema),
+    defaultValues: {
+      namaRole: '',
+      permissions: []
+    }
+  });
+  
+  // Get all roles on component mount
   useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        setLoading(true);
-        await dispatch(getRoles()).unwrap();
-      } catch (error: any) {
-        setError(error.message || 'Gagal memuat daftar role');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchRoles();
+    dispatch(getRoles());
   }, [dispatch]);
-
-  const handleRoleSelect = (role: Role) => {
-    setSelectedRole(role);
-    setRoleName(role.namaRole);
-    setSelectedPermissions(role.permissions);
-  };
-
-  const handlePermissionToggle = (permission: string) => {
-    setSelectedPermissions(prev =>
-      prev.includes(permission)
-        ? prev.filter(p => p !== permission)
-        : [...prev, permission]
-    );
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!roleName.trim()) {
-      toast({
-        message: 'Nama role tidak boleh kosong',
-        type: 'error'
-      });
-      return;
-    }
-
-    if (selectedPermissions.length === 0) {
-      toast({
-        message: 'Pilih minimal satu hak akses',
-        type: 'error'
-      });
-      return;
-    }
-
-    const newRole = {
-      _id: selectedRole?._id || String(roles.length + 1),
-      namaRole: roleName,
-      permissions: selectedPermissions,
-    };
-
+  
+  // Update form when selectedRole changes
+  useEffect(() => {
     if (selectedRole) {
-      // Update existing role
-      setRoles(roles.map(role =>
-        role._id === selectedRole._id ? newRole : role
-      ));
-      toast({
-        message: 'Role berhasil diperbarui',
-        type: 'success'
+      form.reset({
+        namaRole: selectedRole.namaRole,
+        permissions: selectedRole.permissions
       });
     } else {
+      form.reset({
+        namaRole: '',
+        permissions: []
+      });
+    }
+  }, [selectedRole, form]);
+  
+  // Check if user has permission to manage roles
+  const canManageRoles = user?.role && ['admin', 'direktur', 'manajer_sdm'].includes(user.role);
+  
+  // Handle role selection
+  const handleRoleSelect = (role: Role) => {
+    dispatch(setSelectedRole(role));
+  };
+  
+  // Handle form submission
+  const onSubmit = (data: RoleFormValues) => {
+    if (selectedRole) {
+      // Update existing role
+      dispatch(updateRole({ id: selectedRole._id, roleData: data }))
+        .unwrap()
+        .then(() => {
+          toast({
+            title: 'Success',
+            description: 'Role berhasil diperbarui'
+          });
+          dispatch(clearSelectedRole());
+          form.reset();
+        })
+        .catch((error) => {
+          toast({
+            title: 'Error',
+            description: error.message || 'Gagal memperbarui role',
+            variant: 'destructive'
+          });
+        });
+    } else {
       // Create new role
-      setRoles([...roles, newRole]);
-      toast({
-        message: 'Role baru berhasil dibuat',
-        type: 'success'
-      });
-    }
-    
-    // Reset form
-    setSelectedRole(null);
-    setRoleName('');
-    setSelectedPermissions([]);
-  };
-
-  const handleDelete = async () => {
-    if (!selectedRole) {
-      toast({
-        message: 'Pilih role yang akan dihapus',
-        type: 'error'
-      });
-      return;
-    }
-
-    try {
-      await dispatch(deleteRole(selectedRole._id)).unwrap();
-      toast({
-        message: 'Role berhasil dihapus',
-        type: 'success'
-      });
-      setSelectedRole(null);
-      setRoleName('');
-      setSelectedPermissions([]);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Gagal menghapus role';
-      toast({
-        message: errorMessage,
-        type: 'error'
-      });
-    } finally {
-      setIsDeleteDialogOpen(false);
+      dispatch(createRole(data))
+        .unwrap()
+        .then(() => {
+          toast({
+            title: 'Success',
+            description: 'Role berhasil dibuat'
+          });
+          form.reset();
+        })
+        .catch((error) => {
+          toast({
+            title: 'Error',
+            description: error.message || 'Gagal membuat role',
+            variant: 'destructive'
+          });
+        });
     }
   };
-
-  // Group permissions by category
-  const permissionCategories = Object.entries(PERMISSIONS).reduce((acc, [key, value]) => {
-    const category = key.split('_')[0];
-    if (!acc[category]) {
-      acc[category] = [];
+  
+  // Handle role deletion
+  const handleDeleteRole = () => {
+    if (selectedRole) {
+      dispatch(deleteRole(selectedRole._id))
+        .unwrap()
+        .then(() => {
+          toast({
+            title: 'Success',
+            description: 'Role berhasil dihapus'
+          });
+          dispatch(clearSelectedRole());
+          setIsDeleteDialogOpen(false);
+        })
+        .catch((error) => {
+          toast({
+            title: 'Error',
+            description: error.message || 'Gagal menghapus role',
+            variant: 'destructive'
+          });
+          setIsDeleteDialogOpen(false);
+        });
     }
-    acc[category].push({ key, value });
-    return acc;
-  }, {} as Record<string, { key: string; value: string }[]>);
-
+  };
+  
+  // Group permissions by category for display
+  const permissionsByCategory = Object.entries(PERMISSIONS);
+  
   if (!canManageRoles) {
     return (
       <Card>
@@ -251,7 +227,7 @@ const RoleManagement: React.FC = () => {
       </Card>
     );
   }
-
+  
   return (
     <div className="space-y-6">
       <Card>
@@ -265,119 +241,159 @@ const RoleManagement: React.FC = () => {
           <div className="grid grid-cols-12 gap-6">
             {/* Role List */}
             <div className="col-span-12 md:col-span-4 space-y-4">
-              <div className="font-semibold">Daftar Role</div>
-              <div className="space-y-2">
-                {roles.map(role => (
-                  <div
-                    key={role._id}
-                    className={`p-3 rounded-lg cursor-pointer flex items-center justify-between ${selectedRole?._id === role._id ? 'bg-primary/10' : 'hover:bg-muted'}`}
-                    onClick={() => handleRoleSelect(role)}
-                  >
-                    <span>{role.namaRole}</span>
-                    <div className="space-x-2">
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRoleSelect(role);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="text"
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedRole(role);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold">Daftar Role</h3>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => {
+                    dispatch(clearSelectedRole());
+                    form.reset({
+                      namaRole: '',
+                      permissions: []
+                    });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Baru
+                </Button>
               </div>
-              <Button
-                className="w-full"
-                onClick={() => {
-                  setSelectedRole(null);
-                  setRoleName('');
-                  setSelectedPermissions([]);
-                }}
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                    Memuat...
+              
+              <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                {roles.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Belum ada data role
                   </div>
                 ) : (
-                  'Tambah Role Baru'
-                )}
-              </Button>
-            </div>
-
-            {/* Role Form */}
-            <div className="col-span-12 md:col-span-8">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="roleName">Nama Role</Label>
-                  <Input
-                    id="roleName"
-                    name="roleName"
-                    value={roleName}
-                    onChange={(e) => setRoleName(e.target.value)}
-                    placeholder="Masukkan nama role"
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <Label>Hak Akses</Label>
-                  {Object.entries(permissionCategories).map(([category, permissions]) => (
-                    <div key={category} className="space-y-2">
-                      <div className="font-semibold capitalize">{category}</div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {permissions.map(({ key, value }) => (
-                          <div key={key} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={key}
-                              checked={selectedPermissions.includes(key)}
-                              onCheckedChange={() => handlePermissionToggle(key)}
-                            />
-                            <label
-                              htmlFor={key}
-                              className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                              {value}
-                            </label>
-                          </div>
-                        ))}
+                  roles.map((role) => (
+                    <div
+                      key={role._id}
+                      className={`p-3 rounded-lg cursor-pointer flex items-center justify-between ${
+                        selectedRole?._id === role._id ? 'bg-primary/10' : 'hover:bg-muted'
+                      }`}
+                      onClick={() => handleRoleSelect(role)}
+                    >
+                      <span>{role.namaRole}</span>
+                      <div className="space-x-1">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRoleSelect(role);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRoleSelect(role);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button type="submit" disabled={loading || !roleName.trim()}>
-                    {loading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                        Menyimpan...
+                  ))
+                )}
+              </div>
+            </div>
+            
+            {/* Role Form */}
+            <div className="col-span-12 md:col-span-8">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="namaRole"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nama Role</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Masukkan nama role"
+                            {...field}
+                            disabled={loading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="space-y-4">
+                    <FormLabel>Hak Akses</FormLabel>
+                    
+                    {permissionsByCategory.map(([category, permissions]) => (
+                      <div key={category} className="space-y-2">
+                        <h4 className="font-semibold capitalize">{category}</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {Object.entries(permissions).map(([key, label]) => (
+                            <FormField
+                              key={key}
+                              control={form.control}
+                              name="permissions"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(key)}
+                                      onCheckedChange={(checked) => {
+                                        const updatedValue = checked
+                                          ? [...field.value, key]
+                                          : field.value.filter((value) => value !== key);
+                                        field.onChange(updatedValue);
+                                      }}
+                                      disabled={loading}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal cursor-pointer">
+                                    {label}
+                                  </FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    ) : selectedRole ? 'Perbarui Role' : 'Simpan Role'}
-                  </Button>
-                </div>
-              </form>
+                    ))}
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        dispatch(clearSelectedRole());
+                        form.reset();
+                      }}
+                      disabled={loading}
+                    >
+                      Reset
+                    </Button>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? (
+                        <>
+                          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          Menyimpan...
+                        </>
+                      ) : selectedRole ? 'Perbarui Role' : 'Simpan Role'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
             </div>
           </div>
         </CardContent>
       </Card>
-
-      <AlertDialog>
-        <AlertDialogContent open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Role</AlertDialogTitle>
             <AlertDialogDescription>
@@ -386,12 +402,12 @@ const RoleManagement: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={loading}>
+            <AlertDialogAction onClick={handleDeleteRole} className="bg-destructive text-destructive-foreground">
               {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                <>
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   Menghapus...
-                </div>
+                </>
               ) : 'Hapus'}
             </AlertDialogAction>
           </AlertDialogFooter>

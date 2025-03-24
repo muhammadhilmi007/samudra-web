@@ -31,6 +31,11 @@ const StyledAlert = styled(MuiAlert)(({ theme }) => ({
   },
 }));
 
+// Create AlertDescription component
+const AlertDescription = styled('div')(({ theme }) => ({
+  marginTop: theme.spacing(1),
+}));
+
 export const Alert = ({ title, children, onClose, ...props }: AlertProps) => {
   return (
     <StyledAlert
@@ -43,4 +48,5 @@ export const Alert = ({ title, children, onClose, ...props }: AlertProps) => {
   );
 };
 
+export { AlertTitle, AlertDescription };
 export default Alert;
