@@ -23,13 +23,24 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import { 
   Pagination,
   PaginationContent,
@@ -47,7 +58,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { STT, STTFormInputs } from '../../types/stt';
-import { Link } from 'react-router-dom';
+import { useRouter } from 'next/router';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import {
@@ -59,16 +70,6 @@ import {
 } from '../../store/slices/sttSlice';
 import { getBranches } from '../../store/slices/branchSlice';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,  
-} from '@/components/ui/alert-dialog';
 import SttForm from './STTForm';
 import SttDetail from './STTDetail';
 import { 
@@ -86,15 +87,23 @@ interface SttListProps {
   branchFilter?: string;
   statusFilter?: string;
   createOnly?: boolean;
+  sttList?: STT[];
+  loading?: boolean;
 }
 
-const SttList: React.FC<SttListProps> = ({ 
+const SttList: React.FC<SttListProps> = ({
   branchFilter,
   statusFilter: initialStatusFilter,
-  createOnly = false
+  createOnly = false,
+  sttList: propSTTList,
+  loading: propLoading
 }) => {
+  const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { sttList = [], loading } = useSelector((state: RootState) => state.stt);
+  const { sttList: storeSTTList = [] } = useSelector((state: RootState) => state.stt);
+  const { loading: storeLoading } = useSelector((state: RootState) => state.ui);
+  const displaySTTList = propSTTList || storeSTTList;
+  const isLoading = propLoading ?? storeLoading;
   const { branches = [] } = useSelector((state: RootState) => state.branch);
   
   const [openForm, setOpenForm] = useState(false);
@@ -213,15 +222,15 @@ const SttList: React.FC<SttListProps> = ({
   
   // Filter and paginate STTs
   const filteredStts = React.useMemo(() => {
-    if (!Array.isArray(sttList)) return [];
+    if (!Array.isArray(displaySTTList)) return [];
     
-    return sttList.filter(item => 
+    return displaySTTList.filter((item: STT) =>
       (!statusFilter || item.status === statusFilter) &&
-      (searchTerm === '' || 
+      (searchTerm === '' ||
         (item.noSTT && item.noSTT.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (item.namaBarang && item.namaBarang.toLowerCase().includes(searchTerm.toLowerCase())))
     );
-  }, [sttList, statusFilter, searchTerm]);
+  }, [displaySTTList, statusFilter, searchTerm]);
 
   const totalPages = Math.ceil(filteredStts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -238,24 +247,26 @@ const SttList: React.FC<SttListProps> = ({
         </div>
         
         {!createOnly && (
-          <Dialog open={openForm} onOpenChange={setOpenForm}>
-            <DialogTrigger asChild>
+          <Dialog open={openForm} onClose={() => setOpenForm(false)}>
+            <DialogTrigger>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 Buat STT Baru
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>
                   {selectedStt ? 'Edit STT' : 'Buat STT Baru'}
                 </DialogTitle>
               </DialogHeader>
-              <SttForm
-                initialData={selectedStt || undefined}
-                onSubmit={handleSubmit}
-                loading={loading}
-              />
+              <div className="max-h-[70vh] overflow-y-auto">
+                <SttForm
+                  initialData={selectedStt || undefined}
+                  onSubmit={handleSubmit}
+                  loading={isLoading}
+                />
+              </div>
             </DialogContent>
           </Dialog>
         )}
@@ -314,7 +325,7 @@ const SttList: React.FC<SttListProps> = ({
           </div>
         )}
         
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
@@ -353,34 +364,23 @@ const SttList: React.FC<SttListProps> = ({
                         <TableCell>{getPaymentBadge(stt.paymentType)}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
+                            <DropdownMenuTrigger>
                               <Button variant="outlined" size="small">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent>
                               <DropdownMenuItem onClick={() => handleOpenDetail(stt)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 Lihat Detail
                               </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  to={`/stt/track?noStt=${stt.noSTT}`}
-                                  className="flex items-center"
-                                >
-                                  <QrCode className="mr-2 h-4 w-4" />
-                                  Lacak Pengiriman
-                                </Link>
+                              <DropdownMenuItem onClick={() => router.push(`/stt/track?noStt=${stt.noSTT}`)}>
+                                <QrCode className="mr-2 h-4 w-4" />
+                                Lacak Pengiriman
                               </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  to={`/stt/print/${stt._id}`}
-                                  target="_blank"
-                                  className="flex items-center"
-                                >
-                                  <Printer className="mr-2 h-4 w-4" />
-                                  Cetak STT
-                                </Link>
+                              <DropdownMenuItem onClick={() => window.open(`/stt/print/${stt._id}`, '_blank')}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                Cetak STT
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleOpenForm(stt)}>
                                 <Edit className="mr-2 h-4 w-4" />
@@ -476,18 +476,20 @@ const SttList: React.FC<SttListProps> = ({
       </CardContent>
       
       {/* STT Detail Dialog */}
-      <Dialog open={openDetail} onOpenChange={setOpenDetail}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <Dialog open={openDetail} onClose={() => setOpenDetail(false)}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Detail STT</DialogTitle>
           </DialogHeader>
-          {selectedStt && <SttDetail id={selectedStt._id} data={selectedStt} />}
+          <div className="max-h-[70vh] overflow-y-auto">
+            {selectedStt && <SttDetail id={selectedStt._id} data={selectedStt} />}
+          </div>
         </DialogContent>
       </Dialog>
       
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
-        <AlertDialogContent>
+      <AlertDialog>
+        <AlertDialogContent open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
             <AlertDialogDescription>
@@ -496,12 +498,12 @@ const SttList: React.FC<SttListProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setOpenDeleteDialog(false)}>
               Batal
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              disabled={loading}
+              disabled={isLoading}
             >
               Hapus
             </AlertDialogAction>

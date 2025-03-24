@@ -79,7 +79,7 @@ const CustomerDetailPage = () => {
   const { id } = router.query;
   const dispatch = useDispatch<AppDispatch>();
   
-  const { customer } = useSelector((state: RootState) => state.customer);
+  const { selectedCustomer } = useSelector((state: RootState) => state.customer);
   const { sttList } = useSelector((state: RootState) => state.stt);
   const { branches } = useSelector((state: RootState) => state.branch);
   const { loading, error, success } = useSelector((state: RootState) => state.ui);
@@ -151,7 +151,7 @@ const CustomerDetailPage = () => {
     }
   };
 
-  if (loading && !customer) {
+  if (loading && !selectedCustomer) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
         <CircularProgress />
@@ -159,7 +159,7 @@ const CustomerDetailPage = () => {
     );
   }
 
-  if (!customer && !loading) {
+  if (!selectedCustomer && !loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
         <Typography variant="h6">Customer tidak ditemukan</Typography>
@@ -170,7 +170,7 @@ const CustomerDetailPage = () => {
   return (
     <>
       <Head>
-        <title>{customer?.nama || 'Detail Customer'} - Samudra ERP</title>
+        <title>{selectedCustomer?.nama || 'Detail Customer'} - Samudra ERP</title>
       </Head>
 
       <Box>
@@ -191,11 +191,10 @@ const CustomerDetailPage = () => {
 
           <TabPanel value={tabValue} index={0}>
             {editMode ? (
-              <CustomerForm 
-                initialData={customer} 
-                onSubmit={handleUpdate} 
+              <CustomerForm
+                initialData={selectedCustomer || undefined}
+                onSubmit={handleUpdate}
                 onCancel={() => setEditMode(false)}
-                branches={branches}
                 loading={loading}
               />
             ) : (
@@ -234,7 +233,7 @@ const CustomerDetailPage = () => {
                             Nama
                           </Typography>
                           <Typography variant="body1" fontWeight="bold">
-                            {customer?.nama}
+                            {selectedCustomer?.nama}
                           </Typography>
                         </Box>
                         
@@ -242,10 +241,10 @@ const CustomerDetailPage = () => {
                           <Typography variant="body2" color="text.secondary">
                             Tipe
                           </Typography>
-                          <Chip 
-                            label={customer?.tipe} 
-                            color={getCustomerTypeColor(customer?.tipe) as any} 
-                            size="small" 
+                          <Chip
+                            label={selectedCustomer?.tipe}
+                            color={getCustomerTypeColor(selectedCustomer?.tipe || '') as any}
+                            size="small"
                           />
                         </Box>
                         
@@ -254,7 +253,7 @@ const CustomerDetailPage = () => {
                             Cabang
                           </Typography>
                           <Typography variant="body1">
-                            {branches.find(branch => branch._id === customer?.cabangId)?.namaCabang || '-'}
+                            {branches.find(branch => branch._id === selectedCustomer?.cabangId)?.namaCabang || '-'}
                           </Typography>
                         </Box>
                         
@@ -263,7 +262,7 @@ const CustomerDetailPage = () => {
                             Perusahaan
                           </Typography>
                           <Typography variant="body1">
-                            {customer?.perusahaan || '-'}
+                            {selectedCustomer?.perusahaan || '-'}
                           </Typography>
                         </Box>
                       </CardContent>
@@ -284,28 +283,28 @@ const CustomerDetailPage = () => {
                             Alamat Lengkap
                           </Typography>
                           <Typography variant="body1">
-                            {customer?.alamat}
+                            {selectedCustomer?.alamat}
                           </Typography>
                           <Typography variant="body2">
-                            {`${customer?.kelurahan}, ${customer?.kecamatan}`}
+                            {`${selectedCustomer?.kelurahan}, ${selectedCustomer?.kecamatan}`}
                           </Typography>
                           <Typography variant="body2">
-                            {`${customer?.kota}, ${customer?.provinsi}`}
+                            {`${selectedCustomer?.kota}, ${selectedCustomer?.provinsi}`}
                           </Typography>
                         </Box>
                         
                         <Box mb={2} display="flex" alignItems="center">
                           <PhoneIcon sx={{ mr: 1, fontSize: 'small', color: 'text.secondary' }} />
                           <Typography variant="body1">
-                            {customer?.telepon}
+                            {selectedCustomer?.telepon}
                           </Typography>
                         </Box>
                         
-                        {customer?.email && (
+                        {selectedCustomer?.email && (
                           <Box mb={2} display="flex" alignItems="center">
                             <EmailIcon sx={{ mr: 1, fontSize: 'small', color: 'text.secondary' }} />
                             <Typography variant="body1">
-                              {customer.email}
+                              {selectedCustomer.email}
                             </Typography>
                           </Box>
                         )}
@@ -327,7 +326,7 @@ const CustomerDetailPage = () => {
                             Dibuat Pada
                           </Typography>
                           <Typography variant="body1">
-                            {new Date(customer?.createdAt).toLocaleString('id-ID', {
+                            {new Date(selectedCustomer?.createdAt || '').toLocaleString('id-ID', {
                               weekday: 'long',
                               day: 'numeric',
                               month: 'long',
@@ -343,7 +342,7 @@ const CustomerDetailPage = () => {
                             Terakhir Diperbarui
                           </Typography>
                           <Typography variant="body1">
-                            {new Date(customer?.updatedAt).toLocaleString('id-ID', {
+                            {new Date(selectedCustomer?.updatedAt || '').toLocaleString('id-ID', {
                               weekday: 'long',
                               day: 'numeric',
                               month: 'long',
@@ -365,8 +364,12 @@ const CustomerDetailPage = () => {
             <Typography variant="h6" sx={{ mb: 2 }}>
               Riwayat Pengiriman
             </Typography>
-            {sttList.length > 0 ? (
-              <STTList sttList={sttList} loading={loading} />
+            {sttList && sttList.length > 0 ? (
+              <STTList
+                sttList={sttList}
+                loading={loading}
+                createOnly={false}
+              />
             ) : (
               <Typography variant="body1" sx={{ textAlign: 'center', my: 4 }}>
                 Belum ada riwayat pengiriman untuk customer ini.
@@ -388,7 +391,7 @@ const CustomerDetailPage = () => {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Apakah Anda yakin ingin menghapus customer <strong>{customer?.nama}</strong>?
+            Apakah Anda yakin ingin menghapus customer <strong>{selectedCustomer?.nama}</strong>?
             Tindakan ini tidak dapat dibatalkan.
           </Typography>
         </DialogContent>

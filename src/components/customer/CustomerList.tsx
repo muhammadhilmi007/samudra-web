@@ -22,12 +22,14 @@ import {
   FormControl,
   InputLabel,
   Select,
-  SelectChangeEvent,
   Card,
   CardContent,
   Grid,
   Avatar,
+  Badge,
+  Alert,
 } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -42,6 +44,9 @@ import {
   Add as AddIcon,
   GridView as GridViewIcon,
   List as ListIcon,
+  CheckCircle as CheckCircleIcon,
+  Refresh as RefreshIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
@@ -81,7 +86,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState(branchFilter || (user?.cabangId || ''));
+  const [selectedBranch, setSelectedBranch] = useState(branchFilter || (typeof user?.cabangId === 'string' ? user.cabangId : ''));
   const [selectedType, setSelectedType] = useState(typeFilter || '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -89,7 +94,9 @@ const CustomerList: React.FC<CustomerListProps> = ({
 
   // Fetch initial data
   useEffect(() => {
-    dispatch(getBranches());
+    if (branches.length === 0) {
+      dispatch(getBranches());
+    }
     
     if (branchFilter) {
       setSelectedBranch(branchFilter);
@@ -101,7 +108,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
     
     // Apply filters on initial load
     applyFilters();
-  }, [dispatch, branchFilter, typeFilter]);
+  }, [dispatch, branchFilter, typeFilter, branches.length]);
 
   // Apply branch and type filters
   useEffect(() => {
@@ -111,7 +118,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
   // Apply all filters
   const applyFilters = () => {
     if (selectedBranch && selectedType) {
-      // If both filters are active, we need to fetch by branch and filter by type
+      // If both filters are active, fetch by branch and then filter by type client-side
       dispatch(getCustomersByBranch(selectedBranch));
     } else if (selectedBranch) {
       dispatch(getCustomersByBranch(selectedBranch));
@@ -122,6 +129,11 @@ const CustomerList: React.FC<CustomerListProps> = ({
     }
   };
 
+  // Handle refresh data
+  const handleRefresh = () => {
+    applyFilters();
+  };
+
   // Handle branch filter change
   const handleBranchChange = (event: SelectChangeEvent<string>) => {
     setSelectedBranch(event.target.value);
@@ -129,14 +141,22 @@ const CustomerList: React.FC<CustomerListProps> = ({
   };
 
   // Handle customer type filter change
-  const handleTypeChange = (event: SelectChangeEvent<string>) => {
-    setSelectedType(event.target.value);
+  const handleTypeChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedType(event.target.value as string);
     setPage(0);
   };
 
   // Handle search term change
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+    setPage(0);
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    if (!branchFilter) setSelectedBranch('');
+    if (!typeFilter) setSelectedType('');
     setPage(0);
   };
 
@@ -159,9 +179,9 @@ const CustomerList: React.FC<CustomerListProps> = ({
     
     return (
       customer.nama.toLowerCase().includes(searchTermLower) ||
-      customer.perusahaan?.toLowerCase().includes(searchTermLower) ||
+      (customer.perusahaan?.toLowerCase() || '').includes(searchTermLower) ||
       customer.telepon.includes(searchTerm) ||
-      customer.email?.toLowerCase().includes(searchTermLower) ||
+      (customer.email?.toLowerCase() || '').includes(searchTermLower) ||
       customer.alamat.toLowerCase().includes(searchTermLower) ||
       customer.kota.toLowerCase().includes(searchTermLower)
     );
@@ -193,7 +213,12 @@ const CustomerList: React.FC<CustomerListProps> = ({
   // Delete customer
   const handleDelete = () => {
     if (selectedCustomer) {
-      dispatch(deleteCustomer(selectedCustomer._id));
+      dispatch(deleteCustomer(selectedCustomer._id)).then((result) => {
+        // Check if the action was fulfilled (successful)
+        if (result.meta.requestStatus === 'fulfilled') {
+          applyFilters();
+        }
+      });
       handleCancelDelete();
     }
   };
@@ -396,6 +421,18 @@ const CustomerList: React.FC<CustomerListProps> = ({
                   </Typography>
                   
                   <Box onClick={(e) => e.stopPropagation()}>
+                    <Tooltip title="Lihat Detail">
+                      <IconButton
+                        size="small"
+                        color="info"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onView(customer);
+                        }}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Edit">
                       <IconButton
                         size="small"
@@ -446,6 +483,18 @@ const CustomerList: React.FC<CustomerListProps> = ({
                 <SearchIcon />
               </InputAdornment>
             ),
+            endAdornment: searchTerm && (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  onClick={() => setSearchTerm('')}
+                  edge="end"
+                  aria-label="clear search"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            )
           }}
           sx={{ flexGrow: 1 }}
         />
@@ -456,7 +505,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
             labelId="branch-filter-label"
             label="Cabang"
             value={selectedBranch}
-            onChange={handleBranchChange}
+            onChange={(event) => handleBranchChange(event)}
             disabled={!!branchFilter}
           >
             <MenuItem value="">Semua Cabang</MenuItem>
@@ -474,7 +523,7 @@ const CustomerList: React.FC<CustomerListProps> = ({
             labelId="type-filter-label"
             label="Tipe"
             value={selectedType}
-            onChange={handleTypeChange}
+            onChange={handleTypeChange as any}
             disabled={!!typeFilter}
           >
             <MenuItem value="">Semua Tipe</MenuItem>
@@ -483,6 +532,12 @@ const CustomerList: React.FC<CustomerListProps> = ({
             <MenuItem value="Keduanya">Keduanya</MenuItem>
           </Select>
         </FormControl>
+        
+        <Tooltip title="Refresh Data">
+          <IconButton onClick={handleRefresh} color="default">
+            <RefreshIcon />
+          </IconButton>
+        </Tooltip>
         
         <Tooltip title={displayMode === 'table' ? 'Tampilan Kartu' : 'Tampilan Tabel'}>
           <IconButton onClick={toggleDisplayMode} color="primary">
@@ -497,6 +552,66 @@ const CustomerList: React.FC<CustomerListProps> = ({
         >
           Tambah Customer
         </Button>
+      </Box>
+
+      {/* Filter info alert */}
+      {(searchTerm || selectedBranch || selectedType) && (
+        <Box mb={2}>
+          <Alert 
+            severity="info"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={handleClearFilters}
+                startIcon={<ClearIcon />}
+              >
+                Clear
+              </Button>
+            }
+          >
+            Menampilkan data dengan filter
+            {selectedBranch && <Chip 
+              label={`Cabang: ${getBranchName(selectedBranch)}`} 
+              size="small" 
+              sx={{ ml: 1 }} 
+              onDelete={!branchFilter ? () => setSelectedBranch('') : undefined}
+            />}
+            {selectedType && <Chip 
+              label={`Tipe: ${selectedType}`}
+              size="small"
+              sx={{ ml: 1 }}
+              color={getCustomerTypeColor(selectedType) as any}
+              onDelete={!typeFilter ? () => setSelectedType('') : undefined}
+            />}
+            {searchTerm && <Chip 
+              label={`Pencarian: ${searchTerm}`} 
+              size="small" 
+              sx={{ ml: 1 }} 
+              onDelete={() => setSearchTerm('')}
+            />}
+          </Alert>
+        </Box>
+      )}
+
+      {/* Data count summary */}
+      <Box mb={2} display="flex" justifyContent="space-between" alignItems="center">
+        <Typography variant="body2" color="text.secondary">
+          Total: {finalFilteredCustomers.length} customer{finalFilteredCustomers.length !== 1 ? 's' : ''}
+          {finalFilteredCustomers.length !== customers.length && ` (dari ${customers.length} total)`}
+        </Typography>
+        
+        <Box display="flex" alignItems="center" gap={2}>
+          <Badge badgeContent={customers.filter(c => c.tipe === 'Pengirim').length} color="primary" showZero>
+            <Chip label="Pengirim" size="small" color="primary" variant="outlined" />
+          </Badge>
+          <Badge badgeContent={customers.filter(c => c.tipe === 'Penerima').length} color="secondary" showZero>
+            <Chip label="Penerima" size="small" color="secondary" variant="outlined" />
+          </Badge>
+          <Badge badgeContent={customers.filter(c => c.tipe === 'Keduanya').length} color="success" showZero>
+            <Chip label="Keduanya" size="small" color="success" variant="outlined" />
+          </Badge>
+        </Box>
       </Box>
 
       {/* Display customers based on view mode */}

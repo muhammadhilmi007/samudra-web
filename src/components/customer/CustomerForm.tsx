@@ -27,6 +27,8 @@ import {
   Home as HomeIcon,
   LocationCity as LocationCityIcon,
   Public as PublicIcon,
+  ArrowBack as ArrowBackIcon,
+  Save as SaveIcon
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
@@ -51,14 +53,16 @@ const customerSchema = z.object({
 });
 
 interface CustomerFormProps {
-  initialData?: Customer;
+  initialData?: Partial<Customer>;
   onSubmit: (data: CustomerFormInputs) => void;
+  onCancel?: () => void;
   loading?: boolean;
 }
 
 const CustomerForm: React.FC<CustomerFormProps> = ({
   initialData,
   onSubmit,
+  onCancel,
   loading = false,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -69,13 +73,14 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
+    reset
   } = useForm<CustomerFormInputs>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
       nama: initialData?.nama || '',
-      tipe: initialData?.tipe as ('Pengirim' | 'Penerima' | 'Keduanya') || 'Pengirim',
+      tipe: (initialData?.tipe as ('Pengirim' | 'Penerima' | 'Keduanya')) || 'Pengirim',
       alamat: initialData?.alamat || '',
       kelurahan: initialData?.kelurahan || '',
       kecamatan: initialData?.kecamatan || '',
@@ -90,20 +95,45 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
 
   // Fetch branches on component mount
   useEffect(() => {
-    dispatch(getBranches());
-  }, [dispatch]);
+    if (branches.length === 0) {
+      dispatch(getBranches());
+    }
+  }, [dispatch, branches.length]);
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      reset({
+        nama: initialData.nama || '',
+        tipe: (initialData.tipe as ('Pengirim' | 'Penerima' | 'Keduanya')) || 'Pengirim',
+        alamat: initialData.alamat || '',
+        kelurahan: initialData.kelurahan || '',
+        kecamatan: initialData.kecamatan || '',
+        kota: initialData.kota || '',
+        provinsi: initialData.provinsi || '',
+        telepon: initialData.telepon || '',
+        email: initialData.email || '',
+        perusahaan: initialData.perusahaan || '',
+        cabangId: initialData.cabangId || user?.cabangId || '',
+      });
+    }
+  }, [initialData, reset, user?.cabangId]);
 
   // Auto fill address for testing (just for convenience)
   const handleAutoFillAddress = () => {
-    setValue('alamat', 'Jl. Contoh No. 123');
-    setValue('kelurahan', 'Kelurahan Contoh');
-    setValue('kecamatan', 'Kecamatan Contoh');
-    setValue('kota', 'Jakarta Selatan');
-    setValue('provinsi', 'DKI Jakarta');
+    setValue('alamat', 'Jl. Contoh No. 123', { shouldDirty: true });
+    setValue('kelurahan', 'Kelurahan Contoh', { shouldDirty: true });
+    setValue('kecamatan', 'Kecamatan Contoh', { shouldDirty: true });
+    setValue('kota', 'Jakarta Selatan', { shouldDirty: true });
+    setValue('provinsi', 'DKI Jakarta', { shouldDirty: true });
+  };
+
+  const handleFormSubmit = (data: CustomerFormInputs) => {
+    onSubmit(data);
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <Box component="form" onSubmit={handleSubmit(handleFormSubmit)} noValidate>
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Typography variant="subtitle1" fontWeight="bold">
@@ -406,13 +436,23 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
         </Grid>
 
         <Grid item xs={12}>
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+            {onCancel && (
+              <Button
+                variant="outlined"
+                onClick={onCancel}
+                disabled={loading}
+                startIcon={<ArrowBackIcon />}
+              >
+                Batal
+              </Button>
+            )}
             <Button
               type="submit"
               variant="contained"
-              fullWidth
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : undefined}
+              disabled={loading || (!isDirty && !!initialData)}
+              startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+              sx={{ ml: onCancel ? 2 : 0, flexGrow: onCancel ? 0 : 1 }}
             >
               {initialData ? 'Perbarui Customer' : 'Tambah Customer'}
             </Button>

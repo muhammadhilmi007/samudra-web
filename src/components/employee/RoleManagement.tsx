@@ -1,17 +1,11 @@
 // src/components/employee/RoleManagement.tsx
 import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@radix-ui/react-label';
 import { Checkbox } from '@radix-ui/react-checkbox';
 import { useToast } from '@/components/ui/use-toast';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
 import {
@@ -74,7 +68,36 @@ const PERMISSIONS = {
 const RoleManagement: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { toast } = useToast();
-  const { roles, loading: reduxLoading } = useSelector((state: RootState) => state.employee);
+  // Use hardcoded roles from sidebar
+  const HARDCODED_ROLES = [
+    {
+      _id: '1',
+      namaRole: 'direktur',
+      permissions: Object.keys(PERMISSIONS)
+    },
+    {
+      _id: '2',
+      namaRole: 'manajer_operasional',
+      permissions: ['read_dashboard', 'manage_shipments', 'view_shipments', 'create_shipments', 'edit_shipments']
+    },
+    {
+      _id: '3',
+      namaRole: 'manajer_keuangan',
+      permissions: ['read_dashboard', 'manage_finance', 'view_finance', 'create_invoices', 'edit_invoices']
+    },
+    {
+      _id: '4',
+      namaRole: 'kepala_cabang',
+      permissions: ['read_dashboard', 'manage_branches', 'view_branches', 'edit_branches']
+    },
+    {
+      _id: '5',
+      namaRole: 'admin',
+      permissions: ['manage_users', 'view_users', 'create_users', 'edit_users']
+    }
+  ];
+  
+  const [roles, setRoles] = useState(HARDCODED_ROLES);
   const { user } = useSelector((state: RootState) => state.auth);
   
   // Local loading state for UI feedback
@@ -85,9 +108,8 @@ const RoleManagement: React.FC = () => {
   useEffect(() => {
     if (error) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error,
+        message: error,
+        type: 'error'
       });
       setError(null);
     }
@@ -129,71 +151,60 @@ const RoleManagement: React.FC = () => {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!roleName.trim()) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Nama role tidak boleh kosong',
+        message: 'Nama role tidak boleh kosong',
+        type: 'error'
       });
       return;
     }
 
     if (selectedPermissions.length === 0) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Pilih minimal satu hak akses',
+        message: 'Pilih minimal satu hak akses',
+        type: 'error'
       });
       return;
     }
 
-    try {
-      if (selectedRole) {
-        await dispatch(updateRole({
-          id: selectedRole._id,
-          roleData: {
-            namaRole: roleName,
-            permissions: selectedPermissions,
-          }
-        })).unwrap();
-        toast({
-          title: 'Berhasil',
-          description: 'Role berhasil diperbarui',
-        });
-      } else {
-        await dispatch(createRole({
-          namaRole: roleName,
-          permissions: selectedPermissions,
-        })).unwrap();
-        toast({
-          title: 'Berhasil',
-          description: 'Role baru berhasil dibuat',
-        });
-      }
-      
-      // Reset form
-      setSelectedRole(null);
-      setRoleName('');
-      setSelectedPermissions([]);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Gagal menyimpan role';
+    const newRole = {
+      _id: selectedRole?._id || String(roles.length + 1),
+      namaRole: roleName,
+      permissions: selectedPermissions,
+    };
+
+    if (selectedRole) {
+      // Update existing role
+      setRoles(roles.map(role =>
+        role._id === selectedRole._id ? newRole : role
+      ));
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: errorMessage,
+        message: 'Role berhasil diperbarui',
+        type: 'success'
+      });
+    } else {
+      // Create new role
+      setRoles([...roles, newRole]);
+      toast({
+        message: 'Role baru berhasil dibuat',
+        type: 'success'
       });
     }
+    
+    // Reset form
+    setSelectedRole(null);
+    setRoleName('');
+    setSelectedPermissions([]);
   };
 
   const handleDelete = async () => {
     if (!selectedRole) {
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Pilih role yang akan dihapus',
+        message: 'Pilih role yang akan dihapus',
+        type: 'error'
       });
       return;
     }
@@ -201,8 +212,8 @@ const RoleManagement: React.FC = () => {
     try {
       await dispatch(deleteRole(selectedRole._id)).unwrap();
       toast({
-        title: 'Berhasil',
-        description: 'Role berhasil dihapus',
+        message: 'Role berhasil dihapus',
+        type: 'success'
       });
       setSelectedRole(null);
       setRoleName('');
@@ -210,9 +221,8 @@ const RoleManagement: React.FC = () => {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Gagal menghapus role';
       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: errorMessage,
+        message: errorMessage,
+        type: 'error'
       });
     } finally {
       setIsDeleteDialogOpen(false);
@@ -266,8 +276,8 @@ const RoleManagement: React.FC = () => {
                     <span>{role.namaRole}</span>
                     <div className="space-x-2">
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="outlined"
+                        size="small"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRoleSelect(role);
@@ -276,8 +286,8 @@ const RoleManagement: React.FC = () => {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant="text"
+                        size="small"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedRole(role);
@@ -317,6 +327,7 @@ const RoleManagement: React.FC = () => {
                   <Label htmlFor="roleName">Nama Role</Label>
                   <Input
                     id="roleName"
+                    name="roleName"
                     value={roleName}
                     onChange={(e) => setRoleName(e.target.value)}
                     placeholder="Masukkan nama role"
@@ -365,8 +376,8 @@ const RoleManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+      <AlertDialog>
+        <AlertDialogContent open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Role</AlertDialogTitle>
             <AlertDialogDescription>

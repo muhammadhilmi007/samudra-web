@@ -29,7 +29,7 @@ const CreateCustomerPage = () => {
 
   const handleSubmit = (data: CustomerFormInputs) => {
     dispatch(createCustomer(data)).then((result) => {
-      if (!result.error) {
+      if (result.meta.requestStatus === 'fulfilled') {
         // Redirect to customer list after successful creation
         setTimeout(() => {
           router.push('/customer');
@@ -62,10 +62,9 @@ const CreateCustomerPage = () => {
         </Box>
 
         <Paper sx={{ width: '100%', mb: 2, p: 3 }}>
-          <CustomerForm 
-            onSubmit={handleSubmit} 
+          <CustomerForm
+            onSubmit={handleSubmit}
             onCancel={handleCancel}
-            branches={branches}
             loading={loading}
             initialData={{
               nama: '',

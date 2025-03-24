@@ -19,6 +19,8 @@ import {
   TableRow,
   IconButton,
   Tooltip,
+  Card,
+  CardContent,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -32,6 +34,8 @@ import {
   Receipt as ReceiptIcon,
   AttachMoney as AttachMoneyIcon,
   Timeline as TimelineIcon,
+  Visibility as VisibilityIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
@@ -39,9 +43,11 @@ import {
   getCustomerById,
   getCustomerCollections,
   getCustomerPickups,
+  clearCustomerRelatedData,
 } from '../../store/slices/customerSlice';
 import { getSTTsByCustomer } from '../../store/slices/sttSlice';
 import { useRouter } from 'next/router';
+import { CustomerSTT, CustomerCollection, CustomerPickup } from '../../types/customer';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -87,11 +93,32 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   useEffect(() => {
     if (customerId) {
       dispatch(getCustomerById(customerId));
-      dispatch(getSTTsByCustomer(customerId));
-      dispatch(getCustomerCollections(customerId));
-      dispatch(getCustomerPickups(customerId));
     }
+    
+    // Cleanup when component unmounts
+    return () => {
+      dispatch(clearCustomerRelatedData());
+    };
   }, [dispatch, customerId]);
+
+  // Load related data based on active tab
+  useEffect(() => {
+    if (customerId) {
+      switch (tabValue) {
+        case 0: // Info tab - no need to load anything
+          break;
+        case 1: // STT tab
+          dispatch(getSTTsByCustomer(customerId));
+          break;
+        case 2: // Collections tab
+          dispatch(getCustomerCollections(customerId));
+          break;
+        case 3: // Pickups tab
+          dispatch(getCustomerPickups(customerId));
+          break;
+      }
+    }
+  }, [dispatch, customerId, tabValue]);
 
   // Handle tab change
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -113,7 +140,8 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   };
 
   // Format date
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('id-ID', {
       day: '2-digit',
       month: 'short',
@@ -122,7 +150,8 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   };
 
   // Format currency
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount?: number) => {
+    if (amount === undefined || amount === null) return '-';
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -131,8 +160,10 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   };
 
   // Get status chip color
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'default';
+    
+    switch (status.toUpperCase()) {
       case 'PENDING':
         return 'default';
       case 'MUAT':
@@ -155,7 +186,8 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   };
 
   // Get branch name by ID
-  const getBranchName = (branchId: string) => {
+  const getBranchName = (branchId?: string) => {
+    if (!branchId) return '-';
     const branch = branches.find((b) => b._id === branchId);
     return branch ? branch.namaCabang : '-';
   };
@@ -175,6 +207,20 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
     router.push(`/pickup/${pickupId}`);
   };
 
+  // Handle download PDF
+  const handleDownloadPDF = (type: string, id: string) => {
+    switch (type) {
+      case 'stt':
+        // dispatch(generateSTTPDF(id));
+        break;
+      case 'collection':
+        // dispatch(generateInvoicePDF(id));
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loading && !selectedCustomer) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -183,7 +229,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
     );
   }
 
-  if (!selectedCustomer) {
+  if (!selectedCustomer && !loading) {
     return (
       <Box textAlign="center" p={4}>
         <Typography variant="h6" color="error">
@@ -222,38 +268,38 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
           <Grid item xs={12} md={8}>
             <Box display="flex" alignItems="center" mb={2}>
               <PersonIcon fontSize="large" color="primary" sx={{ mr: 2 }} />
-              <Typography variant="h5">{selectedCustomer.nama}</Typography>
+              <Typography variant="h5">{selectedCustomer?.nama}</Typography>
               <Chip
-                label={selectedCustomer.tipe}
-                color={getCustomerTypeColor(selectedCustomer.tipe) as any}
+                label={selectedCustomer?.tipe}
+                color={getCustomerTypeColor(selectedCustomer?.tipe ?? '') as any}
                 size="small"
                 sx={{ ml: 2 }}
               />
             </Box>
-            {selectedCustomer.perusahaan && (
+            {selectedCustomer?.perusahaan && (
               <Box display="flex" alignItems="center" mb={2}>
                 <BusinessIcon color="action" sx={{ mr: 1 }} />
-                <Typography variant="body1">{selectedCustomer.perusahaan}</Typography>
+                <Typography variant="body1">{selectedCustomer?.perusahaan}</Typography>
               </Box>
             )}
             <Box display="flex" alignItems="center" mb={2}>
               <PhoneIcon color="action" sx={{ mr: 1 }} />
-              <Typography variant="body1">{selectedCustomer.telepon}</Typography>
+              <Typography variant="body1">{selectedCustomer?.telepon ?? '-'}</Typography>
             </Box>
-            {selectedCustomer.email && (
+            {selectedCustomer?.email && (
               <Box display="flex" alignItems="center" mb={2}>
                 <EmailIcon color="action" sx={{ mr: 1 }} />
-                <Typography variant="body1">{selectedCustomer.email}</Typography>
+                <Typography variant="body1">{selectedCustomer?.email}</Typography>
               </Box>
             )}
             <Box display="flex" alignItems="flex-start" mb={2}>
               <HomeIcon color="action" sx={{ mr: 1, mt: 0.5 }} />
               <Box>
                 <Typography variant="body1">
-                  {selectedCustomer.alamat}, {selectedCustomer.kelurahan}, {selectedCustomer.kecamatan}
+                  {selectedCustomer?.alamat ?? '-'}, {selectedCustomer?.kelurahan ?? '-'}, {selectedCustomer?.kecamatan ?? '-'}
                 </Typography>
                 <Typography variant="body1">
-                  {selectedCustomer.kota}, {selectedCustomer.provinsi}
+                  {selectedCustomer?.kota ?? '-'}, {selectedCustomer?.provinsi ?? '-'}
                 </Typography>
               </Box>
             </Box>
@@ -271,7 +317,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   ID Pelanggan
                 </Typography>
                 <Typography variant="body2" fontWeight="medium">
-                  {selectedCustomer._id}
+                  {selectedCustomer?._id ?? '-'}
                 </Typography>
               </Box>
               
@@ -280,7 +326,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   Cabang
                 </Typography>
                 <Typography variant="body2">
-                  {getBranchName(selectedCustomer.cabangId)}
+                  {getBranchName(selectedCustomer?.cabangId)}
                 </Typography>
               </Box>
               
@@ -289,7 +335,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   Dibuat Pada
                 </Typography>
                 <Typography variant="body2">
-                  {formatDate(selectedCustomer.createdAt)}
+                  {formatDate(selectedCustomer?.createdAt)}
                 </Typography>
               </Box>
               
@@ -298,7 +344,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   Terakhir Diupdate
                 </Typography>
                 <Typography variant="body2">
-                  {formatDate(selectedCustomer.updatedAt)}
+                  {formatDate(selectedCustomer?.updatedAt)}
                 </Typography>
               </Box>
             </Paper>
@@ -315,15 +361,74 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
             textColor="primary"
             indicatorColor="primary"
           >
+            <Tab icon={<PersonIcon />} label="Informasi" iconPosition="start" />
             <Tab icon={<ReceiptIcon />} label="STT" iconPosition="start" />
             <Tab icon={<AttachMoneyIcon />} label="Penagihan" iconPosition="start" />
             <Tab icon={<LocalShippingIcon />} label="Pengambilan" iconPosition="start" />
-            <Tab icon={<TimelineIcon />} label="Statistik" iconPosition="start" />
           </Tabs>
         </Box>
 
-        {/* STT Tab */}
+        {/* Informasi Tab */}
         <TabPanel value={tabValue} index={0}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>Ringkasan Pelanggan</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  
+                  <Typography variant="body1">
+                    <strong>Nama:</strong> {selectedCustomer?.nama ?? '-'}
+                  </Typography>
+                  <Typography variant="body1">
+                    <strong>Tipe:</strong> {selectedCustomer?.tipe ?? '-'}
+                  </Typography>
+                  {selectedCustomer?.perusahaan && (
+                    <Typography variant="body1">
+                      <strong>Perusahaan:</strong> {selectedCustomer?.perusahaan}
+                    </Typography>
+                  )}
+                  <Typography variant="body1">
+                    <strong>Telepon:</strong> {selectedCustomer?.telepon ?? '-'}
+                  </Typography>
+                  {selectedCustomer?.email && (
+                    <Typography variant="body1">
+                      <strong>Email:</strong> {selectedCustomer?.email}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>Alamat Lengkap</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  
+                  <Typography variant="body1">
+                    <strong>Alamat:</strong> {selectedCustomer?.alamat ?? '-'}
+                  </Typography>
+                  <Typography variant="body1">
+                    <strong>Kelurahan:</strong> {selectedCustomer?.kelurahan ?? '-'}
+                  </Typography>
+                  <Typography variant="body1">
+                    <strong>Kecamatan:</strong> {selectedCustomer?.kecamatan ?? '-'}
+                  </Typography>
+                  <Typography variant="body1">
+                    <strong>Kota:</strong> {selectedCustomer?.kota ?? '-'}
+                  </Typography>
+                  <Typography variant="body1">
+                    <strong>Provinsi:</strong> {selectedCustomer?.provinsi ?? '-'}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </TabPanel>
+
+        {/* STT Tab */}
+        <TabPanel value={tabValue} index={1}>
           {loading ? (
             <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
@@ -346,7 +451,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {customerSTTs.map((stt) => (
+                  {customerSTTs.map((stt: CustomerSTT) => (
                     <TableRow
                       key={stt._id}
                       hover
@@ -376,7 +481,15 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                             e.stopPropagation();
                             handleSTTClick(stt._id);
                           }}>
-                            <ReceiptIcon fontSize="small" />
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Download PDF">
+                          <IconButton size="small" onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPDF('stt', stt._id);
+                          }}>
+                            <DownloadIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -395,7 +508,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
         </TabPanel>
 
         {/* Billing Tab */}
-        <TabPanel value={tabValue} index={1}>
+        <TabPanel value={tabValue} index={2}>
           {loading ? (
             <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
@@ -415,7 +528,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {customerCollections.map((collection) => (
+                  {customerCollections.map((collection: CustomerCollection) => (
                     <TableRow
                       key={collection._id}
                       hover
@@ -442,7 +555,15 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                             e.stopPropagation();
                             handleCollectionClick(collection._id);
                           }}>
-                            <AttachMoneyIcon fontSize="small" />
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Download Invoice">
+                          <IconButton size="small" onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPDF('collection', collection._id);
+                          }}>
+                            <DownloadIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -461,7 +582,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
         </TabPanel>
 
         {/* Pickup Tab */}
-        <TabPanel value={tabValue} index={2}>
+        <TabPanel value={tabValue} index={3}>
           {loading ? (
             <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
@@ -482,7 +603,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {customerPickups.map((pickup) => (
+                  {customerPickups.map((pickup: CustomerPickup) => (
                     <TableRow
                       key={pickup._id}
                       hover
@@ -508,7 +629,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
                             e.stopPropagation();
                             handlePickupClick(pickup._id);
                           }}>
-                            <LocalShippingIcon fontSize="small" />
+                            <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -524,110 +645,6 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
               </Typography>
             </Box>
           )}
-        </TabPanel>
-
-        {/* Statistics Tab */}
-        <TabPanel value={tabValue} index={3}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Statistik Pengiriman
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total STT
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {customerSTTs?.length || 0}
-                  </Typography>
-                </Box>
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    STT Terkirim
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {customerSTTs?.filter(stt => stt.status === 'TERKIRIM').length || 0}
-                  </Typography>
-                </Box>
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    STT Dalam Proses
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {customerSTTs?.filter(stt => ['PENDING', 'MUAT', 'TRANSIT', 'LANSIR'].includes(stt.status)).length || 0}
-                  </Typography>
-                </Box>
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    STT Retur
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {customerSTTs?.filter(stt => stt.status === 'RETURN').length || 0}
-                  </Typography>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Statistik Keuangan
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Nilai Pengiriman
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {formatCurrency(
-                      customerSTTs?.reduce((sum, stt) => sum + stt.harga, 0) || 0
-                    )}
-                  </Typography>
-                </Box>
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Pembayaran
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {formatCurrency(
-                      customerCollections
-                        ?.filter(col => col.status === 'LUNAS')
-                        .reduce((sum, col) => sum + col.totalTagihan, 0) || 0
-                    )}
-                  </Typography>
-                </Box>
-                
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Penagihan Belum Lunas
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium" color="error.main">
-                    {formatCurrency(
-                      customerCollections
-                        ?.filter(col => col.status === 'BELUM LUNAS')
-                        .reduce((sum, col) => sum + col.totalTagihan, 0) || 0
-                    )}
-                  </Typography>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Box textAlign="center" p={2}>
-                <Typography variant="body2" color="text.secondary">
-                  Grafik statistik detail akan ditampilkan di sini
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
         </TabPanel>
       </Paper>
     </Box>

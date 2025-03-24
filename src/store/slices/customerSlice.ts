@@ -2,47 +2,28 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import customerService from '../../services/customerService';
 import { setLoading, setError, setSuccess } from './uiSlice';
-import { Customer } from '../../types/customer';
+import { Customer, CustomerFormInputs } from '../../types/customer';
+import { getSTTsByCustomer } from './sttSlice';
 
 interface CustomerState {
   customers: Customer[];
-  customer: Customer | null;
+  selectedCustomer: Customer | null;
   senders: Customer[];
   recipients: Customer[];
-  loading: boolean;
-  error: string | null;
+  customerSTTs: any[]; // STT type
+  customerCollections: any[]; // Collection type
+  customerPickups: any[]; // Pickup type
 }
 
 const initialState: CustomerState = {
   customers: [],
-  customer: null,
+  selectedCustomer: null,
   senders: [],
   recipients: [],
-  loading: false,
-  error: null,
+  customerSTTs: [],
+  customerCollections: [],
+  customerPickups: []
 };
-
-// Common error handling helper
-const createAsyncThunkWithErrorHandling = <T, A>(
-  typePrefix: string,
-  payloadCreator: (arg: A, thunkAPI: any) => Promise<T>
-) => {
-  return createAsyncThunk(typePrefix, async (arg: A, thunkAPI) => {
-    const { dispatch } = thunkAPI;
-    try {
-      dispatch(setLoading(true));
-      const response = await payloadCreator(arg, thunkAPI);
-      dispatch(setLoading(false));
-      return response;
-    } catch (error: any) {
-      dispatch(setLoading(false));
-      const message = error.response?.data?.message || `Failed to ${typePrefix}`;
-      dispatch(setError(message));
-      return thunkAPI.rejectWithValue({ message });
-    }
-  });
-}
-
 
 // Get all customers
 export const getCustomers = createAsyncThunk(
@@ -95,6 +76,23 @@ export const getCustomersByBranch = createAsyncThunk(
   }
 );
 
+// Get customers by type
+export const getCustomersByType = createAsyncThunk(
+  'customer/getCustomersByType',
+  async (type: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await customerService.getCustomersByType(type);
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch customers by type'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch customers by type' });
+    }
+  }
+);
+
 // Get senders
 export const getSenders = createAsyncThunk(
   'customer/getSenders',
@@ -129,10 +127,44 @@ export const getRecipients = createAsyncThunk(
   }
 );
 
+// Get customer's collections
+export const getCustomerCollections = createAsyncThunk(
+  'customer/getCustomerCollections',
+  async (customerId: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await customerService.getCustomerCollections(customerId);
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch customer collections'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch customer collections' });
+    }
+  }
+);
+
+// Get customer's pickups
+export const getCustomerPickups = createAsyncThunk(
+  'customer/getCustomerPickups',
+  async (customerId: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await customerService.getCustomerPickups(customerId);
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch customer pickups'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch customer pickups' });
+    }
+  }
+);
+
 // Create customer
-export const createCustomer = createAsyncThunkWithErrorHandling<Customer, Partial<Customer>>(
+export const createCustomer = createAsyncThunk(
   'customer/createCustomer',
-  async (customerData: Partial<Customer>, { dispatch, rejectWithValue }) => {
+  async (customerData: CustomerFormInputs, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
       const response = await customerService.createCustomer(customerData);
@@ -150,7 +182,7 @@ export const createCustomer = createAsyncThunkWithErrorHandling<Customer, Partia
 // Update customer
 export const updateCustomer = createAsyncThunk(
   'customer/updateCustomer',
-  async ({ id, customerData }: { id: string; customerData: Partial<Customer> }, { dispatch, rejectWithValue }) => {
+  async ({ id, customerData }: { id: string; customerData: CustomerFormInputs }, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
       const response = await customerService.updateCustomer(id, customerData);
@@ -187,77 +219,142 @@ const customerSlice = createSlice({
   name: 'customer',
   initialState,
   reducers: {
-    clearCustomer: (state) => {
-      state.customer = null;
+    clearSelectedCustomer: (state) => {
+      state.selectedCustomer = null;
     },
     clearCustomers: (state) => {
       state.customers = [];
     },
+    clearCustomerRelatedData: (state) => {
+      state.customerSTTs = [];
+      state.customerCollections = [];
+      state.customerPickups = [];
+    }
   },
   extraReducers: (builder) => {
     builder
       // Get all customers
       .addCase(getCustomers.fulfilled, (state, action) => {
-        state.customers = action.payload;
+        // Normalize customer types to match frontend format
+        state.customers = action.payload.map((customer: Customer) => ({
+          ...customer,
+          tipe: customer.tipe.charAt(0).toUpperCase() + customer.tipe.slice(1)
+        }));
       })
       // Get customer by ID
       .addCase(getCustomerById.fulfilled, (state, action) => {
-        state.customer = action.payload;
+        if (action.payload) {
+          // Normalize customer type to match frontend format
+          state.selectedCustomer = {
+            ...action.payload,
+            tipe: action.payload.tipe.charAt(0).toUpperCase() + action.payload.tipe.slice(1)
+          };
+        }
       })
       // Get customers by branch
       .addCase(getCustomersByBranch.fulfilled, (state, action) => {
-        state.customers = action.payload;
+        // Normalize customer types to match frontend format
+        state.customers = action.payload.map((customer: Customer) => ({
+          ...customer,
+          tipe: customer.tipe.charAt(0).toUpperCase() + customer.tipe.slice(1)
+        }));
+      })
+      // Get customers by type
+      .addCase(getCustomersByType.fulfilled, (state, action) => {
+        // Normalize customer types to match frontend format
+        state.customers = action.payload.map((customer: Customer) => ({
+          ...customer,
+          tipe: customer.tipe.charAt(0).toUpperCase() + customer.tipe.slice(1)
+        }));
       })
       // Get senders
       .addCase(getSenders.fulfilled, (state, action) => {
-        state.senders = action.payload;
+        // Normalize customer types to match frontend format
+        state.senders = action.payload.map((customer: Customer) => ({
+          ...customer,
+          tipe: customer.tipe.charAt(0).toUpperCase() + customer.tipe.slice(1)
+        }));
       })
       // Get recipients
       .addCase(getRecipients.fulfilled, (state, action) => {
-        state.recipients = action.payload;
+        // Normalize customer types to match frontend format
+        state.recipients = action.payload.map((customer: Customer) => ({
+          ...customer,
+          tipe: customer.tipe.charAt(0).toUpperCase() + customer.tipe.slice(1)
+        }));
+      })
+      // Get customer STTs (handled in sttSlice, but we need to receive the result)
+      .addCase(getSTTsByCustomer.fulfilled, (state, action) => {
+        state.customerSTTs = action.payload || [];
+      })
+      // Get customer collections
+      .addCase(getCustomerCollections.fulfilled, (state, action) => {
+        state.customerCollections = action.payload || [];
+      })
+      // Get customer pickups
+      .addCase(getCustomerPickups.fulfilled, (state, action) => {
+        state.customerPickups = action.payload || [];
       })
       // Create customer
       .addCase(createCustomer.fulfilled, (state, action) => {
-        state.customers.push(action.payload);
-        state.customer = action.payload;
-        
-        // Update senders or recipients lists if applicable
-        if (action.payload.tipe === 'Pengirim' || action.payload.tipe === 'Keduanya') {
-          state.senders.push(action.payload);
-        }
-        if (action.payload.tipe === 'Penerima' || action.payload.tipe === 'Keduanya') {
-          state.recipients.push(action.payload);
+        if (action.payload) {
+          // Normalize customer type to match frontend format
+          const normalizedCustomer = {
+            ...action.payload,
+            tipe: action.payload.tipe.charAt(0).toUpperCase() + action.payload.tipe.slice(1)
+          };
+          
+          state.customers.push(normalizedCustomer);
+          state.selectedCustomer = normalizedCustomer;
+          
+          // Update senders or recipients lists if applicable
+          const customerType = normalizedCustomer.tipe;
+          if (customerType === 'Pengirim' || customerType === 'Keduanya') {
+            state.senders.push(normalizedCustomer);
+          }
+          if (customerType === 'Penerima' || customerType === 'Keduanya') {
+            state.recipients.push(normalizedCustomer);
+          }
         }
       })
       // Update customer
       .addCase(updateCustomer.fulfilled, (state, action) => {
-        state.customers = state.customers.map((customer) =>
-          customer._id === action.payload._id ? action.payload : customer
-        );
-        state.customer = action.payload;
-        
-        // Update senders list if applicable
-        if (action.payload.tipe === 'Pengirim' || action.payload.tipe === 'Keduanya') {
-          const senderIndex = state.senders.findIndex(sender => sender._id === action.payload._id);
-          if (senderIndex >= 0) {
-            state.senders[senderIndex] = action.payload;
+        if (action.payload) {
+          // Normalize customer type to match frontend format
+          const normalizedCustomer = {
+            ...action.payload,
+            tipe: action.payload.tipe.charAt(0).toUpperCase() + action.payload.tipe.slice(1)
+          };
+          
+          state.customers = state.customers.map((customer) =>
+            customer._id === normalizedCustomer._id ? normalizedCustomer : customer
+          );
+          state.selectedCustomer = normalizedCustomer;
+          
+          // Update senders list if applicable
+          const customerType = normalizedCustomer.tipe;
+          if (customerType === 'Pengirim' || customerType === 'Keduanya') {
+            const senderIndex = state.senders.findIndex(sender => sender._id === normalizedCustomer._id);
+            if (senderIndex >= 0) {
+              state.senders[senderIndex] = normalizedCustomer;
+            } else {
+              state.senders.push(normalizedCustomer);
+            }
           } else {
-            state.senders.push(action.payload);
+            state.senders = state.senders.filter(sender => sender._id !== normalizedCustomer._id);
           }
-        } else {
-          state.senders = state.senders.filter(sender => sender._id !== action.payload._id);
-        }
-        
-        // Update recipients list if applicable
-        if (action.payload.tipe === 'Penerima' || action.payload.tipe === 'Keduanya') {
-          const recipientIndex = state.recipients.findIndex(recipient => recipient._id === action.payload._id);
-          if (recipientIndex >= 0) {
-            state.recipients[recipientIndex] = action.payload;
+          
+          // Update recipients list if applicable
+          if (customerType === 'Penerima' || customerType === 'Keduanya') {
+            const recipientIndex = state.recipients.findIndex(recipient => recipient._id === normalizedCustomer._id);
+            if (recipientIndex >= 0) {
+              state.recipients[recipientIndex] = normalizedCustomer;
+            } else {
+              state.recipients.push(normalizedCustomer);
+            }
           } else {
-            state.recipients.push(action.payload);
+            state.recipients = state.recipients.filter(recipient => recipient._id !== normalizedCustomer._id);
           }
-        } else {
-          state.recipients = state.recipients.filter(recipient => recipient._id !== action.payload._id);
         }
       })
       // Delete customer
@@ -266,13 +363,13 @@ const customerSlice = createSlice({
         state.senders = state.senders.filter((sender) => sender._id !== action.payload);
         state.recipients = state.recipients.filter((recipient) => recipient._id !== action.payload);
         
-        if (state.customer && state.customer._id === action.payload) {
-          state.customer = null;
+        if (state.selectedCustomer && state.selectedCustomer._id === action.payload) {
+          state.selectedCustomer = null;
         }
       });
   },
 });
 
-export const { clearCustomer, clearCustomers } = customerSlice.actions;
+export const { clearSelectedCustomer, clearCustomers, clearCustomerRelatedData } = customerSlice.actions;
 
 export default customerSlice.reducer;
