@@ -1,4 +1,3 @@
-// src/components/employee/EmployeeList.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -82,7 +81,7 @@ const EmployeeList: React.FC = () => {
     dispatch(getRoles());
     
     // Build query params for API request
-    const params: any = {};
+    const params: Record<string, any> = {};
     if (branchFilter) params.cabangId = branchFilter;
     if (roleFilter) params.roleId = roleFilter;
     if (statusFilter) params.aktif = statusFilter === 'active' ? true : statusFilter === 'inactive' ? false : undefined;
@@ -103,37 +102,36 @@ const EmployeeList: React.FC = () => {
   };
 
   // Handle form submission
-  const handleSubmit = (data: any) => {
-    if (selectedEmployee) {
-      // Update existing employee
-      dispatch(updateEmployee({ 
-        id: selectedEmployee._id, 
-        employeeData: data 
-      }))
-        .unwrap()
-        .then(() => {
-          setOpenForm(false);
-          setSelectedEmployee(null);
-        });
-    } else {
-      // Create new employee
-      dispatch(createEmployee(data))
-        .unwrap()
-        .then(() => {
-          setOpenForm(false);
-        });
+  const handleSubmit = async (formData: FormData) => {
+    try {
+      if (selectedEmployee) {
+        // Update existing employee
+        await dispatch(updateEmployee({ 
+          id: selectedEmployee._id, 
+          employeeData: formData 
+        })).unwrap();
+        setOpenForm(false);
+        setSelectedEmployee(null);
+      } else {
+        // Create new employee
+        await dispatch(createEmployee(formData)).unwrap();
+        setOpenForm(false);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
     }
   };
 
   // Handle delete confirmation
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedEmployee) {
-      dispatch(deleteEmployee(selectedEmployee._id))
-        .unwrap()
-        .then(() => {
-          setOpenDeleteDialog(false);
-          setSelectedEmployee(null);
-        });
+      try {
+        await dispatch(deleteEmployee(selectedEmployee._id)).unwrap();
+        setOpenDeleteDialog(false);
+        setSelectedEmployee(null);
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+      }
     }
   };
 
@@ -144,7 +142,18 @@ const EmployeeList: React.FC = () => {
   };
 
   // Filter employees based on search term if API filtering is not implemented
-  const filteredEmployees = employees;
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = !searchTerm || 
+      employee.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.username.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesBranch = !branchFilter || employee.cabangId === branchFilter;
+    const matchesRole = !roleFilter || employee.roleId === roleFilter;
+    const matchesStatus = !statusFilter || 
+      (statusFilter === 'active' ? employee.aktif : !employee.aktif);
+
+    return matchesSearch && matchesBranch && matchesRole && matchesStatus;
+  });
   
   // Get role name by ID
   const getRoleName = (roleId: string) => {
@@ -172,8 +181,8 @@ const EmployeeList: React.FC = () => {
           </CardDescription>
         </div>
         {canManageUsers && (
-          <Dialog open={openForm} onOpenChange={setOpenForm}>
-            <Button onClick={() => handleOpenForm()}>
+          <Dialog open={openForm} onClose={() => setOpenForm(false)}>
+            <Button variant="contained" onClick={() => handleOpenForm()}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Tambah Pegawai
             </Button>
@@ -201,10 +210,13 @@ const EmployeeList: React.FC = () => {
           <div className="relative flex-1">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              name="search"
               placeholder="Cari pegawai..."
               className="pl-8"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)} name={''}            />
+              onChange={(e) => setSearchTerm(e.target.value)}
+              type="text"
+            />
           </div>
           <Select
             value={branchFilter}
@@ -350,8 +362,8 @@ const EmployeeList: React.FC = () => {
       </CardContent>
 
       {/* Confirmation Dialog for Delete */}
-      <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
-        <AlertDialogContent>
+      <AlertDialog>
+        <AlertDialogContent open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
             <AlertDialogDescription>
@@ -360,10 +372,12 @@ const EmployeeList: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setOpenDeleteDialog(false)}>
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={loading}
             >
               {loading ? (
                 <>
