@@ -9,7 +9,7 @@ import {
   ListItemIcon,
   ListItemText,
   Collapse,
-  Divider, // Add this import
+  Divider,
   useTheme,
   IconButton,
   Typography
@@ -48,6 +48,7 @@ interface MenuItem {
   path: string;
   icon: React.ReactNode;
   requiredRoles?: string[];
+  requiredPermissions?: string[];
   children?: MenuItem[];
 }
 
@@ -58,12 +59,17 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
   
   const [openSubmenu, setOpenSubmenu] = useState<{ [key: string]: boolean }>({});
   
+  // Get user permissions
+  const userRole = user?.role || '';
+  const userPermissions = user?.permissions || [];
+  
   // Sidebar menu items
   const menuItems: MenuItem[] = [
     {
       title: 'Dashboard',
       path: '/dashboard',
-      icon: <DashboardIcon />
+      icon: <DashboardIcon />,
+      requiredPermissions: ['read_dashboard']
     },
     {
       title: 'Master Data',
@@ -74,25 +80,29 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
           title: 'Cabang & Divisi',
           path: '/branch',
           icon: <BusinessIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'admin']
+          requiredRoles: ['direktur', 'manajer_admin', 'kepala_cabang', 'admin'],
+          requiredPermissions: ['read_branches']
         },
         {
           title: 'Pegawai',
           path: '/employee',
           icon: <PersonIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'admin']
+          requiredRoles: ['direktur', 'manajer_admin', 'manajer_sdm', 'kepala_cabang', 'admin'],
+          requiredPermissions: ['read_users']
         },
         {
           title: 'Kendaraan',
           path: '/vehicle',
           icon: <DirectionsCarIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'admin', 'kepala_gudang']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'admin', 'kepala_gudang'],
+          requiredPermissions: ['read_vehicles']
         },
         {
           title: 'Customer',
           path: '/customer',
           icon: <PersonIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'admin', 'staff_admin']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'admin', 'staff_admin'],
+          requiredPermissions: ['read_customers']
         }
       ]
     },
@@ -100,36 +110,42 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
       title: 'Operasional',
       path: '/operational',
       icon: <LocalShippingIcon />,
+      requiredPermissions: ['read_operations'],
       children: [
         {
           title: 'Pengambilan Barang',
           path: '/pickup',
           icon: <InventoryIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'kepala_gudang', 'staff_admin']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'kepala_gudang', 'staff_admin'],
+          requiredPermissions: ['read_pickups']
         },
         {
           title: 'STT',
           path: '/stt',
           icon: <ReceiptLongIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'staff_admin']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'staff_admin'],
+          requiredPermissions: ['read_stt']
         },
         {
           title: 'Muat',
           path: '/loading',
           icon: <LocalShippingIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'kepala_gudang', 'checker']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'kepala_gudang', 'checker'],
+          requiredPermissions: ['shipment_management']
         },
         {
           title: 'Lansir',
           path: '/delivery',
           icon: <LocalShippingIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'kepala_gudang', 'checker', 'supir']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'kepala_gudang', 'checker', 'supir'],
+          requiredPermissions: ['delivery_tracking']
         },
         {
           title: 'Retur',
           path: '/return',
           icon: <ReturnIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'staff_admin', 'checker']
+          requiredRoles: ['direktur', 'manajer_operasional', 'kepala_cabang', 'staff_admin', 'checker'],
+          requiredPermissions: ['read_operations']
         }
       ]
     },
@@ -138,30 +154,35 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
       path: '/finance',
       icon: <AccountBalanceIcon />,
       requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir', 'admin'],
+      requiredPermissions: ['read_finance'],
       children: [
         {
           title: 'Penagihan',
           path: '/collection',
           icon: <PaymentIcon />,
-          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir', 'debt_collector']
+          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir', 'debt_collector'],
+          requiredPermissions: ['payment_processing']
         },
         {
           title: 'Jurnal',
           path: '/journal',
           icon: <AssignmentIcon />,
-          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir']
+          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir'],
+          requiredPermissions: ['financial_transactions']
         },
         {
           title: 'Kas',
           path: '/cash',
           icon: <PaymentIcon />,
-          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir']
+          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang', 'kasir'],
+          requiredPermissions: ['cash_management']
         },
         {
           title: 'Laporan',
           path: '/report',
           icon: <AssignmentIcon />,
-          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang']
+          requiredRoles: ['direktur', 'manajer_keuangan', 'kepala_cabang'],
+          requiredPermissions: ['generate_reports']
         }
       ]
     },
@@ -173,13 +194,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
         {
           title: 'Tracking',
           path: '/tracking',
-          icon: <LocalShippingIcon />
+          icon: <LocalShippingIcon />,
+          requiredPermissions: ['tracking_only']
         },
         {
           title: 'Statistik',
           path: '/statistics',
           icon: <StatsIcon />,
-          requiredRoles: ['direktur', 'manajer_operasional', 'manajer_keuangan', 'kepala_cabang']
+          requiredRoles: ['direktur', 'manajer_operasional', 'manajer_keuangan', 'kepala_cabang'],
+          requiredPermissions: ['read_dashboard']
         }
       ]
     },
@@ -187,18 +210,40 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant }) => {
       title: 'Pengaturan',
       path: '/settings',
       icon: <SettingsIcon />,
-      requiredRoles: ['direktur', 'admin']
+      requiredRoles: ['direktur', 'admin', 'manajer_admin', 'manajer_sdm'],
+      requiredPermissions: ['read_settings']
     }
   ];
   
   // Check if the user has permission to see the menu item
   const hasPermission = (item: MenuItem): boolean => {
-    if (!item.requiredRoles || item.requiredRoles.length === 0) {
+    // If no restrictions set, everyone can see it
+    if (!item.requiredRoles && !item.requiredPermissions) {
       return true;
     }
     
-    const userRole = user?.role || '';
-    return item.requiredRoles.includes(userRole);
+    // Check role-based access
+    if (item.requiredRoles && item.requiredRoles.length > 0) {
+      if (item.requiredRoles.includes(userRole)) {
+        return true;
+      }
+    }
+    
+    // Check permission-based access
+    if (item.requiredPermissions && item.requiredPermissions.length > 0) {
+      // Check if user has any of the required permissions
+      return item.requiredPermissions.some(permission => 
+        userPermissions.includes(permission)
+      );
+    }
+    
+    // If we get here and requiredRoles was set but no requiredPermissions,
+    // and the user did not have the required role, then deny access
+    if (item.requiredRoles && !item.requiredPermissions) {
+      return false;
+    }
+    
+    return true;
   };
   
   // Check if the menu item has accessible children

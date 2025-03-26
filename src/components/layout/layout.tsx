@@ -1,9 +1,11 @@
 // src/components/layout/layout.tsx
-import React, { ReactNode } from 'react';
-import { Box, CssBaseline, useMediaQuery, useTheme } from '@mui/material';
+import React, { ReactNode, useEffect } from 'react';
+import { Box, CssBaseline, useMediaQuery, useTheme, CircularProgress } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from 'next/router';
 import { RootState, AppDispatch } from '../../store';
 import { toggleSidebar } from '../../store/slices/uiSlice';
+import { checkAuthStatus } from '../../store/slices/authSlice';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
@@ -15,14 +17,48 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
+  
   const { sidebarOpen } = useSelector((state: RootState) => state.ui);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, loading, user } = useSelector((state: RootState) => state.auth);
+
+  // Check authentication status on mount
+  useEffect(() => {
+    if (!isAuthenticated && !loading) {
+      dispatch(checkAuthStatus());
+    }
+  }, [dispatch, isAuthenticated, loading]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated && !router.pathname.includes('/login')) {
+      router.push('/login');
+    }
+  }, [loading, isAuthenticated, router]);
 
   const handleDrawerToggle = () => {
     dispatch(toggleSidebar());
   };
 
-  if (!user) {
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          width: '100vw',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Don't render layout for non-authenticated users
+  if (!isAuthenticated) {
     return null;
   }
 
@@ -31,7 +67,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <CssBaseline />
       
       {/* Header */}
-      <Header onDrawerToggle={handleDrawerToggle} />
+      <Header 
+        onToggleSidebar={handleDrawerToggle} 
+        isSidebarOpen={sidebarOpen}
+      />
       
       {/* Sidebar */}
       <Sidebar 

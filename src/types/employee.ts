@@ -32,6 +32,7 @@ export interface Employee {
 }
 
 export interface Role {
+  kodeRole: string;
   _id: string;
   namaRole: string;
   permissions: string[];

@@ -1,11 +1,17 @@
 // src/services/authService.ts
 import api from './api';
-import { LoginParams, ChangePasswordParams, User } from '../types/auth';
+import { LoginParams, RegisterParams, ChangePasswordParams } from '../types/auth';
 
 const authService = {
   // Login user
   async login(credentials: LoginParams) {
     const response = await api.post('/auth/login', credentials);
+    return response.data;
+  },
+
+  // Register new user
+  async register(userData: RegisterParams) {
+    const response = await api.post('/auth/register', userData);
     return response.data;
   },
 
@@ -15,10 +21,10 @@ const authService = {
     return response.data;
   },
 
-  // Get current user
-  async getMe(): Promise<User> {
+  // Get current user profile
+  async getMe() {
     const response = await api.get('/auth/me');
-    return response.data;
+    return response;
   },
 
   // Change password

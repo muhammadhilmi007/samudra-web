@@ -151,12 +151,23 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     // Create FormData for file uploads
     const formData = new FormData();
     
-    // Append all form fields
+    // Find the selected role to get its kodeRole
+    const selectedRole = roles.find(role => role._id === data.roleId);
+    
+    if (!selectedRole) {
+      throw new Error('Selected role not found');
+    }
+
+    // Append all form fields except confirmPassword and roleId
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && key !== 'confirmPassword') {
+      if (value !== undefined && value !== null && key !== 'confirmPassword' && key !== 'roleId') {
         formData.append(key, value.toString());
       }
     });
+
+    // Append both roleId and role (kodeRole)
+    formData.append('roleId', selectedRole._id);
+    formData.append('role', selectedRole.kodeRole);
     
     // Append file uploads if available
     if (profileImage) {
@@ -178,17 +189,11 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({
     <Form>
       <form onSubmit={form.handleSubmit(handleFormSubmit)}>
         <div>
-          <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="personal">
-                <span>Data Pribadi</span>
-              </TabsTrigger>
-              <TabsTrigger value="job">
-                <span>Informasi Pekerjaan</span>
-              </TabsTrigger>
-              <TabsTrigger value="documents">
-                <span>Dokumen</span>
-              </TabsTrigger>
+          <Tabs value="personal" onValueChange={() => {}} className="w-full">
+            <TabsList>
+              <TabsTrigger value="personal">Data Pribadi</TabsTrigger>
+              <TabsTrigger value="job">Informasi Pekerjaan</TabsTrigger>
+              <TabsTrigger value="documents">Dokumen</TabsTrigger>
             </TabsList>
             
             {/* Personal Information Tab */}

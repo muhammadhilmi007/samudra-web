@@ -42,20 +42,9 @@ export const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      // Disable immutable state invariant middleware in development
+      // Disable development checks for better performance
       immutableCheck: false,
-      serializableCheck: {
-        ignoredActions: [
-          'auth/login/fulfilled',
-          'auth/refreshToken/fulfilled',
-          'stt/generateSTTPDF/fulfilled',
-          'loading/generateDMB/fulfilled',
-          'delivery/generateDeliveryForm/fulfilled',
-          'collection/generateInvoice/fulfilled',
-        ],
-        ignoredActionPaths: ['meta.arg', 'payload.timestamp'],
-        ignoredPaths: ['auth.user', 'auth.token'],
-      },
+      serializableCheck: false, // Disable serializable check in development
     }),
   devTools: process.env.NODE_ENV !== 'production',
 });
