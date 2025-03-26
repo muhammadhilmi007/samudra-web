@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 import { store } from '../store';
 import theme from '../styles/theme';
 import '../styles/globals.css';
-import Layout from '../components/layout/layout';
+import Layout from '../components/layout/Layout';
 import { checkAuthStatus } from '../store/slices/authSlice';
 
 function MyApp({ Component, pageProps }: AppProps) {

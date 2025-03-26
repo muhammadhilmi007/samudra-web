@@ -11,7 +11,7 @@ import { createPickupRequest } from '../../store/slices/pickupRequestSlice';
 import { getCustomers } from '../../store/slices/customerSlice';
 import { PickupRequestFormInputs } from '../../types/pickupRequest';
 
-import Layout from '../../components/layout/layout';
+import Layout from '../../components/layout/Layout';
 import PageHeader from '../../components/shared/PageHeader';
 
 // Validation schema

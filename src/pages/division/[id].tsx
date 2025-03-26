@@ -5,7 +5,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Container, Box } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
-import Layout from '../../components/layout/layout';
+import Layout from '../../components/layout/Layout';
 import PageHeader from '../../components/shared/PageHeader';
 import DivisionDetail from '../../components/division/DivisionDetail';
 import DivisionForm from '../../components/division/DivisionForm';

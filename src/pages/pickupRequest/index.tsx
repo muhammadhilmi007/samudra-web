@@ -9,7 +9,7 @@ import {
 import { RootState, AppDispatch } from '../../store';
 import { PickupRequest } from '../../types/pickupRequest';
 
-import Layout from '../../components/layout/layout';
+import Layout from '../../components/layout/Layout';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';

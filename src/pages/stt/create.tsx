@@ -12,7 +12,7 @@ import { getCustomers } from '../../store/slices/customerSlice';
 import { getForwarders } from '../../store/slices/forwarderSlice';
 import { STTFormInputs } from '../../types/stt';
 
-import Layout from '../../components/layout/layout';
+import Layout from '../../components/layout/Layout';
 import PageHeader from '../../components/shared/PageHeader';
 
 // Validation schema

@@ -10,7 +10,7 @@ import {
   deletePickupRequest 
 } from '../../store/slices/pickupRequestSlice';
 
-import Layout from '../../components/layout/layout';
+import Layout from '../../components/layout/Layout';
 import PageHeader from '../../components/shared/PageHeader';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
 
