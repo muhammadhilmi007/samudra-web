@@ -75,6 +75,23 @@ export const getDeliveriesByBranch = createAsyncThunk(
   }
 );
 
+// Get deliveries by vehicle
+export const getDeliveriesByVehicle = createAsyncThunk(
+  'delivery/getDeliveriesByVehicle',
+  async (vehicleId: string, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await deliveryService.getDeliveriesByVehicle(vehicleId);
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch deliveries by vehicle'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch deliveries by vehicle' });
+    }
+  }
+);
+
 // Get deliveries by STT
 export const getDeliveriesBySTT = createAsyncThunk(
   'delivery/getDeliveriesBySTT',

@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Box, Button, Chip, Avatar, Typography } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
-import { Vehicle } from '../../types/vehicle';
+import { Vehicle, mapVehicleTypeToFrontend } from '../../types/vehicle';
+import { Employee } from '../../types/employee';
 import DataTable from '../shared/DataTable';
 import { RootState, AppDispatch } from '../../store';
 import FormDialog from '../shared/FormDialog';
@@ -22,6 +23,7 @@ const VehicleList: React.FC<VehicleListProps> = ({ onViewDetail, filter = 'all' 
   const dispatch = useDispatch<AppDispatch>();
   const { vehicles, trucks, deliveryVehicles, loading } = useSelector((state: RootState) => state.vehicle);
   const { branches } = useSelector((state: RootState) => state.branch);
+  const { employees } = useSelector((state: RootState) => state.employee);
   const [formOpen, setFormOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -69,20 +71,23 @@ const VehicleList: React.FC<VehicleListProps> = ({ onViewDetail, filter = 'all' 
       id: 'supirId', 
       label: 'Supir', 
       minWidth: 150,
-      format: (value: string, row: any) => (
-        <Box display="flex" alignItems="center">
-          {row.fotoSupir ? (
-            <Avatar 
-              src={row.fotoSupir} 
-              alt={value || 'Supir'}
-              sx={{ width: 30, height: 30, mr: 1 }}
-            />
-          ) : null}
-          <Typography variant="body2">
-            {value || '-'}
-          </Typography>
-        </Box>
-      )
+      format: (value: any) => {
+        const row = value as { fotoSupir?: string; supirId: string };
+        return (
+          <Box display="flex" alignItems="center">
+            {row.fotoSupir ? (
+              <Avatar
+                src={row.fotoSupir}
+                alt={row.supirId || 'Supir'}
+                sx={{ width: 30, height: 30, mr: 1 }}
+              />
+            ) : null}
+            <Typography variant="body2">
+              {row.supirId || '-'}
+            </Typography>
+          </Box>
+        );
+      }
     },
     { 
       id: 'noTeleponSupir', 
@@ -200,8 +205,20 @@ const VehicleList: React.FC<VehicleListProps> = ({ onViewDetail, filter = 'all' 
         hideActions
       >
         <VehicleForm
-          initialData={selectedVehicle || undefined}
+          initialData={selectedVehicle ? {
+            ...selectedVehicle,
+            tipe: selectedVehicle.tipeDisplay || mapVehicleTypeToFrontend(selectedVehicle.tipe)
+          } : undefined}
           onSubmit={handleFormSubmit}
+          onCancel={() => setFormOpen(false)}
+          drivers={employees.filter((emp: Employee) =>
+            emp.jabatan.toLowerCase().includes('supir') ||
+            emp.jabatan.toLowerCase().includes('driver')
+          )}
+          assistants={employees.filter((emp: Employee) =>
+            emp.jabatan.toLowerCase().includes('kenek') ||
+            emp.jabatan.toLowerCase().includes('assistant')
+          )}
           loading={loading}
         />
       </FormDialog>

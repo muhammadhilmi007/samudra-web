@@ -2,13 +2,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import vehicleService from '../../services/vehicleService';
 import { setLoading, setError, setSuccess } from './uiSlice';
-import { Vehicle } from '../../types/vehicle';
+import { Vehicle, mapVehicleTypeToFrontend } from '../../types/vehicle';
 
 interface VehicleState {
   vehicles: Vehicle[];
   vehicle: Vehicle | null;
   trucks: Vehicle[];
   deliveryVehicles: Vehicle[];
+  availableVehicles: Vehicle[];
   loading: boolean;
   error: string | null;
 }
@@ -18,6 +19,7 @@ const initialState: VehicleState = {
   vehicle: null,
   trucks: [],
   deliveryVehicles: [],
+  availableVehicles: [],
   loading: false,
   error: null,
 };
@@ -107,6 +109,23 @@ export const getDeliveryVehicles = createAsyncThunk(
   }
 );
 
+// Get available vehicles for pickup
+export const getAvailableVehiclesForPickup = createAsyncThunk(
+  'vehicle/getAvailableVehiclesForPickup',
+  async (branchId: string | undefined, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await vehicleService.getAvailableVehiclesForPickup(branchId);
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(error.response?.data?.message || 'Failed to fetch available vehicles'));
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch available vehicles' });
+    }
+  }
+);
+
 // Create vehicle
 export const createVehicle = createAsyncThunk(
   'vehicle/createVehicle',
@@ -161,6 +180,14 @@ export const deleteVehicle = createAsyncThunk(
   }
 );
 
+// Helper function to process vehicles with tipeDisplay
+const processVehicles = (vehicles: Vehicle[]): Vehicle[] => {
+  return vehicles.map(vehicle => ({
+    ...vehicle,
+    tipeDisplay: mapVehicleTypeToFrontend(vehicle.tipe as 'lansir' | 'antar_cabang')
+  }));
+};
+
 const vehicleSlice = createSlice({
   name: 'vehicle',
   initialState,
@@ -172,79 +199,106 @@ const vehicleSlice = createSlice({
       state.vehicles = [];
       state.trucks = [];
       state.deliveryVehicles = [];
+      state.availableVehicles = [];
     },
   },
   extraReducers: (builder) => {
     builder
       // Get all vehicles
       .addCase(getVehicles.fulfilled, (state, action) => {
-        state.vehicles = action.payload || []; // Ensure payload is an array
+        state.vehicles = action.payload?.data || [];
         state.loading = false;
       })
       // Get vehicle by ID
       .addCase(getVehicleById.fulfilled, (state, action) => {
-        state.vehicle = action.payload;
+        state.vehicle = action.payload?.data || null;
       })
       // Get vehicles by branch
       .addCase(getVehiclesByBranch.fulfilled, (state, action) => {
-        state.vehicles = action.payload;
+        state.vehicles = action.payload?.data || [];
       })
       // Get trucks
       .addCase(getTrucks.fulfilled, (state, action) => {
-        state.trucks = action.payload;
+        state.trucks = action.payload?.data || [];
       })
       // Get delivery vehicles
       .addCase(getDeliveryVehicles.fulfilled, (state, action) => {
-        state.deliveryVehicles = action.payload;
+        state.deliveryVehicles = action.payload?.data || [];
+      })
+      // Get available vehicles for pickup
+      .addCase(getAvailableVehiclesForPickup.fulfilled, (state, action) => {
+        state.availableVehicles = action.payload?.data || [];
       })
       // Create vehicle
       .addCase(createVehicle.fulfilled, (state, action) => {
-        state.vehicles.push(action.payload);
-        state.vehicle = action.payload;
-        
-        // Update trucks or delivery vehicles lists if applicable
-        if (action.payload.tipe === 'Antar Cabang') {
-          state.trucks.push(action.payload);
-        } else if (action.payload.tipe === 'Lansir') {
-          state.deliveryVehicles.push(action.payload);
+        const newVehicle = action.payload?.data;
+        if (newVehicle) {
+          // Add to main vehicles list
+          state.vehicles.unshift(newVehicle);
+          state.vehicle = newVehicle;
+          
+          // Add to specific type list
+          if (newVehicle.tipe === 'antar_cabang') {
+            state.trucks.unshift(newVehicle);
+          } else if (newVehicle.tipe === 'lansir') {
+            state.deliveryVehicles.unshift(newVehicle);
+          }
         }
       })
       // Update vehicle
       .addCase(updateVehicle.fulfilled, (state, action) => {
-        state.vehicles = state.vehicles.map((vehicle) =>
-          vehicle._id === action.payload._id ? action.payload : vehicle
-        );
-        state.vehicle = action.payload;
-        
-        // Update trucks list if applicable
-        if (action.payload.tipe === 'Antar Cabang') {
-          const truckIndex = state.trucks.findIndex(truck => truck._id === action.payload._id);
-          if (truckIndex >= 0) {
-            state.trucks[truckIndex] = action.payload;
-          } else {
-            state.trucks.push(action.payload);
+        const updatedVehicle = action.payload?.data;
+        if (updatedVehicle) {
+          // Update in main list
+          state.vehicles = state.vehicles.map((vehicle) =>
+            vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
+          );
+          state.vehicle = updatedVehicle;
+          
+          // Update in trucks or delivery vehicles lists
+          if (updatedVehicle.tipe === 'antar_cabang') {
+            // Remove from delivery vehicles if it was there
+            state.deliveryVehicles = state.deliveryVehicles.filter(
+              (vehicle) => vehicle._id !== updatedVehicle._id
+            );
+            
+            // Update or add to trucks
+            const truckIndex = state.trucks.findIndex(truck => truck._id === updatedVehicle._id);
+            if (truckIndex >= 0) {
+              state.trucks[truckIndex] = updatedVehicle;
+            } else {
+              state.trucks.unshift(updatedVehicle);
+            }
+          } else if (updatedVehicle.tipe === 'lansir') {
+            // Remove from trucks if it was there
+            state.trucks = state.trucks.filter(
+              (truck) => truck._id !== updatedVehicle._id
+            );
+            
+            // Update or add to delivery vehicles
+            const deliveryIndex = state.deliveryVehicles.findIndex(
+              vehicle => vehicle._id === updatedVehicle._id
+            );
+            if (deliveryIndex >= 0) {
+              state.deliveryVehicles[deliveryIndex] = updatedVehicle;
+            } else {
+              state.deliveryVehicles.unshift(updatedVehicle);
+            }
           }
-          state.deliveryVehicles = state.deliveryVehicles.filter(vehicle => vehicle._id !== action.payload._id);
-        } 
-        // Update delivery vehicles list if applicable
-        else if (action.payload.tipe === 'Lansir') {
-          const deliveryIndex = state.deliveryVehicles.findIndex(vehicle => vehicle._id === action.payload._id);
-          if (deliveryIndex >= 0) {
-            state.deliveryVehicles[deliveryIndex] = action.payload;
-          } else {
-            state.deliveryVehicles.push(action.payload);
-          }
-          state.trucks = state.trucks.filter(truck => truck._id !== action.payload._id);
         }
       })
       // Delete vehicle
       .addCase(deleteVehicle.fulfilled, (state, action) => {
-        state.vehicles = state.vehicles.filter((vehicle) => vehicle._id !== action.payload);
-        state.trucks = state.trucks.filter((truck) => truck._id !== action.payload);
-        state.deliveryVehicles = state.deliveryVehicles.filter((vehicle) => vehicle._id !== action.payload);
-        
-        if (state.vehicle && state.vehicle._id === action.payload) {
-          state.vehicle = null;
+        const id = action.payload;
+        if (id) {
+          state.vehicles = state.vehicles.filter((vehicle) => vehicle._id !== id);
+          state.trucks = state.trucks.filter((truck) => truck._id !== id);
+          state.deliveryVehicles = state.deliveryVehicles.filter((vehicle) => vehicle._id !== id);
+          state.availableVehicles = state.availableVehicles.filter((vehicle) => vehicle._id !== id);
+          
+          if (state.vehicle && state.vehicle._id === id) {
+            state.vehicle = null;
+          }
         }
       });
   },

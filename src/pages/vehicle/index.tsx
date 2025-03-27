@@ -1,5 +1,5 @@
 // src/pages/vehicle/index.tsx
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, ReactNode } from 'react';
 import {
   Box,
   Typography,
@@ -66,6 +66,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import withAuth from '../../components/auth/withAuth';
 import { useRouter } from 'next/router';
+import { FieldError, Merge, FieldErrorsImpl } from 'react-hook-form';
+
+// Helper function to safely get error message
+const getErrorMessage = (error: string | FieldError | Merge<FieldError, FieldErrorsImpl<any>> | undefined): ReactNode => {
+  if (!error) return null;
+  if (typeof error === 'string') return error;
+  if ('message' in error && error.message) return String(error.message);
+  return null;
+};
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -170,7 +179,7 @@ const VehiclePage = () => {
   useEffect(() => {
     // Load initial data
     dispatch(getBranches());
-    dispatch(getEmployees());
+    dispatch(getEmployees({}));
     
     // Load vehicles based on filter
     if (filterBranch) {
@@ -353,16 +362,17 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
   return true;
 }) : [];
 
+
   // Pagination
   const paginatedVehicles = filteredVehicles.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   // Filter employees to get drivers and assistants
   const drivers = employees.filter(emp => 
-    emp.jabatan === 'Supir' || emp.role === 'supir'
+    emp.jabatan === 'Supir' || (emp.role && emp.role.namaRole === 'supir')
   );
   
   const assistants = employees.filter(emp => 
-    emp.jabatan === 'Kenek' || emp.role === 'kenek'
+    emp.jabatan === 'Kenek' || (emp.role && emp.role.namaRole === 'kenek')
   );
 
   return (
@@ -469,11 +479,11 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                           <TableCell>{vehicle.noPolisi}</TableCell>
                           <TableCell>{vehicle.namaKendaraan}</TableCell>
                           <TableCell>
-                            <Chip 
-                              label={vehicle.tipe} 
-                              color={vehicle.tipe === 'Lansir' ? 'primary' : 'secondary'} 
-                              size="small" 
-                              icon={vehicle.tipe === 'Lansir' ? <DirectionsCarIcon /> : <LocalShippingIcon />}
+                            <Chip
+                              label={vehicle.tipe === 'lansir' ? 'Lansir' : 'Antar Cabang'}
+                              color={vehicle.tipe === 'lansir' ? 'primary' : 'secondary'}
+                              size="small"
+                              icon={vehicle.tipe === 'lansir' ? <DirectionsCarIcon /> : <LocalShippingIcon />}
                             />
                           </TableCell>
                           <TableCell>{vehicle.supir?.nama || '-'}</TableCell>
@@ -537,7 +547,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.noPolisi}
-                      helperText={errors.noPolisi?.message}
+                      helperText={errors.noPolisi?.message as string}
                     />
                   )}
                 />
@@ -554,7 +564,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.namaKendaraan}
-                      helperText={errors.namaKendaraan?.message}
+                      helperText={errors.namaKendaraan?.message as string}
                     />
                   )}
                 />
@@ -572,7 +582,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.tipe}
-                      helperText={errors.tipe?.message}
+                      helperText={errors.tipe?.message as string}
                     >
                       <MenuItem value="Lansir">Lansir</MenuItem>
                       <MenuItem value="Antar Cabang">Antar Cabang</MenuItem>
@@ -593,7 +603,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.cabangId}
-                      helperText={errors.cabangId?.message}
+                      helperText={errors.cabangId?.message as string}
                       disabled={!!user?.cabangId}
                     >
                       {branches.map((branch) => (
@@ -617,7 +627,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.grup}
-                      helperText={errors.grup?.message}
+                      helperText={getErrorMessage(errors.grup?.message)}
                     />
                   )}
                 />
@@ -640,7 +650,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.supirId}
-                      helperText={errors.supirId?.message}
+                      helperText={getErrorMessage(errors.supirId?.message)}
                     >
                       {drivers.map((driver) => (
                         <MenuItem key={driver._id} value={driver._id}>
@@ -663,7 +673,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.noTeleponSupir}
-                      helperText={errors.noTeleponSupir?.message}
+                      helperText={getErrorMessage(errors.noTeleponSupir?.message)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -687,7 +697,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.noKTPSupir}
-                      helperText={errors.noKTPSupir?.message}
+                      helperText={getErrorMessage(errors.noKTPSupir?.message)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -711,7 +721,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.alamatSupir}
-                      helperText={errors.alamatSupir?.message}
+                      helperText={getErrorMessage(errors.alamatSupir?.message)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -807,7 +817,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.kenekId}
-                      helperText={errors.kenekId?.message}
+                      helperText={getErrorMessage(errors.kenekId?.message)}
                     >
                       <MenuItem value="">Pilih Kenek...</MenuItem>
                       {assistants.map((assistant) => (
@@ -831,7 +841,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.noTeleponKenek}
-                      helperText={errors.noTeleponKenek?.message}
+                      helperText={getErrorMessage(errors.noTeleponKenek?.message)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -855,7 +865,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.noKTPKenek}
-                      helperText={errors.noKTPKenek?.message}
+                      helperText={getErrorMessage(errors.noKTPKenek?.message)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -879,7 +889,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       fullWidth
                       margin="normal"
                       error={!!errors.alamatKenek}
-                      helperText={errors.alamatKenek?.message}
+                      helperText={getErrorMessage(errors.alamatKenek?.message)}
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">

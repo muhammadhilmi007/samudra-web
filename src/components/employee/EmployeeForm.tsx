@@ -52,9 +52,25 @@ const EmployeeForm = ({
   const [npwpImagePreview, setNpwpImagePreview] = React.useState<string | null>(initialData?.dokumen?.npwp || null);
   const [showPassword, setShowPassword] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('personal');
+  const [uploadProgress, setUploadProgress] = React.useState<number>(0);
+
+  // Cleanup function for file URLs
+  React.useEffect(() => {
+    return () => {
+      if (profileImagePreview) URL.revokeObjectURL(profileImagePreview);
+      if (ktpImagePreview) URL.revokeObjectURL(ktpImagePreview);
+      if (npwpImagePreview) URL.revokeObjectURL(npwpImagePreview);
+    };
+  }, [profileImagePreview, ktpImagePreview, npwpImagePreview]);
 
   // Form validation
-  const form = useForm<EmployeeFormInputs>({
+  type FormValues = EmployeeFormInputs & {
+    aktif: boolean;
+    roleId: string;
+    cabangId: string;
+  };
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
       nama: initialData?.nama || '',
@@ -142,14 +158,18 @@ const EmployeeForm = ({
   // Handle form submission
   const handleFormSubmit = async (data: EmployeeFormInputs) => {
     try {
-      // Create FormData for file uploads
+      setUploadProgress(0);
       const formData = new FormData();
       
       // Find the selected role to get its kodeRole
       const selectedRole = roles.find((role) => role._id === data.roleId);
       
       if (!selectedRole) {
-        throw new Error('Selected role not found');
+        toast({
+          message: 'Role yang dipilih tidak ditemukan',
+          type: 'error',
+        });
+        return;
       }
 
       // Append all form fields except confirmPassword and roleId
@@ -163,26 +183,75 @@ const EmployeeForm = ({
       formData.append('roleId', selectedRole._id);
       formData.append('role', selectedRole.kodeRole);
       
-      // Append file uploads if available
-      if (profileImage) {
-        formData.append('fotoProfil', profileImage);
+      // Validate and append file uploads if available
+      try {
+        if (profileImage) {
+          await validateFile(profileImage, 'Foto Profil');
+          formData.append('fotoProfil', profileImage);
+        }
+        
+        if (ktpImage) {
+          await validateFile(ktpImage, 'KTP');
+          formData.append('ktp', ktpImage);
+        }
+        
+        if (npwpImage) {
+          await validateFile(npwpImage, 'NPWP');
+          formData.append('npwp', npwpImage);
+        }
+      } catch (validationError: any) {
+        toast({
+          message: validationError.message,
+          type: 'error',
+        });
+        return;
       }
       
-      if (ktpImage) {
-        formData.append('ktp', ktpImage);
-      }
-      
-      if (npwpImage) {
-        formData.append('npwp', npwpImage);
-      }
-      
-      await onSubmit(formData);
+      // Custom onSubmit handler with progress tracking
+      const customSubmit = async (formData: FormData) => {
+        try {
+          await onSubmit(formData);
+          toast({
+            message: `Pegawai berhasil ${initialData ? 'diperbarui' : 'ditambahkan'}`,
+            type: 'success',
+          });
+        } catch (error: any) {
+          if (error.status === 409) {
+            toast({
+              message: 'Username sudah digunakan. Silakan gunakan username lain.',
+              type: 'error',
+            });
+          } else if (error.status === 413) {
+            toast({
+              message: 'Ukuran file terlalu besar. Maksimal 5MB per file.',
+              type: 'error',
+            });
+          } else {
+            toast({
+              message: error.message || 'Terjadi kesalahan saat menyimpan data',
+              type: 'error',
+            });
+          }
+          throw error;
+        }
+      };
+
+      await customSubmit(formData);
     } catch (error) {
       console.error('Error submitting form:', error);
-      toast({
-        message: "Terjadi kesalahan saat menyimpan data. Silakan coba lagi.",
-        type: 'error',
-      });
+      setUploadProgress(0);
+    }
+  };
+
+  // File validation helper
+  const validateFile = async (file: File, fieldName: string): Promise<void> => {
+    const validation = fileValidationSchema.safeParse({
+      size: file.size,
+      type: file.type
+    });
+
+    if (!validation.success) {
+      throw new Error(`${fieldName}: ${validation.error.errors[0].message}`);
     }
   };
 
@@ -264,7 +333,7 @@ const EmployeeForm = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Name */}
-              <FormField<EmployeeFormInputs>
+              <FormField<FormValues>
                 name="nama"
                 children={({ field }) => (
                   <FormItem>
@@ -278,7 +347,7 @@ const EmployeeForm = ({
               />
 
               {/* Phone */}
-              <FormField<EmployeeFormInputs>
+              <FormField<FormValues>
                 name="telepon"
                 children={({ field }) => (
                   <FormItem>
@@ -312,8 +381,8 @@ const EmployeeForm = ({
                   <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                     <FormControl>
                       <Checkbox
-                        checked={field.value as boolean}
-                        onCheckedChange={field.onChange}
+                        checked={Boolean(field.value)}
+                        onCheckedChange={(checked) => field.onChange(checked)}
                         disabled={loading}
                       />
                     </FormControl>
@@ -336,7 +405,7 @@ const EmployeeForm = ({
                     <FormControl>
                       <Textarea 
                         placeholder="Masukkan alamat lengkap" 
-                        value={field.value || ''}
+                        value={String(field.value || '')}
                         onChange={(e) => field.onChange(e.target.value)}
                         disabled={loading}
                         className="min-h-[100px]"
@@ -376,7 +445,7 @@ const EmployeeForm = ({
                   <Select
                     disabled={loading}
                     onValueChange={field.onChange}
-                    value={field.value || ''}
+                    value={String(field.value || '')}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -405,7 +474,7 @@ const EmployeeForm = ({
                   <Select
                     disabled={loading || !!user?.cabangId}
                     onValueChange={field.onChange}
-                    value={field.value || ''}
+                    value={String(field.value || '')}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -617,6 +686,16 @@ const EmployeeForm = ({
                 disabled={loading}
               />
             </div>
+          </div>
+        )}
+
+        {/* Upload Progress */}
+        {uploadProgress > 0 && uploadProgress < 100 && (
+          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+            <div
+              className="bg-primary h-2.5 rounded-full transition-all"
+              style={{ width: `${uploadProgress}%` }}
+            />
           </div>
         )}
 

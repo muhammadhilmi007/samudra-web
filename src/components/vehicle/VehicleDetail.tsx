@@ -31,10 +31,10 @@ import {
   DriveEta as TruckIcon,
   LocalShipping as ShippingIcon,
 } from '@mui/icons-material';
+import Image from 'next/image';
 import { RootState, AppDispatch } from '../../store';
 import { getVehicleById } from '../../store/slices/vehicleSlice';
 import StatusBadge from '../shared/StatusBadge';
-import { Image } from 'lucide-react';
 
 interface VehicleDetailProps {
   id: string;
@@ -99,7 +99,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                 />
                 {vehicle.grup && (
                   <Chip 
-                    icon={vehicle.tipe === 'Antar Cabang' ? <TruckIcon /> : <ShippingIcon />} 
+                    icon={vehicle.tipe === 'antar_cabang' ? <TruckIcon /> : <ShippingIcon />} 
                     label={`Grup: ${vehicle.grup}`} 
                     size="small" 
                     color="default" 
@@ -135,6 +135,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                     Detail Kendaraan
                   </Typography>
                   
+
                   <TableContainer>
                     <Table size="small">
                       <TableBody>
@@ -184,6 +185,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                     Informasi Tambahan
                   </Typography>
                   
+
                   <TableContainer>
                     <Table size="small">
                       <TableBody>
@@ -224,7 +226,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
               </Grid>
             </Grid>
           )}
-          
+
           {/* Tab 2: Driver Info */}
           {tabValue === 1 && (
             <Grid container spacing={2}>
@@ -270,6 +272,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                     Detail Supir
                   </Typography>
                   
+
                   <TableContainer>
                     <Table size="small">
                       <TableBody>
@@ -301,6 +304,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                     </Table>
                   </TableContainer>
                   
+
                   {vehicle.fotoKTPSupir && (
                     <Box mt={3}>
                       <Typography variant="subtitle2" gutterBottom>
@@ -370,6 +374,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                     Detail Kenek
                   </Typography>
                   
+
                   <TableContainer>
                     <Table size="small">
                       <TableBody>
@@ -401,6 +406,7 @@ const VehicleDetail: React.FC<VehicleDetailProps> = ({ id, onEdit }) => {
                     </Table>
                   </TableContainer>
                   
+
                   {vehicle.fotoKTPKenek && (
                     <Box mt={3}>
                       <Typography variant="subtitle2" gutterBottom>

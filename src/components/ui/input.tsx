@@ -14,6 +14,7 @@ export interface InputProps extends Omit<MuiTextFieldProps, 'variant'> {
   error?: boolean;
   helperText?: string;
   fullWidth?: boolean;
+  accept?: string;
 }
 
 const StyledTextField = styled(MuiTextField)(({ theme }) => ({
@@ -44,7 +45,7 @@ const StyledTextField = styled(MuiTextField)(({ theme }) => ({
 }));
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, name, error, helperText, fullWidth = true, ...props }, ref) => {
+  ({ label, name, error, helperText, fullWidth = true, accept, ...props }, ref) => {
     return (
       <FormControl fullWidth={fullWidth} error={error}>
         {label && <InputLabel htmlFor={name} shrink={true}>{label}</InputLabel>}
@@ -55,6 +56,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           error={error}
           variant="outlined"
           fullWidth={fullWidth}
+          inputProps={{ ...props.inputProps, accept }}
           {...props}
         />
         {helperText && (

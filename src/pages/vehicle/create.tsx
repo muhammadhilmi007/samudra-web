@@ -34,58 +34,10 @@ const CreateVehiclePage = () => {
     }
   }, [dispatch, user]);
 
-  const handleSubmit = (data: VehicleFormInputs) => {
-    const formData = new FormData();
-    
-    // Append all text fields
-    formData.append('noPolisi', data.noPolisi);
-    formData.append('namaKendaraan', data.namaKendaraan);
-    formData.append('supirId', data.supirId);
-    formData.append('noTeleponSupir', data.noTeleponSupir);
-    formData.append('noKTPSupir', data.noKTPSupir);
-    formData.append('alamatSupir', data.alamatSupir);
-    formData.append('cabangId', data.cabangId);
-    formData.append('tipe', data.tipe);
-    
-    if (data.grup) {
-      formData.append('grup', data.grup);
-    }
-    
-    if (data.kenekId) {
-      formData.append('kenekId', data.kenekId);
-    }
-    
-    if (data.noTeleponKenek) {
-      formData.append('noTeleponKenek', data.noTeleponKenek);
-    }
-    
-    if (data.noKTPKenek) {
-      formData.append('noKTPKenek', data.noKTPKenek);
-    }
-    
-    if (data.alamatKenek) {
-      formData.append('alamatKenek', data.alamatKenek);
-    }
-    
-    // Append file fields if present
-    if (data.fotoKTPSupir && data.fotoKTPSupir instanceof File) {
-      formData.append('fotoKTPSupir', data.fotoKTPSupir);
-    }
-    
-    if (data.fotoSupir && data.fotoSupir instanceof File) {
-      formData.append('fotoSupir', data.fotoSupir);
-    }
-    
-    if (data.fotoKTPKenek && data.fotoKTPKenek instanceof File) {
-      formData.append('fotoKTPKenek', data.fotoKTPKenek);
-    }
-    
-    if (data.fotoKenek && data.fotoKenek instanceof File) {
-      formData.append('fotoKenek', data.fotoKenek);
-    }
+  const handleSubmit = (formData: FormData) => {
     
     dispatch(createVehicle(formData)).then((result) => {
-      if (!result.error) {
+      if (result.meta.requestStatus === 'fulfilled') {
         // Redirect to vehicle list after successful creation
         setTimeout(() => {
           router.push('/vehicle');
@@ -143,9 +95,12 @@ const CreateVehiclePage = () => {
               noTeleponSupir: '',
               noKTPSupir: '',
               alamatSupir: '',
-              cabangId: user?.cabangId || '',
-              tipe: 'Lansir',
+              cabangId: '',
+              tipe: "lansir",
               grup: '',
+              _id: '', // Add this
+              createdAt: new Date().toISOString(), // Add this
+              updatedAt: new Date().toISOString()  // Add this
             }}
           />
         </Paper>

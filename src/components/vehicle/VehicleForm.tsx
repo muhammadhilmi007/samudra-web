@@ -1,33 +1,39 @@
-// src/components/vehicle/VehicleForm.tsx
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  TextField,
-  Button,
-  Grid,
-  Box,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  Divider,
-  FormHelperText,
-  Tab,
-  Tabs,
-  Avatar,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-} from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store';
 import { getBranches } from '../../store/slices/branchSlice';
 import { getEmployeesByBranch } from '../../store/slices/employeeSlice';
 import { Vehicle } from '../../types/vehicle';
+import {
+  Form,
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { FileInput } from '@/components/ui/file-input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger
+} from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 
 // File size validation (max 2MB)
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
@@ -40,14 +46,10 @@ const vehicleSchema = z.object({
   cabangId: z.string().min(1, 'Cabang harus dipilih'),
   tipe: z.string().min(1, 'Tipe kendaraan harus dipilih'),
   grup: z.string().optional(),
-  
-  // Supir fields
   supirId: z.string().optional(),
   noTeleponSupir: z.string().optional(),
   noKTPSupir: z.string().optional(),
   alamatSupir: z.string().optional(),
-  
-  // Kenek fields
   kenekId: z.string().optional(),
   noTeleponKenek: z.string().optional(),
   noKTPKenek: z.string().optional(),
@@ -71,28 +73,20 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
   const { branches } = useSelector((state: RootState) => state.branch);
   const { employees } = useSelector((state: RootState) => state.employee);
   
-  const [tabValue, setTabValue] = useState(0);
+  const [currentTab, setCurrentTab] = useState<'vehicle' | 'driver' | 'assistant'>('vehicle');
   const [selectedBranch, setSelectedBranch] = useState<string>(initialData?.cabangId || '');
   
-  // File state
   const [fotoSupir, setFotoSupir] = useState<File | null>(null);
   const [fotoKTPSupir, setFotoKTPSupir] = useState<File | null>(null);
   const [fotoKenek, setFotoKenek] = useState<File | null>(null);
   const [fotoKTPKenek, setFotoKTPKenek] = useState<File | null>(null);
   
-  // Preview URLs
   const [fotoSupirPreview, setFotoSupirPreview] = useState<string | null>(initialData?.fotoSupir || null);
   const [fotoKTPSupirPreview, setFotoKTPSupirPreview] = useState<string | null>(initialData?.fotoKTPSupir || null);
   const [fotoKenekPreview, setFotoKenekPreview] = useState<string | null>(initialData?.fotoKenek || null);
   const [fotoKTPKenekPreview, setFotoKTPKenekPreview] = useState<string | null>(initialData?.fotoKTPKenek || null);
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-    watch,
-    setValue,
-  } = useForm<VehicleFormInputs>({
+  const form = useForm<VehicleFormInputs>({
     resolver: zodResolver(vehicleSchema),
     defaultValues: {
       noPolisi: initialData?.noPolisi || '',
@@ -100,12 +94,10 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
       cabangId: initialData?.cabangId || '',
       tipe: initialData?.tipe || '',
       grup: initialData?.grup || '',
-      
       supirId: initialData?.supirId || '',
       noTeleponSupir: initialData?.noTeleponSupir || '',
       noKTPSupir: initialData?.noKTPSupir || '',
       alamatSupir: initialData?.alamatSupir || '',
-      
       kenekId: initialData?.kenekId || '',
       noTeleponKenek: initialData?.noTeleponKenek || '',
       noKTPKenek: initialData?.noKTPKenek || '',
@@ -113,18 +105,15 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
     },
   });
 
-  // Watch selected values
-  const selectedCabangId = watch('cabangId');
-  const selectedTipe = watch('tipe');
-  const selectedSupirId = watch('supirId');
-  const selectedKenekId = watch('kenekId');
+  const selectedCabangId = form.watch('cabangId');
+  const selectedTipe = form.watch('tipe');
+  const selectedSupirId = form.watch('supirId');
+  const selectedKenekId = form.watch('kenekId');
 
-  // Fetch branches on component mount
   useEffect(() => {
     dispatch(getBranches());
   }, [dispatch]);
 
-  // Fetch employees when branch is selected
   useEffect(() => {
     if (selectedCabangId) {
       dispatch(getEmployeesByBranch(selectedCabangId));
@@ -132,33 +121,26 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
     }
   }, [dispatch, selectedCabangId]);
 
-  // Set employee details when selected
   useEffect(() => {
     if (selectedSupirId) {
       const supir = employees.find(emp => emp._id === selectedSupirId);
       if (supir) {
-        setValue('noTeleponSupir', supir.telepon || '');
-        setValue('alamatSupir', supir.alamat || '');
+        form.setValue('noTeleponSupir', supir.telepon || '');
+        form.setValue('alamatSupir', supir.alamat || '');
       }
     }
-  }, [employees, selectedSupirId, setValue]);
+  }, [employees, selectedSupirId, form]);
 
   useEffect(() => {
     if (selectedKenekId) {
       const kenek = employees.find(emp => emp._id === selectedKenekId);
       if (kenek) {
-        setValue('noTeleponKenek', kenek.telepon || '');
-        setValue('alamatKenek', kenek.alamat || '');
+        form.setValue('noTeleponKenek', kenek.telepon || '');
+        form.setValue('alamatKenek', kenek.alamat || '');
       }
     }
-  }, [employees, selectedKenekId, setValue]);
+  }, [employees, selectedKenekId, form]);
 
-  // Handle tab change
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  // Handle file changes
   const handleFileChange = (
     event: React.ChangeEvent<HTMLInputElement>,
     setFile: React.Dispatch<React.SetStateAction<File | null>>,
@@ -166,23 +148,32 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
   ) => {
     if (event.target.files && event.target.files.length > 0) {
       const file = event.target.files[0];
+      if (file.size > MAX_FILE_SIZE) {
+        form.setError('root', {
+          message: 'Ukuran file terlalu besar (maksimal 2MB)'
+        });
+        return;
+      }
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        form.setError('root', {
+          message: 'Format file tidak didukung'
+        });
+        return;
+      }
       setFile(file);
       setPreview(URL.createObjectURL(file));
     }
   };
 
-  // Submit handler
   const handleFormSubmit = (data: VehicleFormInputs) => {
     const formData = new FormData();
     
-    // Append basic fields
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         formData.append(key, value);
       }
     });
     
-    // Append files if selected
     if (fotoSupir) formData.append('fotoSupir', fotoSupir);
     if (fotoKTPSupir) formData.append('fotoKTPSupir', fotoKTPSupir);
     if (fotoKenek) formData.append('fotoKenek', fotoKenek);
@@ -192,493 +183,433 @@ const VehicleForm: React.FC<VehicleFormProps> = ({
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit(handleFormSubmit)} noValidate>
-      <Tabs value={tabValue} onChange={handleTabChange} variant="fullWidth" sx={{ mb: 3 }}>
-        <Tab label="Informasi Kendaraan" />
-        <Tab label="Informasi Supir" />
-        <Tab label="Informasi Kenek" />
-      </Tabs>
+    <div className="space-y-6">
+      <Tabs 
+        defaultValue="vehicle" 
+        value={currentTab}
+        onValueChange={(value) => setCurrentTab(value as 'vehicle' | 'driver' | 'assistant')}
+      >
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="vehicle">
+            Informasi Kendaraan
+          </TabsTrigger>
+          <TabsTrigger value="driver">
+            Informasi Supir
+          </TabsTrigger>
+          <TabsTrigger value="assistant">
+            Informasi Kenek
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab 1: Informasi Kendaraan */}
-      {tabValue === 0 && (
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Kendaraan
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="noPolisi"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nomor Polisi"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors.noPolisi}
-                  helperText={errors.noPolisi?.message}
-                  disabled={loading}
-                  autoFocus
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="namaKendaraan"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nama Kendaraan"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors.namaKendaraan}
-                  helperText={errors.namaKendaraan?.message}
-                  disabled={loading}
-                />
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="cabangId"
-              control={control}
-              render={({ field }) => (
-                <FormControl fullWidth error={!!errors.cabangId}>
-                  <InputLabel id="cabang-label">Cabang</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="cabang-label"
-                    label="Cabang"
-                    disabled={loading}
-                  >
-                    {branches.map((branch) => (
-                      <MenuItem key={branch._id} value={branch._id}>
-                        {branch.namaCabang}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.cabangId && (
-                    <FormHelperText>{errors.cabangId.message}</FormHelperText>
-                  )}
-                </FormControl>
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="tipe"
-              control={control}
-              render={({ field }) => (
-                <FormControl fullWidth error={!!errors.tipe}>
-                  <InputLabel id="tipe-label">Tipe Kendaraan</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="tipe-label"
-                    label="Tipe Kendaraan"
-                    disabled={loading}
-                  >
-                    <MenuItem value="Lansir">Lansir (Pengiriman Lokal)</MenuItem>
-                    <MenuItem value="Antar Cabang">Antar Cabang</MenuItem>
-                  </Select>
-                  {errors.tipe && (
-                    <FormHelperText>{errors.tipe.message}</FormHelperText>
-                  )}
-                </FormControl>
-              )}
-            />
-          </Grid>
-
-          {selectedTipe === 'Antar Cabang' && (
-            <Grid item xs={12} md={6}>
+        <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+          <TabsContent value="vehicle">
+            <div className="grid grid-cols-2 gap-4">
               <Controller
-                name="grup"
-                control={control}
+                control={form.control}
+                name="noPolisi"
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Grup Armada (Opsional)"
-                    variant="outlined"
-                    fullWidth
-                    error={!!errors.grup}
-                    helperText={errors.grup?.message}
-                    disabled={loading}
-                  />
+                  <FormItem>
+                    <FormLabel>Nomor Polisi</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Masukkan nomor polisi" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
-            </Grid>
-          )}
-        </Grid>
-      )}
 
-      {/* Tab 2: Informasi Supir */}
-      {tabValue === 1 && (
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Supir
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
+              <Controller
+                control={form.control}
+                name="namaKendaraan"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama Kendaraan</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Masukkan nama kendaraan" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="supirId"
-              control={control}
-              render={({ field }) => (
-                <FormControl fullWidth error={!!errors.supirId}>
-                  <InputLabel id="supir-label">Supir</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="supir-label"
-                    label="Supir"
-                    disabled={loading || !selectedBranch}
-                  >
-                    <MenuItem value="">-- Pilih Supir --</MenuItem>
-                    {employees
-                      .filter(emp => ['supir', 'driver'].includes(emp.jabatan.toLowerCase()))
-                      .map((employee) => (
-                        <MenuItem key={employee._id} value={employee._id}>
-                          {employee.nama}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                  {errors.supirId && (
-                    <FormHelperText>{errors.supirId.message}</FormHelperText>
+              <Controller
+                control={form.control}
+                name="cabangId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cabang</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={loading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih cabang" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch._id} value={branch._id}>
+                            {branch.namaCabang}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Controller
+                control={form.control}
+                name="tipe"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipe Kendaraan</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={loading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih tipe kendaraan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Lansir">Lansir (Pengiriman Lokal)</SelectItem>
+                        <SelectItem value="Antar Cabang">Antar Cabang</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {selectedTipe === 'Antar Cabang' && (
+                <Controller
+                  control={form.control}
+                  name="grup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grup Armada</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="Masukkan grup armada (opsional)" 
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </FormControl>
-              )}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="noTeleponSupir"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nomor Telepon Supir"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors.noTeleponSupir}
-                  helperText={errors.noTeleponSupir?.message}
-                  disabled={loading}
                 />
               )}
-            />
-          </Grid>
+            </div>
+          </TabsContent>
 
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="noKTPSupir"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nomor KTP Supir"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors.noKTPSupir}
-                  helperText={errors.noKTPSupir?.message}
-                  disabled={loading}
-                />
-              )}
-            />
-          </Grid>
+          <TabsContent value="driver">
+            <div className="grid grid-cols-2 gap-4">
+              <Controller
+                control={form.control}
+                name="supirId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Supir</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={loading || !selectedBranch}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih supir" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">-- Pilih Supir --</SelectItem>
+                        {employees
+                          .filter(emp => ['supir', 'driver'].includes(emp.jabatan.toLowerCase()))
+                          .map((employee) => (
+                            <SelectItem key={employee._id} value={employee._id}>
+                              {employee.nama}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="alamatSupir"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Alamat Supir"
-                  variant="outlined"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  error={!!errors.alamatSupir}
-                  helperText={errors.alamatSupir?.message}
-                  disabled={loading}
-                />
-              )}
-            />
-          </Grid>
+              <Controller
+                control={form.control}
+                name="noTeleponSupir"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor Telepon Supir</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Masukkan nomor telepon" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom>
-              Foto KTP Supir
-            </Typography>
-            <input
-              accept="image/*"
-              id="foto-ktp-supir"
-              type="file"
-              style={{ display: 'none' }}
-              onChange={(e) => handleFileChange(e, setFotoKTPSupir, setFotoKTPSupirPreview)}
-              disabled={loading}
-            />
-            <label htmlFor="foto-ktp-supir">
-              <Button
-                variant="outlined"
-                component="span"
-                disabled={loading}
-                sx={{ mb: 1 }}
-              >
-                Upload Foto KTP
-              </Button>
-            </label>
-            {fotoKTPSupirPreview && (
-              <Box mt={1}>
-                <img
-                  src={fotoKTPSupirPreview}
-                  alt="KTP Supir"
-                  width="100%"
-                  style={{ maxWidth: 300, maxHeight: 200, objectFit: 'contain' }}
-                />
-              </Box>
-            )}
-          </Grid>
+              <Controller
+                control={form.control}
+                name="noKTPSupir"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor KTP Supir</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Masukkan nomor KTP" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom>
-              Foto Supir
-            </Typography>
-            <input
-              accept="image/*"
-              id="foto-supir"
-              type="file"
-              style={{ display: 'none' }}
-              onChange={(e) => handleFileChange(e, setFotoSupir, setFotoSupirPreview)}
-              disabled={loading}
-            />
-            <label htmlFor="foto-supir">
-              <Button
-                variant="outlined"
-                component="span"
-                disabled={loading}
-                sx={{ mb: 1 }}
-              >
-                Upload Foto Supir
-              </Button>
-            </label>
-            {fotoSupirPreview && (
-              <Box mt={1}>
-                <Avatar
-                  src={fotoSupirPreview}
-                  alt="Supir"
-                  sx={{ width: 100, height: 100 }}
-                />
-              </Box>
-            )}
-          </Grid>
-        </Grid>
-      )}
+              <Controller
+                control={form.control}
+                name="alamatSupir"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alamat Supir</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Masukkan alamat" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-      {/* Tab 3: Informasi Kenek */}
-      {tabValue === 2 && (
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Informasi Kenek
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="kenekId"
-              control={control}
-              render={({ field }) => (
-                <FormControl fullWidth error={!!errors.kenekId}>
-                  <InputLabel id="kenek-label">Kenek</InputLabel>
-                  <Select
-                    {...field}
-                    labelId="kenek-label"
-                    label="Kenek"
-                    disabled={loading || !selectedBranch}
-                  >
-                    <MenuItem value="">-- Pilih Kenek --</MenuItem>
-                    {employees
-                      .filter(emp => ['kenek', 'asisten driver'].includes(emp.jabatan.toLowerCase()))
-                      .map((employee) => (
-                        <MenuItem key={employee._id} value={employee._id}>
-                          {employee.nama}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                  {errors.kenekId && (
-                    <FormHelperText>{errors.kenekId.message}</FormHelperText>
+              <div className="col-span-2 space-y-4">
+                <div>
+                  <Label>Foto KTP Supir</Label>
+                  <FileInput
+                    accept="image/*"
+                    className="mt-2"
+                    onChange={(e) => handleFileChange(e, setFotoKTPSupir, setFotoKTPSupirPreview)}
+                    disabled={loading}
+                  />
+                  {fotoKTPSupirPreview && (
+                    <div className="mt-2">
+                      <img
+                        src={fotoKTPSupirPreview}
+                        alt="KTP Supir"
+                        className="max-w-[300px] max-h-[200px] object-contain"
+                      />
+                    </div>
                   )}
-                </FormControl>
-              )}
-            />
-          </Grid>
+                </div>
 
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="noTeleponKenek"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nomor Telepon Kenek"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors.noTeleponKenek}
-                  helperText={errors.noTeleponKenek?.message}
-                  disabled={loading}
-                />
-              )}
-            />
-          </Grid>
+                <div>
+                  <Label>Foto Supir</Label>
+                  <FileInput
+                    accept="image/*"
+                    className="mt-2"
+                    onChange={(e) => handleFileChange(e, setFotoSupir, setFotoSupirPreview)}
+                    disabled={loading}
+                  />
+                  {fotoSupirPreview && (
+                    <div className="mt-2">
+                      <Avatar className="h-24 w-24">
+                        <AvatarImage src={fotoSupirPreview} alt="Supir" />
+                        <AvatarFallback>SP</AvatarFallback>
+                      </Avatar>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="noKTPKenek"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Nomor KTP Kenek"
-                  variant="outlined"
-                  fullWidth
-                  error={!!errors.noKTPKenek}
-                  helperText={errors.noKTPKenek?.message}
-                  disabled={loading}
-                />
-              )}
-            />
-          </Grid>
+          <TabsContent value="assistant">
+            <div className="grid grid-cols-2 gap-4">
+              <Controller
+                control={form.control}
+                name="kenekId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kenek</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={loading || !selectedBranch}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih kenek" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">-- Pilih Kenek --</SelectItem>
+                        {employees
+                          .filter(emp => ['kenek', 'asisten driver'].includes(emp.jabatan.toLowerCase()))
+                          .map((employee) => (
+                            <SelectItem key={employee._id} value={employee._id}>
+                              {employee.nama}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Grid item xs={12} md={6}>
-            <Controller
-              name="alamatKenek"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Alamat Kenek"
-                  variant="outlined"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  error={!!errors.alamatKenek}
-                  helperText={errors.alamatKenek?.message}
-                  disabled={loading}
-                />
-              )}
-            />
-          </Grid>
+              <Controller
+                control={form.control}
+                name="noTeleponKenek"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor Telepon Kenek</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Masukkan nomor telepon" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom>
-              Foto KTP Kenek
-            </Typography>
-            <input
-              accept="image/*"
-              id="foto-ktp-kenek"
-              type="file"
-              style={{ display: 'none' }}
-              onChange={(e) => handleFileChange(e, setFotoKTPKenek, setFotoKTPKenekPreview)}
-              disabled={loading}
-            />
-            <label htmlFor="foto-ktp-kenek">
+              <Controller
+                control={form.control}
+                name="noKTPKenek"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor KTP Kenek</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Masukkan nomor KTP" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Controller
+                control={form.control}
+                name="alamatKenek"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alamat Kenek</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="Masukkan alamat" 
+                        disabled={loading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="col-span-2 space-y-4">
+                <div>
+                  <Label>Foto KTP Kenek</Label>
+                  <FileInput
+                    accept="image/*"
+                    className="mt-2"
+                    onChange={(e) => handleFileChange(e, setFotoKTPKenek, setFotoKTPKenekPreview)}
+                    disabled={loading}
+                  />
+                  {fotoKTPKenekPreview && (
+                    <div className="mt-2">
+                      <img
+                        src={fotoKTPKenekPreview}
+                        alt="KTP Kenek"
+                        className="max-w-[300px] max-h-[200px] object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Foto Kenek</Label>
+                  <FileInput
+                    accept="image/*"
+                    className="mt-2"
+                    onChange={(e) => handleFileChange(e, setFotoKenek, setFotoKenekPreview)}
+                    disabled={loading}
+                  />
+                  {fotoKenekPreview && (
+                    <div className="mt-2">
+                      <Avatar className="h-24 w-24">
+                        <AvatarImage src={fotoKenekPreview} alt="Kenek" />
+                        <AvatarFallback>KN</AvatarFallback>
+                      </Avatar>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="outlined"
+              size="default"
+              onClick={() => {
+                if (currentTab === 'driver') setCurrentTab('vehicle');
+                if (currentTab === 'assistant') setCurrentTab('driver');
+              }}
+              disabled={loading || currentTab === 'vehicle'}
+            >
+              Sebelumnya
+            </Button>
+
+            {currentTab !== 'assistant' ? (
               <Button
-                variant="outlined"
-                component="span"
-                disabled={loading}
-                sx={{ mb: 1 }}
+                type="button"
+                size="default"
+                onClick={() => {
+                  if (currentTab === 'vehicle') setCurrentTab('driver');
+                  if (currentTab === 'driver') setCurrentTab('assistant');
+                }}
               >
-                Upload Foto KTP
+                Selanjutnya
               </Button>
-            </label>
-            {fotoKTPKenekPreview && (
-              <Box mt={1}>
-                <img
-                  src={fotoKTPKenekPreview}
-                  alt="KTP Kenek"
-                  width="100%"
-                  style={{ maxWidth: 300, maxHeight: 200, objectFit: 'contain' }}
-                />
-              </Box>
-            )}
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Typography variant="body2" gutterBottom>
-              Foto Kenek
-            </Typography>
-            <input
-              accept="image/*"
-              id="foto-kenek"
-              type="file"
-              style={{ display: 'none' }}
-              onChange={(e) => handleFileChange(e, setFotoKenek, setFotoKenekPreview)}
-              disabled={loading}
-            />
-            <label htmlFor="foto-kenek">
-              <Button
-                variant="outlined"
-                component="span"
-                disabled={loading}
-                sx={{ mb: 1 }}
-              >
-                Upload Foto Kenek
+            ) : (
+              <Button type="submit" size="default" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {initialData ? 'Perbarui' : 'Simpan'}
               </Button>
-            </label>
-            {fotoKenekPreview && (
-              <Box mt={1}>
-                <Avatar
-                  src={fotoKenekPreview}
-                  alt="Kenek"
-                  sx={{ width: 100, height: 100 }}
-                />
-              </Box>
             )}
-          </Grid>
-        </Grid>
-      )}
-
-      <Box mt={3} display="flex" justifyContent="space-between">
-        <Button
-          variant="outlined"
-          disabled={loading || tabValue === 0}
-          onClick={() => setTabValue(tabValue - 1)}
-        >
-          Sebelumnya
-        </Button>
-        
-        {tabValue < 2 ? (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => setTabValue(tabValue + 1)}
-          >
-            Selanjutnya
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
-          >
-            {initialData ? 'Perbarui' : 'Simpan'}
-          </Button>
-        )}
-      </Box>
-    </Box>
+          </div>
+        </form>
+      </Tabs>
+    </div>
   );
 };
 

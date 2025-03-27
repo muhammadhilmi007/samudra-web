@@ -11,10 +11,12 @@ interface TabPanelProps {
   value: number;
 }
 
-interface StyledTabsProps {
+export interface TabsProps {
+  defaultValue?: string;
   children?: React.ReactNode;
-  value: number;
-  onChange: (event: React.SyntheticEvent, newValue: number) => void;
+  value?: string | number;
+  onChange?: (event: React.SyntheticEvent, newValue: number) => void;
+  onValueChange?: (value: string) => void;
   orientation?: 'horizontal' | 'vertical';
   variant?: 'standard' | 'scrollable' | 'fullWidth';
 }
@@ -69,11 +71,19 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-export function Tabs({ children, value, onChange, orientation = 'horizontal', variant = 'standard' }: StyledTabsProps) {
+
+
+export function Tabs({ 
+  children, 
+  value, 
+  onValueChange,
+  orientation = 'horizontal', 
+  variant = 'standard' 
+}: TabsProps) {
   return (
     <StyledTabs
       value={value}
-      onChange={onChange}
+      onChange={(_, newValue) => onValueChange?.(String(newValue))}
       orientation={orientation}
       variant={variant}
       aria-label="styled tabs"

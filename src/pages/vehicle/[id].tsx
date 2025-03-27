@@ -45,9 +45,11 @@ import { getEmployeesByBranch } from '../../store/slices/employeeSlice';
 import { getLoadingsByTruck } from '../../store/slices/loadingSlice';
 import { getDeliveriesByVehicle } from '../../store/slices/deliverySlice';
 import { clearError, clearSuccess } from '../../store/slices/uiSlice';
-import { Vehicle, VehicleFormInputs } from '../../types/vehicle';
+import { Vehicle, VehicleFormInputs, mapVehicleTypeToFrontend } from '../../types/vehicle';
 import withAuth from '../../components/auth/withAuth';
 import VehicleForm from '../../components/vehicle/VehicleForm';
+import { Loading } from '../../types/loading';
+import { Delivery } from '../../types/delivery';
 import LoadingList from '../../components/loading/LoadingList';
 import DeliveryList from '../../components/delivery/DeliveryList';
 
@@ -102,9 +104,9 @@ const VehicleDetailPage = () => {
 
   useEffect(() => {
     if (id && typeof id === 'string') {
-      if (tabValue === 1 && vehicle?.tipe === 'Antar Cabang') {
+      if (tabValue === 1 && vehicle?.tipe === 'antar_cabang') {
         dispatch(getLoadingsByTruck(id));
-      } else if (tabValue === 1 && vehicle?.tipe === 'Lansir') {
+      } else if (tabValue === 1 && vehicle?.tipe === 'lansir') {
         dispatch(getDeliveriesByVehicle(id));
       }
     }
@@ -133,62 +135,6 @@ const VehicleDetailPage = () => {
 
   const handleDeleteCancel = () => {
     setConfirmDeleteDialog(false);
-  };
-
-  const handleUpdate = (data: VehicleFormInputs) => {
-    if (id && typeof id === 'string') {
-      const formData = new FormData();
-      
-      // Append all text fields
-      formData.append('noPolisi', data.noPolisi);
-      formData.append('namaKendaraan', data.namaKendaraan);
-      formData.append('supirId', data.supirId);
-      formData.append('noTeleponSupir', data.noTeleponSupir);
-      formData.append('noKTPSupir', data.noKTPSupir);
-      formData.append('alamatSupir', data.alamatSupir);
-      formData.append('cabangId', data.cabangId);
-      formData.append('tipe', data.tipe);
-      
-      if (data.grup) {
-        formData.append('grup', data.grup);
-      }
-      
-      if (data.kenekId) {
-        formData.append('kenekId', data.kenekId);
-      }
-      
-      if (data.noTeleponKenek) {
-        formData.append('noTeleponKenek', data.noTeleponKenek);
-      }
-      
-      if (data.noKTPKenek) {
-        formData.append('noKTPKenek', data.noKTPKenek);
-      }
-      
-      if (data.alamatKenek) {
-        formData.append('alamatKenek', data.alamatKenek);
-      }
-      
-      // Append file fields if present
-      if (data.fotoKTPSupir && data.fotoKTPSupir instanceof File) {
-        formData.append('fotoKTPSupir', data.fotoKTPSupir);
-      }
-      
-      if (data.fotoSupir && data.fotoSupir instanceof File) {
-        formData.append('fotoSupir', data.fotoSupir);
-      }
-      
-      if (data.fotoKTPKenek && data.fotoKTPKenek instanceof File) {
-        formData.append('fotoKTPKenek', data.fotoKTPKenek);
-      }
-      
-      if (data.fotoKenek && data.fotoKenek instanceof File) {
-        formData.append('fotoKenek', data.fotoKenek);
-      }
-      
-      dispatch(updateVehicle({ id, vehicleData: formData }));
-      setEditMode(false);
-    }
   };
 
   const handleCloseSnackbar = () => {
@@ -242,15 +188,23 @@ const VehicleDetailPage = () => {
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="vehicle tabs">
               <Tab label="Informasi" />
-              <Tab label={vehicle?.tipe === 'Antar Cabang' ? 'Riwayat Muatan' : 'Riwayat Pengiriman'} />
+              <Tab label={vehicle?.tipe === 'antar_cabang' ? 'Riwayat Muatan' : 'Riwayat Pengiriman'} />
             </Tabs>
           </Box>
 
           <TabPanel value={tabValue} index={0}>
             {editMode ? (
-              <VehicleForm 
-                initialData={vehicle as any} 
-                onSubmit={handleUpdate} 
+              <VehicleForm
+                initialData={vehicle ? {
+                  ...vehicle,
+                  tipe: vehicle.tipeDisplay || mapVehicleTypeToFrontend(vehicle.tipe)
+                } : undefined}
+                onSubmit={(formData: FormData) => {
+                  if (id && typeof id === 'string' && vehicle) {
+                    dispatch(updateVehicle({ id, vehicleData: formData }));
+                    setEditMode(false);
+                  }
+                }}
                 onCancel={() => setEditMode(false)}
                 drivers={drivers}
                 assistants={assistants}
@@ -309,10 +263,10 @@ const VehicleDetailPage = () => {
                           <Typography variant="body2" color="text.secondary">
                             Tipe
                           </Typography>
-                          <Chip 
-                            label={vehicle?.tipe} 
-                            color={vehicle?.tipe === 'Antar Cabang' ? 'primary' : 'success'} 
-                            size="small" 
+                          <Chip
+                            label={vehicle?.tipeDisplay || mapVehicleTypeToFrontend(vehicle?.tipe || 'lansir')}
+                            color={vehicle?.tipe === 'antar_cabang' ? 'primary' : 'success'}
+                            size="small"
                           />
                         </Box>
                         
@@ -513,12 +467,16 @@ const VehicleDetailPage = () => {
 
           <TabPanel value={tabValue} index={1}>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              {vehicle?.tipe === 'Antar Cabang' ? 'Riwayat Muatan' : 'Riwayat Pengiriman'}
+              {vehicle?.tipe === 'antar_cabang' ? 'Riwayat Muatan' : 'Riwayat Pengiriman'}
             </Typography>
             
-            {vehicle?.tipe === 'Antar Cabang' ? (
+            {vehicle?.tipe === 'antar_cabang' ? (
               loadings.length > 0 ? (
-                <LoadingList loadings={loadings} loading={loading} />
+                <LoadingList
+                  branchFilter={vehicle.cabangId}
+                  statusFilter="all"
+                  createOnly={false}
+                />
               ) : (
                 <Typography variant="body1" sx={{ textAlign: 'center', my: 4 }}>
                   Belum ada riwayat muatan untuk kendaraan ini.
@@ -526,7 +484,11 @@ const VehicleDetailPage = () => {
               )
             ) : (
               deliveries.length > 0 ? (
-                <DeliveryList deliveries={deliveries} loading={loading} />
+                <DeliveryList
+                  branchId={vehicle?.cabangId}
+                  onViewDetail={(delivery) => console.log('View delivery:', delivery)}
+                  statusFilter="LANSIR"
+                />
               ) : (
                 <Typography variant="body1" sx={{ textAlign: 'center', my: 4 }}>
                   Belum ada riwayat pengiriman untuk kendaraan ini.
