@@ -10,7 +10,7 @@ import {
   useTheme
 } from '@mui/material';
 import NextLink from 'next/link';
-import { Home as HomeIcon } from '@mui/icons-material';
+import { Home as HomeIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 
 interface PageHeaderProps {
   title: string;
@@ -19,20 +19,55 @@ interface PageHeaderProps {
     label: string;
     href?: string;
   }>;
+  // Back link support
+  backLink?: string;
+  
+  // Support both action methods
   action?: {
     label: string;
     onClick: () => void;
     icon?: ReactNode;
+    variant?: 'primary' | 'secondary' | 'danger';
   };
+  
+  // Support for direct link action
+  primaryActionLabel?: string;
+  primaryActionLink?: string;
+  primaryActionIcon?: ReactNode;
+  
+  // Support for multiple actions
+  actions?: Array<{
+    label: string;
+    onClick: () => void;
+    icon?: ReactNode;
+    variant?: 'primary' | 'secondary' | 'danger';
+  }>;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   subtitle,
   breadcrumbs,
+  backLink,
   action,
+  primaryActionLabel,
+  primaryActionLink,
+  primaryActionIcon,
+  actions,
 }) => {
   const theme = useTheme();
+
+  // Function to get the correct button color based on variant
+  const getButtonProps = (variant?: string) => {
+    switch(variant) {
+      case 'secondary':
+        return { color: 'secondary' as const };
+      case 'danger':
+        return { color: 'error' as const };
+      default:
+        return { color: 'primary' as const };
+    }
+  };
 
   return (
     <Paper 
@@ -91,9 +126,22 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             </Breadcrumbs>
           )}
           
-          <Typography variant="h4" component="h1" gutterBottom>
-            {title}
-          </Typography>
+          <Box display="flex" alignItems="center">
+            {backLink && (
+              <NextLink href={backLink} passHref>
+                <Button
+                  startIcon={<ArrowBackIcon />}
+                  sx={{ mr: 2 }}
+                  variant="text"
+                >
+                  Back
+                </Button>
+              </NextLink>
+            )}
+            <Typography variant="h4" component="h1" gutterBottom>
+              {title}
+            </Typography>
+          </Box>
           
           {subtitle && (
             <Typography variant="subtitle1" color="text.secondary">
@@ -102,16 +150,43 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           )}
         </Box>
         
-        {action && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={action.icon}
-            onClick={action.onClick}
-          >
-            {action.label}
-          </Button>
-        )}
+        <Box display="flex" gap={1}>
+          {actions && actions.map((actionItem, index) => (
+            <Button
+              key={index}
+              variant="contained"
+              {...getButtonProps(actionItem.variant)}
+              startIcon={actionItem.icon}
+              onClick={actionItem.onClick}
+            >
+              {actionItem.label}
+            </Button>
+          ))}
+        
+          {action && (
+            <Button
+              variant="contained"
+              {...getButtonProps(action.variant)}
+              startIcon={action.icon}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </Button>
+          )}
+
+          {primaryActionLink && primaryActionLabel && (
+            <NextLink href={primaryActionLink} passHref>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={primaryActionIcon}
+                component="a"
+              >
+                {primaryActionLabel}
+              </Button>
+            </NextLink>
+          )}
+        </Box>
       </Box>
     </Paper>
   );

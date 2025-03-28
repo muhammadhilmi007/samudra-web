@@ -19,7 +19,12 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const EmployeeDetailPage: React.FC = () => {
+interface EmployeeDetailProps {
+  employeeId: string;
+  onEdit?: () => void;
+}
+
+const EmployeeDetailPage: React.FC<EmployeeDetailProps> = ({ employeeId }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -32,14 +37,14 @@ const EmployeeDetailPage: React.FC = () => {
   const [editLoading, setEditLoading] = React.useState(false);
   
   // Find the employee from the store
-  const employee = employees.find(emp => emp._id === id);
+  const employee = employees.find(emp => emp._id === employeeId);
   
   // Fetch the employee if not in the store
   useEffect(() => {
-    if (id && !employee && !loading) {
-      dispatch(getEmployeeById(id));
+    if (employeeId && !employee && !loading) {
+      dispatch(getEmployeeById(employeeId));
     }
-  }, [dispatch, id, employee, loading]);
+  }, [dispatch, employeeId, employee, loading]);
   
   // Check if user has permission to edit
   // src/pages/employee/[id].tsx (continued)
@@ -48,7 +53,7 @@ const EmployeeDetailPage: React.FC = () => {
     ['admin', 'direktur', 'manajer_sdm', 'kepala_cabang'].includes(user.role);
   
   // Handle edit form submission
-  const handleEditSubmit = (data: any) => {
+  const handleEditSubmit = async (data: FormData): Promise<void> => {
     if (!id) return;
     
     setEditLoading(true);
@@ -57,16 +62,15 @@ const EmployeeDetailPage: React.FC = () => {
       .unwrap()
       .then((result) => {
         toast({
-          title: 'Berhasil',
-          description: `Data pegawai ${result.nama} berhasil diperbarui`,
+          type: "success",
+          message: `Data pegawai ${result.nama} berhasil diperbarui`,
         });
         setOpenEditDialog(false);
       })
       .catch((error) => {
         toast({
-          title: 'Gagal',
-          description: error.message || 'Terjadi kesalahan saat memperbarui data pegawai',
-          variant: 'destructive',
+          type: "error",
+          message: error.message || 'Terjadi kesalahan saat memperbarui data pegawai',
         });
       })
       .finally(() => {
@@ -113,7 +117,7 @@ const EmployeeDetailPage: React.FC = () => {
       ) : employee ? (
         <EmployeeDetail employeeId={id!} onEdit={() => setOpenEditDialog(true)} />
       ) : (
-        <Alert variant="destructive">
+        <Alert variant="standard">
           <UserIcon className="h-4 w-4" />
           <AlertTitle>Pegawai Tidak Ditemukan</AlertTitle>
           <AlertDescription>
@@ -123,7 +127,10 @@ const EmployeeDetailPage: React.FC = () => {
       )}
       
       {/* Edit Dialog */}
-      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+      <Dialog
+        open={openEditDialog}
+        onClose={() => setOpenEditDialog(false)}
+      >
         <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Pegawai</DialogTitle>

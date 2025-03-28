@@ -105,7 +105,7 @@ const BranchDetailPage = () => {
     );
   }
   
-  const divisionName = divisions.find(div => div._id === branch.divisiId)?.namaDivisi || 'Divisi tidak ditemukan';
+  const divisionName = divisions.find(div => div._id === String(branch.divisiId))?.namaDivisi || 'Divisi tidak ditemukan';
   
   return (
     <>
@@ -263,7 +263,7 @@ const BranchDetailPage = () => {
                 
                 <Grid item xs={6} sm={3}>
                   <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
-                    <Typography variant="h4" color="primary">{vehicles.filter(v => v.tipe === 'Antar Cabang').length}</Typography>
+                    <Typography variant="h4" color="primary">{vehicles.filter(v => v.tipe === 'antar_cabang').length}</Typography>
                     <Typography variant="body2" color="text.secondary">Truck</Typography>
                   </Card>
                 </Grid>

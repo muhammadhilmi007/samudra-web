@@ -18,6 +18,7 @@ import reportReducer from './slices/reportSlice';
 import dashboardReducer from './slices/dashboardSlice';
 import truckQueueReducer from './slices/truckQueueSlice';
 import forwarderReducer from './slices/forwarderSlice';
+import pickupReducer from './slices/pickupSlice';
 
 export const store = configureStore({
   reducer: {
@@ -39,6 +40,7 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     truckQueue: truckQueueReducer,
     forwarder: forwarderReducer,
+    pickup: pickupReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

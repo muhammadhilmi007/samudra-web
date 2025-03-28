@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useForm } from 'react-hook-form';
+import { Controller, FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
@@ -154,17 +154,16 @@ const RoleManagement: React.FC = () => {
         .unwrap()
         .then(() => {
           toast({
-            title: 'Success',
-            description: 'Role berhasil diperbarui'
+            type: 'success',
+            message: 'Role berhasil diperbarui'
           });
           dispatch(clearSelectedRole());
           form.reset();
         })
         .catch((error) => {
           toast({
-            title: 'Error',
-            description: error.message || 'Gagal memperbarui role',
-            variant: 'destructive'
+            type: 'error',
+            message: error.message || 'Gagal memperbarui role',
           });
         });
     } else {
@@ -173,16 +172,15 @@ const RoleManagement: React.FC = () => {
         .unwrap()
         .then(() => {
           toast({
-            title: 'Success',
-            description: 'Role berhasil dibuat'
+            type: 'success',
+            message: 'Role berhasil dibuat'
           });
           form.reset();
         })
         .catch((error) => {
           toast({
-            title: 'Error',
-            description: error.message || 'Gagal membuat role',
-            variant: 'destructive'
+            type: 'error',
+            message: error.message || 'Gagal membuat role',
           });
         });
     }
@@ -195,17 +193,16 @@ const RoleManagement: React.FC = () => {
         .unwrap()
         .then(() => {
           toast({
-            title: 'Success',
-            description: 'Role berhasil dihapus'
+            type: 'success',
+            message: 'Role berhasil dihapus'
           });
           dispatch(clearSelectedRole());
           setIsDeleteDialogOpen(false);
         })
         .catch((error) => {
           toast({
-            title: 'Error',
-            description: error.message || 'Gagal menghapus role',
-            variant: 'destructive'
+            type: 'error',
+            message: error.message || 'Gagal menghapus role',
           });
           setIsDeleteDialogOpen(false);
         });
@@ -305,9 +302,9 @@ const RoleManagement: React.FC = () => {
             
             {/* Role Form */}
             <div className="col-span-12 md:col-span-8">
-              <Form {...form}>
+              <FormProvider {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
+                  <Controller
                     control={form.control}
                     name="namaRole"
                     render={({ field }) => (
@@ -333,7 +330,7 @@ const RoleManagement: React.FC = () => {
                         <h4 className="font-semibold capitalize">{category}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {Object.entries(permissions).map(([key, label]) => (
-                            <FormField
+                            <Controller
                               key={key}
                               control={form.control}
                               name="permissions"
@@ -366,7 +363,7 @@ const RoleManagement: React.FC = () => {
                   <div className="flex justify-end space-x-2">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="outlined"
                       onClick={() => {
                         dispatch(clearSelectedRole());
                         form.reset();
@@ -385,15 +382,15 @@ const RoleManagement: React.FC = () => {
                     </Button>
                   </div>
                 </form>
-              </Form>
+              </FormProvider>
             </div>
           </div>
         </CardContent>
       </Card>
       
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+      <AlertDialog>
+        <AlertDialogContent open={isDeleteDialogOpen} onOpenChange={() => setIsDeleteDialogOpen(false)}>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Role</AlertDialogTitle>
             <AlertDialogDescription>
@@ -402,7 +399,7 @@ const RoleManagement: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteRole} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={handleDeleteRole}>
               {loading ? (
                 <>
                   <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

@@ -48,6 +48,7 @@ import {
   Inventory as InventoryIcon,
   FileCopy as FileCopyIcon,
   Schedule as ScheduleIcon,
+  Check as CheckIcon,
 } from "@mui/icons-material";
 import Head from "next/head";
 import { useDispatch, useSelector } from "react-redux";
@@ -118,6 +119,7 @@ const pickupSchema = z.object({
   kendaraanId: z.string().min(1, "Kendaraan wajib dipilih"),
   estimasiPengambilan: z.string().min(1, "Estimasi pengambilan wajib diisi"),
   cabangId: z.string().min(1, "Cabang wajib dipilih"),
+  alamatPengambilan: z.string().min(1, "Alamat pengambilan wajib diisi")
 });
 
 const PickupPage = () => {
@@ -184,6 +186,7 @@ const PickupPage = () => {
       kendaraanId: "",
       estimasiPengambilan: "",
       cabangId: user?.cabangId || "",
+      alamatPengambilan: "",
     },
   });
 
@@ -192,7 +195,7 @@ const PickupPage = () => {
     dispatch(getBranches());
     dispatch(getSenders());
     dispatch(getVehicles());
-    dispatch(getEmployees());
+    dispatch(getEmployees({}));
     dispatch(getPendingPickupRequests());
 
     // Load requests and pickups
@@ -251,6 +254,7 @@ const PickupPage = () => {
       kendaraanId: "",
       estimasiPengambilan: "",
       cabangId: request.cabangId,
+      alamatPengambilan: request.alamatPengambilan,
     });
     setProcessingRequestId(request._id);
     setOpenPickupDialog(true);
@@ -296,13 +300,16 @@ const PickupPage = () => {
   const onSubmitPickup = async (data: PickupFormInputs) => {
     try {
       await dispatch(createPickup(data)).unwrap();
-  
+
       if (processingRequestId) {
         await dispatch(
-          updatePickupRequestStatus({ id: processingRequestId, status: "FINISH" })
+          updatePickupRequestStatus({
+            id: processingRequestId,
+            status: "FINISH",
+          })
         ).unwrap();
       }
-  
+
       handleClosePickupDialog();
     } catch (error) {
       console.error("Failed to process pickup:", error);
@@ -339,52 +346,52 @@ const PickupPage = () => {
   };
 
   // Filter functions
-const filterPickupRequests = (requests: PickupRequest[]) => {
-  if (!Array.isArray(requests)) return [];
-  
-  return requests.filter((request) => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        request.pengirim?.nama.toLowerCase().includes(searchLower) ||
-        request.alamatPengambilan.toLowerCase().includes(searchLower) ||
-        request.tujuan.toLowerCase().includes(searchLower)
-      );
-    }
-    return true;
-  });
-};
+  const filterPickupRequests = (requests: PickupRequest[]) => {
+    if (!Array.isArray(requests)) return [];
 
-// Filtered and paginated data
-const filteredRequests = filterPickupRequests(pickupRequests || []);
-const filteredPendingRequests = filterPickupRequests(pendingRequests || []);
+    return requests.filter((request) => {
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          request.pengirim?.nama.toLowerCase().includes(searchLower) ||
+          request.alamatPengambilan.toLowerCase().includes(searchLower) ||
+          request.tujuan.toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
+    });
+  };
 
-const paginatedRequests = filteredRequests.slice(
-  page * rowsPerPage,
-  page * rowsPerPage + rowsPerPage
-);
-const paginatedPendingRequests = filteredPendingRequests.slice(
-  page * rowsPerPage,
-  page * rowsPerPage + rowsPerPage
-);
-const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
-  page * rowsPerPage,
-  page * rowsPerPage + rowsPerPage
-) : [];
+  // Filtered and paginated data
+  const filteredRequests = filterPickupRequests(pickupRequests || []);
+  const filteredPendingRequests = filterPickupRequests(pendingRequests || []);
+
+  const paginatedRequests = filteredRequests.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+  // No need to paginate pending requests since we're using card view
+  const pendingRequestsToShow = filteredPendingRequests.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+  const paginatedPickups = Array.isArray(pickups)
+    ? pickups.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+    : [];
 
   // Filter employees to get drivers and assistants
   const drivers = employees.filter(
-    (emp) => emp.jabatan === "Supir" || emp.role === "supir"
+    (emp) => emp.jabatan === "Supir" || emp.role?.kodeRole === "supir"
   );
 
   const assistants = employees.filter(
-    (emp) => emp.jabatan === "Kenek" || emp.role === "kenek"
+    (emp) => emp.jabatan === "Kenek" || emp.role?.kodeRole === "kenek"
   );
 
   // Filter vehicles for pickups (only lansir vehicles)
-  const pickupVehicles = Array.isArray(vehicles) ? vehicles.filter(
-    (vehicle) => vehicle.tipe === "Lansir"
-  ) : [];
+  const pickupVehicles = Array.isArray(vehicles)
+    ? vehicles.filter((vehicle) => vehicle.tipe === "lansir")
+    : [];
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -464,8 +471,8 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                     label="Cabang"
                     onChange={handleBranchFilter as any}
                   >
-                    <MenuItem value="">Semua Cabang</MenuItem>
-                    {branches.map((branch) => (
+                    <MenuItem key="all-branches" value="">Semua Cabang</MenuItem>
+                    {Array.isArray(branches) && branches.map((branch) => (
                       <MenuItem key={branch._id} value={branch._id}>
                         {branch.namaCabang}
                       </MenuItem>
@@ -535,32 +542,38 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                           </TableCell>
                           <TableCell>
                             <Tooltip title="Edit">
-                              <IconButton
-                                onClick={() => handleOpenRequestDialog(request)}
-                                disabled={request.status !== "PENDING"}
-                              >
-                                <EditIcon />
-                              </IconButton>
+                              <span>
+                                <IconButton
+                                  onClick={() => handleOpenRequestDialog(request)}
+                                  disabled={request.status !== "PENDING"}
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                             <Tooltip title="Update Status">
-                              <IconButton
-                                onClick={() =>
-                                  handleUpdateStatus(request._id, "FINISH")
-                                }
-                                disabled={request.status !== "PENDING"}
-                              >
-                                <CheckIcon />
-                              </IconButton>
+                              <span>
+                                <IconButton
+                                  onClick={() =>
+                                    handleUpdateStatus(request._id, "FINISH")
+                                  }
+                                  disabled={request.status !== "PENDING"}
+                                >
+                                  <CheckIcon />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                             <Tooltip title="Hapus">
-                              <IconButton
-                                onClick={() =>
-                                  handleOpenDeleteDialog(request._id)
-                                }
-                                disabled={request.status !== "PENDING"}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
+                              <span>
+                                <IconButton
+                                  onClick={() =>
+                                    handleOpenDeleteDialog(request._id)
+                                  }
+                                  disabled={request.status !== "PENDING"}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                             {request.status === "PENDING" && (
                               <Tooltip title="Proses Pengambilan">
@@ -775,22 +788,22 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                     ) : (
                       paginatedPickups.map((pickup) => (
                         <TableRow key={pickup._id}>
-                          <TableCell>{pickup.noPengambilan}</TableCell>
+                          <TableCell>{pickup?.noPengambilan}</TableCell>
                           <TableCell>
-                            {formatDate(pickup.tanggal || pickup.createdAt)}
+                            {formatDate(pickup?.tanggal || pickup?.createdAt)}
                           </TableCell>
-                          <TableCell>{pickup.pengirim?.nama || "-"}</TableCell>
-                          <TableCell>{pickup.supir?.nama || "-"}</TableCell>
+                          <TableCell>{pickup?.pengirim?.nama || "-"}</TableCell>
+                          <TableCell>{pickup?.supir?.nama || "-"}</TableCell>
                           <TableCell>
-                            {pickup.kendaraan?.noPolisi || "-"}
+                            {pickup?.kendaraan?.noPolisi || "-"}
                           </TableCell>
-                          <TableCell>{pickup.sttIds.length}</TableCell>
+                          <TableCell>{pickup?.sttIds?.length || 0}</TableCell>
                           <TableCell>
                             <Chip
                               label={
-                                pickup.waktuPulang ? "Selesai" : "Dalam Proses"
+                                pickup?.waktuPulang ? "Selesai" : "Dalam Proses"
                               }
-                              color={pickup.waktuPulang ? "success" : "warning"}
+                              color={pickup?.waktuPulang ? "success" : "warning"}
                               size="small"
                             />
                           </TableCell>
@@ -842,26 +855,27 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
           <DialogContent>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-              <Controller
-  name="pengirimId"
-  control={requestControl}
-  render={({ field }) => (
-    <TextField
-      {...field}
-      select
-      label="Pengirim"
-      error={!!requestErrors.pengirimId}
-      helperText={requestErrors.pengirimId?.message}
-      fullWidth
-    >
-      {Array.isArray(senders) ? senders.map((sender) => (
-        <MenuItem key={sender._id} value={sender._id}>
-          {sender.nama}
-        </MenuItem>
-      )) : null}
-    </TextField>
-  )}
-/>
+                <Controller
+                  name="pengirimId"
+                  control={requestControl}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      select
+                      label="Pengirim"
+                      error={!!requestErrors.pengirimId}
+                      helperText={requestErrors.pengirimId?.message}
+                      fullWidth
+                    >
+                      <MenuItem key="select-sender" value="">Pilih Pengirim...</MenuItem>
+                      {Array.isArray(senders) && senders.map((sender) => (
+                        <MenuItem key={sender._id} value={sender._id}>
+                          {sender.nama}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
               </Grid>
 
               <Grid item xs={12}>
@@ -956,7 +970,8 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                       helperText={requestErrors.cabangId?.message}
                       disabled={!!user?.cabangId}
                     >
-                      {branches.map((branch) => (
+                      <MenuItem key="select-branch" value="">Pilih Cabang...</MenuItem>
+                      {Array.isArray(branches) && branches.map((branch) => (
                         <MenuItem key={branch._id} value={branch._id}>
                           {branch.namaCabang}
                         </MenuItem>
@@ -1008,7 +1023,8 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                       error={!!pickupErrors.supirId}
                       helperText={pickupErrors.supirId?.message}
                     >
-                      {drivers.map((driver) => (
+                      <MenuItem key="select-driver" value="">Pilih Supir...</MenuItem>
+                      {Array.isArray(drivers) && drivers.map((driver) => (
                         <MenuItem key={driver._id} value={driver._id}>
                           {driver.nama}
                         </MenuItem>
@@ -1032,8 +1048,8 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                       error={!!pickupErrors.kenekId}
                       helperText={pickupErrors.kenekId?.message}
                     >
-                      <MenuItem value="">Pilih Kenek...</MenuItem>
-                      {assistants.map((assistant) => (
+                      <MenuItem key="select-assistant" value="">Pilih Kenek...</MenuItem>
+                      {Array.isArray(assistants) && assistants.map((assistant) => (
                         <MenuItem key={assistant._id} value={assistant._id}>
                           {assistant.nama}
                         </MenuItem>
@@ -1057,7 +1073,8 @@ const paginatedPickups = Array.isArray(pickups) ? pickups.slice(
                       error={!!pickupErrors.kendaraanId}
                       helperText={pickupErrors.kendaraanId?.message}
                     >
-                      {pickupVehicles.map((vehicle) => (
+                      <MenuItem key="select-vehicle" value="">Pilih Kendaraan...</MenuItem>
+                      {Array.isArray(pickupVehicles) && pickupVehicles.map((vehicle) => (
                         <MenuItem key={vehicle._id} value={vehicle._id}>
                           {vehicle.namaKendaraan} ({vehicle.noPolisi})
                         </MenuItem>

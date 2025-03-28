@@ -4,7 +4,8 @@ import { useRouter } from 'next/router';
 import { useDispatch, useSelector } from 'react-redux';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { z } from 'zod';
+import { ArrowBack } from '@mui/icons-material'; // Add this import
 
 import { RootState, AppDispatch } from '../../store';
 import { 
@@ -19,11 +20,14 @@ import PageHeader from '../../components/shared/PageHeader';
 
 // Validation schema
 const pickupRequestSchema = z.object({
-  pengirimId: z.string().min(1, "Pengirim harus dipilih"),
-  alamatPengambilan: z.string().min(1, "Alamat pengambilan harus diisi"),
-  tujuan: z.string().min(1, "Tujuan harus diisi"),
-  jumlahColly: z.number().min(1, "Jumlah colly harus lebih dari 0")
+  pengirimId: z.string(),
+  alamatPengambilan: z.string(),
+  tujuan: z.string(),
+  jumlahColly: z.number(),
+  // Add any other fields that should be in your form
+  cabangId: z.string(), // Add this if it's needed
 });
+
 
 const EditPickupRequestPage: NextPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -79,6 +83,12 @@ const EditPickupRequestPage: NextPage = () => {
     }
   };
 
+  const handleBack = () => {
+    if (id) {
+      router.push(`/pickup/${id}`);
+    }
+  };
+
   if (!pickupRequest) {
     return <div>Loading...</div>;
   }
@@ -86,8 +96,17 @@ const EditPickupRequestPage: NextPage = () => {
   return (
     <Layout>
       <PageHeader 
-        title="Edit Permintaan Pengambilan" 
-        backLink={`/pickup/${id}`}
+        title="Edit Permintaan Pengambilan"
+        breadcrumbs={[
+          { label: "Pickup Requests", href: "/pickup" },
+          { label: "Detail", href: `/pickup/${id}` },
+          { label: "Edit" }
+        ]}
+        action={{
+          label: "Kembali",
+          onClick: handleBack,
+          icon: <ArrowBack />
+        }}
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

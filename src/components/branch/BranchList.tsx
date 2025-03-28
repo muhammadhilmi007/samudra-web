@@ -109,7 +109,10 @@ const BranchList: React.FC<BranchListProps> = ({ onViewDetail }) => {
         // Update existing branch
         await dispatch(updateBranch({
           id: selectedBranch._id,
-          branchData
+          branchData: {
+            ...branchData,
+            divisiId: branchData.divisiId?._id // Extract just the _id from the divisiId object
+          }
         })).unwrap();
       } else {
         // Create new branch

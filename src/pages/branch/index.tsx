@@ -123,6 +123,10 @@ const BranchAndDivisionPage = () => {
   const divisions = useSelector(selectDivisionList);
   const { error: uiError, success } = useSelector(selectUiState);
 
+  // Initialize with first available division or empty string
+  const [selectedDivisiId, setSelectedDivisiId] = useState<string>(() =>
+    divisions && divisions.length > 0 ? divisions[0]._id : ""
+  );
   const [tabValue, setTabValue] = useState(0);
   const [openDivisionDialog, setOpenDivisionDialog] = useState(false);
   const [openBranchDialog, setOpenBranchDialog] = useState(false);
@@ -158,7 +162,7 @@ const BranchAndDivisionPage = () => {
     resolver: zodResolver(branchSchema),
     defaultValues: {
       namaCabang: "",
-      divisiId: "",
+      divisiId: divisions.length > 0 ? divisions[0]._id : "", // Set default division
       alamat: "",
       kelurahan: "",
       kecamatan: "",
@@ -315,13 +319,14 @@ const BranchAndDivisionPage = () => {
     if (editingBranch) {
       const updatedBranchData = {
         ...branchData,
-        // Extract just the ID from the divisiId object if it exists
-        divisiId:
-          branchData.divisiId && typeof branchData.divisiId === "object"
-            ? branchData.divisiId._id
-            : branchData.divisiId,
+        divisiId: data.divisiId, // Use form data instead of selectedDivisiId
+        kontakPenanggungJawab: {
+          nama: branchData.kontakPenanggungJawab?.nama || '',
+          telepon: branchData.kontakPenanggungJawab?.telepon || '',
+          email: branchData.kontakPenanggungJawab?.email || ''
+        }
       };
-
+      
       dispatch(
         updateBranch({ id: editingBranch._id, branchData: updatedBranchData })
       );
@@ -335,10 +340,10 @@ const BranchAndDivisionPage = () => {
           kecamatan: branchData.kecamatan!,
           kota: branchData.kota!,
           provinsi: branchData.provinsi!,
-          kontakPenanggungJawab: branchData.kontakPenanggungJawab || {
-            nama: "",
-            telepon: "",
-            email: "",
+          kontakPenanggungJawab: {
+            nama: branchData.kontakPenanggungJawab?.nama || "",
+            telepon: branchData.kontakPenanggungJawab?.telepon || "",
+            email: branchData.kontakPenanggungJawab?.email || "", // Ensure email is always a string
           },
         })
       );

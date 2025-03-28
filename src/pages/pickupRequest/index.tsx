@@ -13,10 +13,13 @@ import Layout from '../../components/layout/Layout';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
 import ConfirmDialog from '../../components/shared/ConfirmDialog';
+import { Box, Button, ButtonGroup } from '@mui/material';
+import { useRouter } from 'next/router';
 
 const PickupRequestsPage: NextPage = () => {
   const dispatch: AppDispatch = useDispatch();
-  const { pickupRequests, pendingRequests } = useSelector((state: RootState) => state.pickupRequest);
+  const { pickupRequests, pendingRequests, loading } = useSelector((state: RootState) => state.pickupRequest);
+  const router = useRouter();
   
   const [selectedRequest, setSelectedRequest] = useState<PickupRequest | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -26,6 +29,14 @@ const PickupRequestsPage: NextPage = () => {
     dispatch(getPickupRequests());
     dispatch(getPendingPickupRequests());
   }, [dispatch]);
+
+  const handleViewRequest = (request: PickupRequest) => {
+    router.push(`/pickup/detail/${request._id}`);
+  };
+
+  const handleEditRequest = (request: PickupRequest) => {
+    router.push(`/pickup/edit/${request._id}`);
+  };
 
   const handleDeleteClick = (request: PickupRequest) => {
     setSelectedRequest(request);
@@ -40,53 +51,49 @@ const PickupRequestsPage: NextPage = () => {
     }
   };
 
-  const pickupRequestColumns = [
+  const columns = [
     { 
-      header: 'Tanggal', 
-      accessor: 'tanggal',
-      cell: (row: PickupRequest) => new Date(row.tanggal).toLocaleDateString()
+      id: 'tanggal', 
+      label: 'Tanggal',
+      format: (value: string) => new Date(value).toLocaleDateString()
     },
     { 
-      header: 'Pengirim', 
-      accessor: 'pengirim.nama',
-      cell: (row: PickupRequest) => row.pengirim?.nama || '-'
+      id: 'pengirimNama', 
+      label: 'Pengirim',
+      format: (value: string) => value || '-'
     },
     { 
-      header: 'Alamat Pengambilan', 
-      accessor: 'alamatPengambilan' 
+      id: 'alamatPengambilan', 
+      label: 'Alamat Pengambilan'
     },
     { 
-      header: 'Tujuan', 
-      accessor: 'tujuan' 
+      id: 'tujuan', 
+      label: 'Tujuan'
     },
     { 
-      header: 'Jumlah Colly', 
-      accessor: 'jumlahColly' 
+      id: 'jumlahColly', 
+      label: 'Jumlah Colly'
     },
     { 
-      header: 'Status', 
-      accessor: 'status' 
-    },
-    { 
-      header: 'Aksi', 
-      cell: (row: PickupRequest) => (
-        <div className="flex space-x-2">
-          <button 
-            className="text-blue-500 hover:text-blue-700"
-            onClick={() => {/* Navigate to detail page */}}
-          >
-            Lihat
-          </button>
-          <button 
-            className="text-red-500 hover:text-red-700"
-            onClick={() => handleDeleteClick(row)}
-          >
-            Hapus
-          </button>
-        </div>
-      )
+      id: 'status', 
+      label: 'Status'
     }
   ];
+
+  // Transform data to match DataTable requirements
+  const formatDataForTable = (data: PickupRequest[]) => {
+    return data.map(item => ({
+      id: item._id,
+      tanggal: item.tanggal,
+      pengirimNama: item.pengirim?.nama,
+      alamatPengambilan: item.alamatPengambilan,
+      tujuan: item.tujuan,
+      jumlahColly: item.jumlahColly,
+      status: item.status,
+      // Keep the original item for action handlers
+      originalData: item
+    }));
+  };
 
   return (
     <Layout>
@@ -96,24 +103,32 @@ const PickupRequestsPage: NextPage = () => {
         primaryActionLink="/pickup/create"
       />
 
-      <div className="flex mb-4">
-        <button 
-          className={`px-4 py-2 ${activeTab === 'all' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-          onClick={() => setActiveTab('all')}
-        >
-          Semua Permintaan
-        </button>
-        <button 
-          className={`px-4 py-2 ${activeTab === 'pending' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-          onClick={() => setActiveTab('pending')}
-        >
-          Permintaan Pending
-        </button>
-      </div>
+      <Box mb={2}>
+        <ButtonGroup variant="contained">
+          <Button 
+            color={activeTab === 'all' ? 'primary' : 'inherit'}
+            onClick={() => setActiveTab('all')}
+          >
+            Semua Permintaan
+          </Button>
+          <Button 
+            color={activeTab === 'pending' ? 'primary' : 'inherit'}
+            onClick={() => setActiveTab('pending')}
+          >
+            Permintaan Pending
+          </Button>
+        </ButtonGroup>
+      </Box>
 
       <DataTable 
-        columns={pickupRequestColumns}
-        data={activeTab === 'all' ? pickupRequests : pendingRequests}
+        columns={columns}
+        rows={formatDataForTable(activeTab === 'all' ? pickupRequests : pendingRequests)}
+        title={activeTab === 'all' ? "Semua Permintaan Pengambilan" : "Permintaan Pengambilan Pending"}
+        onView={(row) => handleViewRequest(row.originalData)}
+        onEdit={(row) => handleEditRequest(row.originalData)}
+        onDelete={(row) => handleDeleteClick(row.originalData)}
+        loading={loading}
+        searchPlaceholder="Cari permintaan..."
       />
 
       <ConfirmDialog 
@@ -121,7 +136,7 @@ const PickupRequestsPage: NextPage = () => {
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Hapus Permintaan Pengambilan"
-        message="Apakah Anda yakin ingin menghapus permintaan pengambilan ini?"
+        content="Apakah Anda yakin ingin menghapus permintaan pengambilan ini?"
       />
     </Layout>
   );

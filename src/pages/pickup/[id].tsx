@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import PickupRequestList from '../../components/pickup/PickupRequestList';
+import PickupRequestList from '../../components/pickup/PickupList';
 import { Plus } from 'lucide-react';
 
 const PickupRequestPage: React.FC = () => {

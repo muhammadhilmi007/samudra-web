@@ -22,12 +22,11 @@ const CreateEmployeePage: React.FC = () => {
     ['direktur', 'manajer_admin', 'manajer_sdm', 'kepala_cabang'].includes(user.role);
   
   // Handle form submission
-  const handleSubmit = (data: any) => {
+  const handleSubmit = async (data: FormData): Promise<void> => {
     if (!canCreate) {
       toast({
-        title: "Akses Ditolak",
-        description: "Anda tidak memiliki izin untuk membuat pegawai baru",
-        variant: "destructive",
+        message: "Anda tidak memiliki izin untuk membuat pegawai baru",
+        type: "error"
       });
       return;
     }
@@ -38,16 +37,14 @@ const CreateEmployeePage: React.FC = () => {
       .unwrap()
       .then((result) => {
         toast({
-          title: "Berhasil",
-          description: `Pegawai ${result.nama} berhasil ditambahkan`,
+          message: `Pegawai ${result.nama} berhasil ditambahkan`,
         });
         navigate(`/employee/${result._id}`);
       })
       .catch((error) => {
         toast({
-          title: "Gagal",
-          description: error.message || "Terjadi kesalahan saat menambahkan pegawai",
-          variant: "destructive",
+          message: error.message || "Terjadi kesalahan saat menambahkan pegawai",
+          type: "error"
         });
       })
       .finally(() => {
@@ -59,8 +56,8 @@ const CreateEmployeePage: React.FC = () => {
     return (
       <div className="container mx-auto py-6 space-y-6">
         <Button 
-          variant="ghost" 
-          size="sm" 
+          variant="text" 
+          size="small" 
           className="mb-2"
           onClick={() => navigate("/employee")}
         >
@@ -68,7 +65,7 @@ const CreateEmployeePage: React.FC = () => {
           Kembali
         </Button>
         
-        <Alert variant="destructive">
+        <Alert variant="standard">
           <UserPlus className="h-4 w-4" />
           <AlertTitle>Akses Ditolak</AlertTitle>
           <AlertDescription>
@@ -84,8 +81,8 @@ const CreateEmployeePage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <Button 
-            variant="ghost" 
-            size="sm" 
+            variant="text" 
+            size="small" 
             className="mb-2"
             onClick={() => navigate("/employee")}
           >
@@ -99,7 +96,7 @@ const CreateEmployeePage: React.FC = () => {
         </div>
       </div>
       
-      <EmployeeForm onSubmit={handleSubmit} loading={loading} />
+      <EmployeeForm onSubmit={async (data) => await handleSubmit(data)} loading={loading} />
     </div>
   );
 };

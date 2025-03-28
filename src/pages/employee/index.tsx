@@ -150,7 +150,7 @@ const EmployeePage = () => {
     defaultValues: {
       nama: '',
       jabatan: '',
-      roleId: '',
+      roleId: user?.roleId || '',
       email: '',
       telepon: '',
       alamat: '',
@@ -164,6 +164,7 @@ const EmployeePage = () => {
       'dokumen.npwp': null,
     },
   });
+  
 
   useEffect(() => {
     // Load initial data
@@ -174,7 +175,7 @@ const EmployeePage = () => {
     if (filterBranch) {
       dispatch(getEmployeesByBranch(filterBranch));
     } else {
-      dispatch(getEmployees());
+      dispatch(getEmployees(null));
     }
   }, [dispatch, filterBranch]);
 
@@ -203,14 +204,14 @@ const EmployeePage = () => {
       reset({
         nama: employee.nama,
         jabatan: employee.jabatan,
-        roleId: employee.roleId,
+        roleId: typeof employee.roleId === 'string' ? employee.roleId : '',
         email: employee.email || '',
         telepon: employee.telepon,
         alamat: employee.alamat,
         username: employee.username,
         password: '', // Don't populate password for edit
         confirmPassword: '',
-        cabangId: employee.cabangId,
+        cabangId: typeof employee.cabangId === 'string' ? employee.cabangId : '',
         aktif: employee.aktif,
         fotoProfil: null,
         'dokumen.ktp': null,
@@ -544,7 +545,7 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.nama}
-                        helperText={errors.nama?.message}
+                        helperText={errors.nama?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -569,7 +570,8 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.roleId}
-                        helperText={errors.roleId?.message}
+                        helperText={errors.roleId?.message?.toString()}
+                        value={typeof field.value === 'string' ? field.value : ''}
                       >
                         {roles.map((role) => (
                           <MenuItem key={role._id} value={role._id}>
@@ -592,7 +594,7 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.jabatan}
-                        helperText={errors.jabatan?.message}
+                        helperText={errors.jabatan?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -617,9 +619,11 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.cabangId}
-                        helperText={errors.cabangId?.message}
+                        helperText={errors.cabangId?.message?.toString()}
                         disabled={!!user?.cabangId}
+                        value={typeof field.value === 'string' ? field.value : ''} // Ensure value is a string
                       >
+                        <MenuItem value="">Pilih Cabang</MenuItem>
                         {branches.map((branch) => (
                           <MenuItem key={branch._id} value={branch._id}>
                             {branch.namaCabang}
@@ -641,7 +645,7 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.telepon}
-                        helperText={errors.telepon?.message}
+                        helperText={errors.telepon?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -666,7 +670,7 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.email}
-                        helperText={errors.email?.message}
+                        helperText={errors.email?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -706,7 +710,7 @@ const EmployeePage = () => {
                         multiline
                         rows={2}
                         error={!!errors.alamat}
-                        helperText={errors.alamat?.message}
+                        helperText={errors.alamat?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -735,7 +739,7 @@ const EmployeePage = () => {
                         fullWidth
                         margin="normal"
                         error={!!errors.username}
-                        helperText={errors.username?.message}
+                        helperText={errors.username?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -760,7 +764,7 @@ const EmployeePage = () => {
                         margin="normal"
                         type={showPassword ? 'text' : 'password'}
                         error={!!errors.password}
-                        helperText={errors.password?.message}
+                        helperText={errors.password?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -796,7 +800,7 @@ const EmployeePage = () => {
                         margin="normal"
                         type={showPassword ? 'text' : 'password'}
                         error={!!errors.confirmPassword}
-                        helperText={errors.confirmPassword?.message}
+                        helperText={errors.confirmPassword?.message?.toString()}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">

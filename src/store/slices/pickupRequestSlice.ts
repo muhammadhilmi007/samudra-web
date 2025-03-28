@@ -293,7 +293,10 @@ const pickupRequestSlice = createSlice({
     builder
       // Get all pickup requests
       .addCase(getPickupRequests.fulfilled, (state, action) => {
-        state.pickupRequests = action.payload;
+        state.pickupRequests = Array.isArray(action.payload) ? action.payload : [];
+      })
+      .addCase(getPickupRequests.rejected, (state) => {
+        state.pickupRequests = [];
       })
       // Get pending pickup requests
       .addCase(getPendingPickupRequests.fulfilled, (state, action) => {
@@ -305,24 +308,22 @@ const pickupRequestSlice = createSlice({
       })
       // Create pickup request
       .addCase(createPickupRequest.fulfilled, (state, action) => {
-        state.pickupRequests.push(action.payload);
+        state.pickupRequests = Array.isArray(state.pickupRequests) ? [...state.pickupRequests, action.payload] : [action.payload];
         if (action.payload.status === 'PENDING') {
-          state.pendingRequests.push(action.payload);
+          state.pendingRequests = Array.isArray(state.pendingRequests) ? [...state.pendingRequests, action.payload] : [action.payload];
         }
         state.pickupRequest = action.payload;
       })
       // Update pickup request
       .addCase(updatePickupRequest.fulfilled, (state, action) => {
-        state.pickupRequests = state.pickupRequests.map((request) =>
-          request._id === action.payload._id ? action.payload : request
-        );
-        if (action.payload.status === 'PENDING') {
-          state.pendingRequests = state.pendingRequests.map((request) =>
-            request._id === action.payload._id ? action.payload : request
-          );
-        } else {
-          state.pendingRequests = state.pendingRequests.filter((request) => request._id !== action.payload._id);
-        }
+        state.pickupRequests = Array.isArray(state.pickupRequests) 
+          ? state.pickupRequests.map((request) => request._id === action.payload._id ? action.payload : request)
+          : [action.payload];
+        state.pendingRequests = Array.isArray(state.pendingRequests)
+          ? action.payload.status === 'PENDING'
+            ? state.pendingRequests.map((request) => request._id === action.payload._id ? action.payload : request)
+            : state.pendingRequests.filter((request) => request._id !== action.payload._id)
+          : action.payload.status === 'PENDING' ? [action.payload] : [];
         state.pickupRequest = action.payload;
       })
       // Update pickup request status
@@ -341,8 +342,12 @@ const pickupRequestSlice = createSlice({
       })
       // Delete pickup request
       .addCase(deletePickupRequest.fulfilled, (state, action) => {
-        state.pickupRequests = state.pickupRequests.filter((request) => request._id !== action.payload);
-        state.pendingRequests = state.pendingRequests.filter((request) => request._id !== action.payload);
+        state.pickupRequests = Array.isArray(state.pickupRequests)
+          ? state.pickupRequests.filter((request) => request._id !== action.payload)
+          : [];
+        state.pendingRequests = Array.isArray(state.pendingRequests)
+          ? state.pendingRequests.filter((request) => request._id !== action.payload)
+          : [];
         if (state.pickupRequest && state.pickupRequest._id === action.payload) {
           state.pickupRequest = null;
         }
@@ -357,7 +362,7 @@ const pickupRequestSlice = createSlice({
       })
       // Create pickup
       .addCase(createPickup.fulfilled, (state, action) => {
-        state.pickups.push(action.payload);
+        state.pickups = [...state.pickups, action.payload];
         state.pickup = action.payload;
       })
       // Update pickup

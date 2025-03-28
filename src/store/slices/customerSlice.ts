@@ -7,6 +7,7 @@ import { getSTTsByCustomer } from './sttSlice';
 
 interface CustomerState {
   customers: Customer[];
+  loading: boolean;
   selectedCustomer: Customer | null;
   senders: Customer[];
   recipients: Customer[];
@@ -22,7 +23,8 @@ const initialState: CustomerState = {
   recipients: [],
   customerSTTs: [],
   customerCollections: [],
-  customerPickups: []
+  customerPickups: [],
+  loading: false
 };
 
 // Get all customers

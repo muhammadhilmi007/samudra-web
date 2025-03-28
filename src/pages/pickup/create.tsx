@@ -43,8 +43,8 @@ const CreatePickupRequestPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <Button 
-            variant="ghost" 
-            size="sm" 
+            variant="text" 
+            size="small" 
             className="mb-2"
             onClick={() => navigate(-1)}
           >

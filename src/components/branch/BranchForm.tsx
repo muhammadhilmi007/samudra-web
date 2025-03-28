@@ -45,6 +45,7 @@ type FormInputs = z.infer<typeof branchSchema>;
 
 interface BranchFormProps {
   initialData?: Branch;
+  initialValues?: Branch;
   onSubmit?: (data: BranchFormInputs) => void;
   onCancel?: () => void;
   loading?: boolean;
