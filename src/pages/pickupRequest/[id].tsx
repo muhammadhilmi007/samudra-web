@@ -55,8 +55,6 @@ const PickupRequestDetailPage: NextPage = () => {
 
   return (
     <Layout>
-      // src/pages/pickupRequest/[id].tsx // Only showing the relevant part
-      where PageHeader is used
       <PageHeader
         title="Detail Permintaan Pengambilan"
         backLink="/pickup"

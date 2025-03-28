@@ -162,7 +162,7 @@ const PickupDetail: React.FC<PickupDetailProps> = ({
               Informasi lengkap tentang proses pengambilan barang
             </CardDescription>
           </div>
-          {getStatusBadge(selectedPickup.stts)}
+          {getStatusBadge(selectedPickup.status)}
         </CardHeader>
         <CardContent className={`${printable ? "print:py-3" : ""}`}>
           <div className="grid md:grid-cols-2 gap-6">

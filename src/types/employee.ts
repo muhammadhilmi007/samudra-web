@@ -108,7 +108,7 @@ export interface Role {
 
 export interface RoleFormInputs {
   namaRole: string;
-  kodeRole: string;
+  kodeRole: string | '';
   permissions: string[];
 }
 

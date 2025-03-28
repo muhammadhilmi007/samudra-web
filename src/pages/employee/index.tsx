@@ -175,9 +175,13 @@ const EmployeePage = () => {
     if (filterBranch) {
       dispatch(getEmployeesByBranch(filterBranch));
     } else {
-      dispatch(getEmployees(null));
+      dispatch(getEmployees({}));
     }
   }, [dispatch, filterBranch]);
+
+  useEffect(() => {
+    console.log("Current employees data:", employees);
+  }, [employees]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -320,10 +324,10 @@ const EmployeePage = () => {
   };
 
   // Filter employees based on search term and filters
-  const filteredEmployees = employees.filter((employee) => {
+  const filteredEmployees = (employees || []).filter((employee) => {
     // Filter by role if set
     if (filterRole) {
-      const employeeRole = roles.find(r => r._id === employee.roleId)?.namaRole.toLowerCase() || '';
+      const employeeRole = (roles || []).find(r => r._id === employee.roleId)?.namaRole?.toLowerCase() || '';
       if (!employeeRole.includes(filterRole)) {
         return false;
       }
@@ -335,8 +339,8 @@ const EmployeePage = () => {
         employee.nama.toLowerCase().includes(searchLower) ||
         employee.jabatan.toLowerCase().includes(searchLower) ||
         employee.username.toLowerCase().includes(searchLower) ||
-        employee.email?.toLowerCase().includes(searchLower) ||
-        employee.telepon.includes(searchTerm)
+        (employee.email || '').toLowerCase().includes(searchLower) ||
+        (employee.telepon || '').includes(searchTerm)
       );
     }
     return true;
@@ -347,8 +351,8 @@ const EmployeePage = () => {
 
   // Get role name by ID
   const getRoleName = (roleId: string) => {
-    const role = roles.find(r => r._id === roleId);
-    return role ? role.namaRole : '-';
+    const role = (roles || []).find(r => r._id === roleId);
+    return role?.namaRole || '-';
   };
 
   return (
@@ -573,7 +577,7 @@ const EmployeePage = () => {
                         helperText={errors.roleId?.message?.toString()}
                         value={typeof field.value === 'string' ? field.value : ''}
                       >
-                        {roles.map((role) => (
+                        {(roles || []).map((role) => (
                           <MenuItem key={role._id} value={role._id}>
                             {role.namaRole}
                           </MenuItem>

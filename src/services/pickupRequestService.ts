@@ -1,16 +1,29 @@
 // src/services/pickupRequestService.ts
-import api from './api';
-import { PickupRequestFormInputs, PickupFormInputs } from '../types/pickupRequest';
+import api from "./api";
+import {
+  PickupRequestFormInputs,
+  PickupFormInputs,
+} from "../types/pickupRequest";
 
 const pickupRequestService = {
   // Pickup Request API calls
-  async getPickupRequests() {
-    const response = await api.get('/pickup-requests');
+  async getPickupRequests(filters?: Record<string, any>) {
+    const queryParams = filters ? new URLSearchParams(filters).toString() : "";
+    const response = await api.get(
+      `/pickup-requests${queryParams ? `?${queryParams}` : ""}`
+    );
     return response.data;
   },
 
-  async getPendingPickupRequests() {
-    const response = await api.get('/pickup-requests/pending');
+  getPickups: (filters: Record<string, any> = {}) => {
+    return api.get("/pickups", { params: filters });
+  },
+
+  async getPendingPickupRequests(filters?: Record<string, any>) {
+    const queryParams = filters ? new URLSearchParams(filters).toString() : "";
+    const response = await api.get(
+      `/pickup-requests/pending${queryParams ? `?${queryParams}` : ""}`
+    );
     return response.data;
   },
 
@@ -20,16 +33,19 @@ const pickupRequestService = {
   },
 
   async createPickupRequest(requestData: PickupRequestFormInputs) {
-    const response = await api.post('/pickup-requests', requestData);
+    const response = await api.post("/pickup-requests", requestData);
     return response.data;
   },
 
-  async updatePickupRequest(id: string, requestData: Partial<PickupRequestFormInputs>) {
+  async updatePickupRequest(
+    id: string,
+    requestData: Partial<PickupRequestFormInputs>
+  ) {
     const response = await api.put(`/pickup-requests/${id}`, requestData);
     return response.data;
   },
 
-  async updatePickupRequestStatus(id: string, status: 'PENDING' | 'FINISH') {
+  async updatePickupRequestStatus(id: string, status: "PENDING" | "FINISH") {
     const response = await api.put(`/pickup-requests/${id}/status`, { status });
     return response.data;
   },
@@ -40,49 +56,8 @@ const pickupRequestService = {
   },
 
   // Pickup API calls
-  async getPickups() {
-    const response = await api.get('/pickups');
-    return response.data;
-  },
-
-  async getPickupById(id: string) {
-    const response = await api.get(`/pickups/${id}`);
-    return response.data;
-  },
-
   async createPickup(pickupData: PickupFormInputs) {
-    const response = await api.post('/pickups', pickupData);
-    return response.data;
-  },
-
-  async updatePickup(id: string, pickupData: Partial<PickupFormInputs>) {
-    const response = await api.put(`/pickups/${id}`, pickupData);
-    return response.data;
-  },
-
-  async deletePickup(id: string) {
-    const response = await api.delete(`/pickups/${id}`);
-    return response.data;
-  },
-
-  async addSTTToPickup(id: string, sttId: string) {
-    const response = await api.put(`/pickups/${id}/add-stt`, { sttId });
-    return response.data;
-  },
-
-  async removeSTTFromPickup(id: string, sttId: string) {
-    const response = await api.put(`/pickups/${id}/remove-stt`, { sttId });
-    return response.data;
-  },
-
-  // Mobile API calls for pickups
-  async getMobilePickupRequests() {
-    const response = await api.get('/mobile/pickup-requests');
-    return response.data;
-  },
-
-  async updateMobilePickupRequestStatus(id: string, status: 'PENDING' | 'FINISH') {
-    const response = await api.put(`/mobile/pickup-requests/${id}/status`, { status });
+    const response = await api.post("/pickups", pickupData);
     return response.data;
   },
 };

@@ -21,16 +21,15 @@ const CreatePickupRequestPage: React.FC = () => {
       .unwrap()
       .then(() => {
         toast({
-          title: 'Berhasil',
-          description: 'Permintaan pengambilan berhasil dibuat',
+          type: 'success',
+          message: 'Permintaan pengambilan berhasil dibuat',
         });
         navigate('/pickup');
       })
       .catch((error) => {
         toast({
-          title: 'Gagal',
-          description: error.message || 'Terjadi kesalahan saat membuat permintaan pengambilan',
-          variant: 'destructive',
+          type: 'error',
+          message: error.message || 'Terjadi kesalahan saat membuat permintaan pengambilan',
         });
       })
       .finally(() => {

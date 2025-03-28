@@ -23,12 +23,13 @@ const PickupRequestPage: React.FC = () => {
           </p>
         </div>
         {canManagePickups && (
-          <Button asChild>
-            <Link to="/pickup/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Permintaan
-            </Link>
-          </Button>
+          <Button>
+          <Link to="/pickup/create" style={{ display: 'flex', alignItems: 'center' }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Tambah Permintaan
+          </Link>
+        </Button>
+        
         )}
       </div>
       

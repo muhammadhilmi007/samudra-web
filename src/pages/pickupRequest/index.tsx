@@ -26,8 +26,8 @@ const PickupRequestsPage: NextPage = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
 
   useEffect(() => {
-    dispatch(getPickupRequests());
-    dispatch(getPendingPickupRequests());
+    dispatch(getPickupRequests({}));
+    dispatch(getPendingPickupRequests({}));
   }, [dispatch]);
 
   const handleViewRequest = (request: PickupRequest) => {

@@ -119,7 +119,9 @@ const pickupSchema = z.object({
   kendaraanId: z.string().min(1, "Kendaraan wajib dipilih"),
   estimasiPengambilan: z.string().min(1, "Estimasi pengambilan wajib diisi"),
   cabangId: z.string().min(1, "Cabang wajib dipilih"),
-  alamatPengambilan: z.string().min(1, "Alamat pengambilan wajib diisi")
+  alamatPengambilan: z.string().min(1, "Alamat pengambilan wajib diisi"),
+  tujuan: z.string(), // Add missing property validation
+  jumlahColly: z.string(), // Add missing property validation
 });
 
 const PickupPage = () => {
@@ -180,30 +182,39 @@ const PickupPage = () => {
     resolver: zodResolver(pickupSchema),
     defaultValues: {
       pengirimId: "",
+      alamatPengambilan: "",
+      cabangId: "",
+      estimasiPengambilan: "",
       sttIds: [],
       supirId: "",
-      kenekId: "",
       kendaraanId: "",
-      estimasiPengambilan: "",
-      cabangId: user?.cabangId || "",
-      alamatPengambilan: "",
+      kenekId: undefined,
+      tujuan: "", // Add missing property
+      jumlahColly: "", // Add missing property (or appropriate default)
     },
   });
 
   useEffect(() => {
     // Load initial data
-    dispatch(getBranches());
-    dispatch(getSenders());
-    dispatch(getVehicles());
-    dispatch(getEmployees({}));
-    dispatch(getPendingPickupRequests());
+    const loadData = async () => {
+      await Promise.all([
+        dispatch(getBranches()).unwrap(),
+        dispatch(getSenders()).unwrap()
+      ]);
+      
+      dispatch(getVehicles());
+      dispatch(getEmployees({}));
+      dispatch(getPendingPickupRequests({}));
 
-    // Load requests and pickups
-    if (tabValue === 0) {
-      dispatch(getPickupRequests());
-    } else if (tabValue === 2) {
-      dispatch(getPickups());
-    }
+      // Load requests and pickups
+      if (tabValue === 0) {
+        dispatch(getPickupRequests({}));
+      } else if (tabValue === 2) {
+        dispatch(getPickups({}));
+      }
+    };
+
+    loadData();
   }, [dispatch, tabValue]);
 
   useEffect(() => {
@@ -225,7 +236,7 @@ const PickupPage = () => {
         alamatPengambilan: request.alamatPengambilan,
         tujuan: request.tujuan,
         jumlahColly: request.jumlahColly,
-        cabangId: request.cabangId,
+        cabangId: typeof request.cabangId === "string" ? request.cabangId : "",
       });
     } else {
       setEditingRequest(null);
@@ -253,7 +264,7 @@ const PickupPage = () => {
       kenekId: "",
       kendaraanId: "",
       estimasiPengambilan: "",
-      cabangId: request.cabangId,
+      cabangId: request ? request.cabangId : user?.cabangId || "",
       alamatPengambilan: request.alamatPengambilan,
     });
     setProcessingRequestId(request._id);
@@ -471,12 +482,15 @@ const PickupPage = () => {
                     label="Cabang"
                     onChange={handleBranchFilter as any}
                   >
-                    <MenuItem key="all-branches" value="">Semua Cabang</MenuItem>
-                    {Array.isArray(branches) && branches.map((branch) => (
-                      <MenuItem key={branch._id} value={branch._id}>
-                        {branch.namaCabang}
-                      </MenuItem>
-                    ))}
+                    <MenuItem key="all-branches" value="">
+                      Semua Cabang
+                    </MenuItem>
+                    {Array.isArray(branches) &&
+                      branches.map((branch) => (
+                        <MenuItem key={branch._id} value={branch._id}>
+                          {branch.namaCabang}
+                        </MenuItem>
+                      ))}
                   </Select>
                 </FormControl>
               </Grid>
@@ -516,14 +530,22 @@ const PickupPage = () => {
                           <TableCell>
                             {formatDate(request.tanggal || request.createdAt)}
                           </TableCell>
-                          <TableCell>{request.pengirim?.nama || "-"}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              const sender = request.pengirim ||
+                                (request.pengirimId && senders.find(s => s._id === request.pengirimId));
+                              return sender ? sender.nama : "-";
+                            })()}
+                          </TableCell>
                           <TableCell>{request.alamatPengambilan}</TableCell>
                           <TableCell>{request.tujuan}</TableCell>
                           <TableCell>{request.jumlahColly}</TableCell>
                           <TableCell>
-                            {branches.find(
-                              (branch) => branch._id === request.cabangId
-                            )?.namaCabang || "-"}
+                            {(() => {
+                              const branch = request.cabang ||
+                                (request.cabangId && branches.find(b => b._id === request.cabangId));
+                              return branch ? branch.namaCabang : "-";
+                            })()}
                           </TableCell>
                           <TableCell>
                             <Chip
@@ -544,7 +566,9 @@ const PickupPage = () => {
                             <Tooltip title="Edit">
                               <span>
                                 <IconButton
-                                  onClick={() => handleOpenRequestDialog(request)}
+                                  onClick={() =>
+                                    handleOpenRequestDialog(request)
+                                  }
                                   disabled={request.status !== "PENDING"}
                                 >
                                   <EditIcon />
@@ -632,8 +656,11 @@ const PickupPage = () => {
                                 sx={{ mr: 1, color: "primary.main" }}
                               />
                               <Typography variant="subtitle1">
-                                {request.pengirim?.nama ||
-                                  "Pengirim tidak diketahui"}
+                                {(() => {
+                                  const sender = request.pengirim ||
+                                    (request.pengirimId && senders.find(s => s._id === request.pengirimId));
+                                  return sender ? sender.nama : "Pengirim tidak diketahui";
+                                })()}
                               </Typography>
                             </Box>
 
@@ -688,9 +715,11 @@ const PickupPage = () => {
                               />
                               <Typography variant="body2">
                                 Cabang:{" "}
-                                {branches.find(
-                                  (branch) => branch._id === request.cabangId
-                                )?.namaCabang || "-"}
+                                {(() => {
+                                  const branch = request.cabang ||
+                                    (request.cabangId && branches.find(b => b._id === request.cabangId));
+                                  return branch ? branch.namaCabang : "-";
+                                })()}
                               </Typography>
                             </Box>
 
@@ -803,7 +832,9 @@ const PickupPage = () => {
                               label={
                                 pickup?.waktuPulang ? "Selesai" : "Dalam Proses"
                               }
-                              color={pickup?.waktuPulang ? "success" : "warning"}
+                              color={
+                                pickup?.waktuPulang ? "success" : "warning"
+                              }
                               size="small"
                             />
                           </TableCell>
@@ -866,13 +897,17 @@ const PickupPage = () => {
                       error={!!requestErrors.pengirimId}
                       helperText={requestErrors.pengirimId?.message}
                       fullWidth
+                      value={typeof field.value === "string" ? field.value : ""}
                     >
-                      <MenuItem key="select-sender" value="">Pilih Pengirim...</MenuItem>
-                      {Array.isArray(senders) && senders.map((sender) => (
-                        <MenuItem key={sender._id} value={sender._id}>
-                          {sender.nama}
-                        </MenuItem>
-                      ))}
+                      <MenuItem key="select-sender" value="">
+                        Pilih Pengirim...
+                      </MenuItem>
+                      {Array.isArray(senders) &&
+                        senders.map((sender) => (
+                          <MenuItem key={sender._id} value={sender._id}>
+                            {sender.nama}
+                          </MenuItem>
+                        ))}
                     </TextField>
                   )}
                 />
@@ -969,13 +1004,17 @@ const PickupPage = () => {
                       error={!!requestErrors.cabangId}
                       helperText={requestErrors.cabangId?.message}
                       disabled={!!user?.cabangId}
+                      value={typeof field.value === "string" ? field.value : ""}
                     >
-                      <MenuItem key="select-branch" value="">Pilih Cabang...</MenuItem>
-                      {Array.isArray(branches) && branches.map((branch) => (
-                        <MenuItem key={branch._id} value={branch._id}>
-                          {branch.namaCabang}
-                        </MenuItem>
-                      ))}
+                      <MenuItem key="select-branch" value="">
+                        Pilih Cabang...
+                      </MenuItem>
+                      {Array.isArray(branches) &&
+                        branches.map((branch) => (
+                          <MenuItem key={branch._id} value={branch._id}>
+                            {branch.namaCabang}
+                          </MenuItem>
+                        ))}
                     </TextField>
                   )}
                 />
@@ -1023,12 +1062,15 @@ const PickupPage = () => {
                       error={!!pickupErrors.supirId}
                       helperText={pickupErrors.supirId?.message}
                     >
-                      <MenuItem key="select-driver" value="">Pilih Supir...</MenuItem>
-                      {Array.isArray(drivers) && drivers.map((driver) => (
-                        <MenuItem key={driver._id} value={driver._id}>
-                          {driver.nama}
-                        </MenuItem>
-                      ))}
+                      <MenuItem key="select-driver" value="">
+                        Pilih Supir...
+                      </MenuItem>
+                      {Array.isArray(drivers) &&
+                        drivers.map((driver) => (
+                          <MenuItem key={driver._id} value={driver._id}>
+                            {driver.nama}
+                          </MenuItem>
+                        ))}
                     </TextField>
                   )}
                 />
@@ -1048,12 +1090,15 @@ const PickupPage = () => {
                       error={!!pickupErrors.kenekId}
                       helperText={pickupErrors.kenekId?.message}
                     >
-                      <MenuItem key="select-assistant" value="">Pilih Kenek...</MenuItem>
-                      {Array.isArray(assistants) && assistants.map((assistant) => (
-                        <MenuItem key={assistant._id} value={assistant._id}>
-                          {assistant.nama}
-                        </MenuItem>
-                      ))}
+                      <MenuItem key="select-assistant" value="">
+                        Pilih Kenek...
+                      </MenuItem>
+                      {Array.isArray(assistants) &&
+                        assistants.map((assistant) => (
+                          <MenuItem key={assistant._id} value={assistant._id}>
+                            {assistant.nama}
+                          </MenuItem>
+                        ))}
                     </TextField>
                   )}
                 />
@@ -1073,12 +1118,15 @@ const PickupPage = () => {
                       error={!!pickupErrors.kendaraanId}
                       helperText={pickupErrors.kendaraanId?.message}
                     >
-                      <MenuItem key="select-vehicle" value="">Pilih Kendaraan...</MenuItem>
-                      {Array.isArray(pickupVehicles) && pickupVehicles.map((vehicle) => (
-                        <MenuItem key={vehicle._id} value={vehicle._id}>
-                          {vehicle.namaKendaraan} ({vehicle.noPolisi})
-                        </MenuItem>
-                      ))}
+                      <MenuItem key="select-vehicle" value="">
+                        Pilih Kendaraan...
+                      </MenuItem>
+                      {Array.isArray(pickupVehicles) &&
+                        pickupVehicles.map((vehicle) => (
+                          <MenuItem key={vehicle._id} value={vehicle._id}>
+                            {vehicle.namaKendaraan} ({vehicle.noPolisi})
+                          </MenuItem>
+                        ))}
                     </TextField>
                   )}
                 />

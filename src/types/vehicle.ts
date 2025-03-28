@@ -17,7 +17,7 @@ export interface Vehicle {
   alamatKenek?: string;
   cabangId: string;
   tipe: 'lansir' | 'antar_cabang'; // Backend format
-  tipeDisplay?: 'Lansir' | 'Antar Cabang'; // Frontend display format
+  tipeDisplay?: 'lansir' | 'antar_cabang'; // Frontend display format
   grup?: string;
   createdAt: string;
   updatedAt: string;
@@ -53,15 +53,15 @@ export interface VehicleFormInputs {
   fotoKenek?: File | null;
   alamatKenek?: string;
   cabangId: string;
-  tipe: 'Lansir' | 'Antar Cabang'; // Frontend format
+  tipe: 'lansir' | 'antar_cabang'; // Frontend format
   grup?: string;
 }
 
 // Mapping functions between frontend and backend formats
-export const mapVehicleTypeToBackend = (tipe: 'Lansir' | 'Antar Cabang'): 'lansir' | 'antar_cabang' => {
-  return tipe === 'Lansir' ? 'lansir' : 'antar_cabang';
+export const mapVehicleTypeToBackend = (tipe: 'lansir' | 'antar_cabang'): 'lansir' | 'antar_cabang' => {
+  return tipe === 'lansir' ? 'lansir' : 'antar_cabang';
 };
 
-export const mapVehicleTypeToFrontend = (tipe: 'lansir' | 'antar_cabang'): 'Lansir' | 'Antar Cabang' => {
-  return tipe === 'lansir' ? 'Lansir' : 'Antar Cabang';
+export const mapVehicleTypeToFrontend = (tipe: 'lansir' | 'antar_cabang'): 'lansir' | 'antar_cabang' => {
+  return tipe === 'lansir' ? 'lansir' : 'antar_cabang';
 };

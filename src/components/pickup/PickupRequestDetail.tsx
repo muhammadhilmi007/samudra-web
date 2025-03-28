@@ -40,13 +40,16 @@ import {
   updatePickupRequestStatus,
   createPickup 
 } from '../../store/slices/pickupRequestSlice';
+import { Locale } from 'date-fns';
 import { format, parseISO } from 'date-fns';
+import { id } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+const indonesianLocale: Locale = id;
 
 const PickupRequestDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -71,7 +74,7 @@ const PickupRequestDetailPage: React.FC = () => {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [processingAction, setProcessingAction] = useState(false);
-
+  
   useEffect(() => {
     if (id) {
       dispatch(getPickupRequestById(id))
@@ -96,7 +99,7 @@ const PickupRequestDetailPage: React.FC = () => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     try {
-      return format(parseISO(dateString), 'dd MMMM yyyy, HH:mm', { locale: id });
+      return format(parseISO(dateString), 'dd MMMM yyyy, HH:mm', { locale: indonesianLocale });
     } catch (error) {
       return '-';
     }
@@ -123,17 +126,16 @@ const PickupRequestDetailPage: React.FC = () => {
       })).unwrap();
       
       toast({
-        title: 'Berhasil',
-        description: 'Status permintaan pengambilan berhasil diubah menjadi selesai',
+        type: 'success',
+        message: 'Status permintaan pengambilan berhasil diubah menjadi selesai',
       });
 
       setOpenConfirmDialog(false);
       navigate(-1);
     } catch (error: any) {
       toast({
-        title: 'Gagal',
-        description: error.message || 'Gagal memperbarui status',
-        variant: 'destructive',
+        type: 'error',
+        message: error.message || 'Gagal memperbarui status',
       });
     } finally {
       setProcessingAction(false);
@@ -186,7 +188,7 @@ const PickupRequestDetailPage: React.FC = () => {
         estimasiPengambilan: pickupFormData.estimasiPengambilan,
         cabangId: user?.cabangId || pickupRequest.cabangId,
         tujuan: pickupRequest.tujuan,
-        jumlahColly: pickupRequest.jumlahColly
+        jumlahColly: String(pickupRequest.jumlahColly)
       })).unwrap();
 
       // Update pickup request status
@@ -196,17 +198,16 @@ const PickupRequestDetailPage: React.FC = () => {
       })).unwrap();
 
       toast({
-        title: 'Berhasil',
-        description: 'Pengambilan berhasil dibuat dan status permintaan diperbarui',
+        type: 'success',
+        message: 'Pengambilan berhasil dibuat dan status permintaan diperbarui',
       });
 
       setOpenCreatePickupDialog(false);
       navigate('/pickup');
     } catch (error: any) {
       toast({
-        title: 'Gagal',
-        description: error.message || 'Gagal membuat pengambilan',
-        variant: 'destructive',
+        type: 'error',
+        message: error.message || 'Gagal membuat pengambilan',
       });
     } finally {
       setProcessingAction(false);
@@ -220,7 +221,7 @@ const PickupRequestDetailPage: React.FC = () => {
           <CardTitle>Akses Ditolak</CardTitle>
         </CardHeader>
         <CardContent>
-          <Alert variant="destructive">
+          <Alert variant="outlined">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Tidak Diizinkan</AlertTitle>
             <AlertDescription>
@@ -420,7 +421,7 @@ const PickupRequestDetailPage: React.FC = () => {
       {/* Dialog Buat Pengambilan */}
       <Dialog 
         open={openCreatePickupDialog} 
-        onOpenChange={setOpenCreatePickupDialog}
+        onClose={setOpenCreatePickupDialog}
       >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -583,7 +584,7 @@ const PickupRequestDetailPage: React.FC = () => {
       </Dialog>
       
       {/* Confirmation Dialog for Completing Request */}
-      <Dialog open={openConfirmDialog} onOpenChange={setOpenConfirmDialog}>
+      <Dialog open={openConfirmDialog} onClose={setOpenConfirmDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Konfirmasi Selesaikan Permintaan</DialogTitle>

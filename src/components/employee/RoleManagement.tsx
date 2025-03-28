@@ -95,8 +95,9 @@ const PERMISSIONS: Record<string, Record<string, string>> = {
 
 // Validation schema for the role form
 const roleFormSchema = z.object({
-  namaRole: z.string().min(2, 'Nama role minimal 2 karakter'),
-  permissions: z.array(z.string()).min(1, 'Pilih minimal satu permission')
+  namaRole: z.string().min(1, 'Nama role harus diisi'),
+  kodeRole: z.string().min(1, 'Kode role harus diisi'),
+  permissions: z.array(z.string())
 });
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
@@ -168,7 +169,10 @@ const RoleManagement: React.FC = () => {
         });
     } else {
       // Create new role
-      dispatch(createRole(data))
+      dispatch(createRole({
+        ...data,
+  kodeRole: data.kodeRole || ''
+      }))
         .unwrap()
         .then(() => {
           toast({

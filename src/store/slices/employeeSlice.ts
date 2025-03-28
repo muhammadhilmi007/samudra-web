@@ -2,7 +2,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import employeeService from '../../services/employeeService';
 import { setLoading, setError, setSuccess } from './uiSlice';
-import { Employee, Role } from '../../types/employee';
+import { Employee, Role, EmployeeListResponse, RoleListResponse, EmployeeResponse, RoleResponse } from '../../types/employee';
 
 interface EmployeeState {
   employees: Employee[];
@@ -11,6 +11,9 @@ interface EmployeeState {
   selectedRole: Role | null;
   loading: boolean;
   error: string | null;
+  total: number;
+  page: number;
+  limit: number;
 }
 
 const initialState: EmployeeState = {
@@ -20,17 +23,20 @@ const initialState: EmployeeState = {
   selectedRole: null,
   loading: false,
   error: null,
+  total: 0,
+  page: 0,
+  limit: 0
 };
 
 // Get all employees
 export const getEmployees = createAsyncThunk(
   'employee/getEmployees',
-  async (params: any = {}, { dispatch, rejectWithValue }) => {
+  async (params: any = {}, { dispatch, rejectWithValue }): Promise<EmployeeListResponse | ReturnType<typeof rejectWithValue>> => {
     try {
       dispatch(setLoading(true));
       const response = await employeeService.getEmployees(params);
       dispatch(setLoading(false));
-      return response.data;
+      return response;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(setError(error.response?.data?.message || 'Failed to fetch employees'));
@@ -148,12 +154,13 @@ export const getRoles = createAsyncThunk(
 // Create role
 export const createRole = createAsyncThunk(
   'employee/createRole',
-  async (roleData: Partial<Role>, { dispatch, rejectWithValue }) => {
+  async (roleData: Omit<Role, "_id" | "createdAt" | "updatedAt">, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
       const response = await employeeService.createRole(roleData);
       dispatch(setLoading(false));
       dispatch(setSuccess('Role berhasil dibuat'));
+  
       return response.data;
     } catch (error: any) {
       dispatch(setLoading(false));
@@ -219,8 +226,13 @@ const employeeSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Get all employees
-      .addCase(getEmployees.fulfilled, (state, action) => {
-        state.employees = action.payload;
+      .addCase(getEmployees.fulfilled, (state, action: PayloadAction<EmployeeListResponse>) => {
+        if (action.payload.success) {
+          state.employees = action.payload.data?.employees || action.payload.data || [];
+          state.total = action.payload.data?.total || 0;
+          state.page = action.payload.data?.page || 0;
+          state.limit = action.payload.data?.limit || 10;
+        }
       })
       // Get employee by ID
       .addCase(getEmployeeById.fulfilled, (state, action) => {
@@ -228,7 +240,7 @@ const employeeSlice = createSlice({
       })
       // Get employees by branch
       .addCase(getEmployeesByBranch.fulfilled, (state, action) => {
-        state.employees = action.payload;
+        state.employees = Array.isArray(action.payload) ? action.payload : action.payload?.employees || [];
       })
       // Create employee
       .addCase(createEmployee.fulfilled, (state, action) => {
@@ -252,7 +264,7 @@ const employeeSlice = createSlice({
       })
       // Get all roles
       .addCase(getRoles.fulfilled, (state, action) => {
-        state.roles = action.payload;
+        state.roles = Array.isArray(action.payload) ? action.payload : action.payload.roles || [];
       })
       // Create role
       .addCase(createRole.fulfilled, (state, action) => {

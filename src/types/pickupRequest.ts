@@ -12,53 +12,10 @@ export interface PickupRequest {
   createdAt: string;
   updatedAt: string;
 
-  // Relasi yang mungkin ada dalam respon API
-  pengirim?: {
-    _id: string;
-    nama: string;
-    telepon: string;
-    alamat: string;
-  };
-  user?: {
-    _id: string;
-    nama: string;
-  };
-  cabang?: {
-    _id: string;
-    namaCabang: string;
-  };
-}
-
-interface Pengirim {
-  _id: string;
-  nama: string;
-  telepon: string;
-  alamat: string;
-}
-
-interface User {
-  _id: string;
-  nama: string;
-}
-
-interface Cabang {
-  _id: string;
-  namaCabang: string;
-}
-
-interface Kendaraan {
-  _id: string;
-  noPolisi: string;
-  namaKendaraan: string;
-}
-
-
-export interface PickupRequestFormInputs {
-  pengirimId: string;
-  alamatPengambilan: string;
-  tujuan: string;
-  jumlahColly: number;
-  cabangId: string;
+  // Related entities that might be included in API responses
+  pengirim?: Customer;
+  user?: User;
+  cabang?: Branch;
 }
 
 export interface Pickup {
@@ -66,53 +23,76 @@ export interface Pickup {
   tanggal: string;
   noPengambilan: string;
   pengirimId: string;
-  sttIds: string[];
+  sttIds: string[] | STT[];
   supirId: string;
   kenekId?: string;
   kendaraanId: string;
   waktuBerangkat?: string;
   waktuPulang?: string;
   estimasiPengambilan: string;
+  alamatPengambilan: string;
+  tujuan: string;
+  jumlahColly: number;
   userId: string;
   cabangId: string;
+  status: "PENDING" | "BERANGKAT" | "SELESAI" | "CANCELLED";
   createdAt: string;
   updatedAt: string;
-  alamatPengambilan: string;
-  jumlahColly: number;
-  tujuan: string;
 
-  // Relasi yang mungkin ada dalam respon API
-  pengirim?: {
-    _id: string;
-    nama: string;
-    telepon: string;
-    alamat: string;
-  };
-  supir?: {
-    _id: string;
-    nama: string;
-  };
-  kenek?: {
-    _id: string;
-    nama: string;
-  };
-  kendaraan?: {
-    _id: string;
-    noPolisi: string;
-    namaKendaraan: string;
-  };
-  stts?: Array<{
-    _id: string;
-    noSTT: string;
-  }>;
-  user?: {
-    _id: string;
-    nama: string;
-  };
-  cabang?: {
-    _id: string;
-    namaCabang: string;
-  };
+  // Related entities that might be included in API responses
+  pengirim?: Customer;
+  supir?: User;
+  kenek?: User;
+  kendaraan?: Vehicle;
+  stts: STT[];
+  user?: User;
+  cabang?: Branch;
+}
+
+export interface Customer {
+  _id: string;
+  nama: string;
+  telepon?: string;
+  alamat?: string;
+  tipe?: string;
+}
+
+export interface User {
+  _id: string;
+  nama: string;
+  jabatan?: string;
+  role?: string;
+}
+
+export interface Branch {
+  _id: string;
+  namaCabang: string;
+}
+
+export interface Vehicle {
+  _id: string;
+  noPolisi: string;
+  namaKendaraan: string;
+}
+
+export interface STT {
+  _id: string;
+  noSTT: string;
+  namaBarang?: string;
+  jumlahColly?: number;
+  berat?: number;
+  harga?: number;
+  paymentType?: string;
+}
+
+export interface PickupRequestFormInputs {
+  pengirimId: string;
+  alamatPengambilan: string;
+  tujuan: string;
+  jumlahColly: number;
+  cabangId: string;
+  tanggal?: string;
+  estimasiPengambilan?: string;
 }
 
 export interface PickupFormInputs {
@@ -122,6 +102,9 @@ export interface PickupFormInputs {
   kenekId?: string;
   kendaraanId: string;
   alamatPengambilan: string;
+  tujuan: string;
+  jumlahColly: string;
   estimasiPengambilan: string;
   cabangId: string;
+  tanggal?: string;
 }
