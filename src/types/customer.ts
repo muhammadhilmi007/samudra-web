@@ -33,6 +33,7 @@ export interface CustomerFormInputs {
   email: string;
   perusahaan: string;
   cabangId: string;
+  
 }
 
 // Types for related data

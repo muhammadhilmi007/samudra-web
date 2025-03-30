@@ -222,16 +222,16 @@ const VehiclePage = () => {
       reset({
         noPolisi: vehicle.noPolisi,
         namaKendaraan: vehicle.namaKendaraan,
-        supirId: vehicle.supirId,
+        supirId: vehicle ? vehicle.supirId : '',
         noTeleponSupir: vehicle.noTeleponSupir,
         noKTPSupir: vehicle.noKTPSupir,
         alamatSupir: vehicle.alamatSupir,
-        kenekId: vehicle.kenekId || '',
+        kenekId: typeof vehicle.kenekId === 'string' ? vehicle.kenekId : '',
         noTeleponKenek: vehicle.noTeleponKenek || '',
         noKTPKenek: vehicle.noKTPKenek || '',
         alamatKenek: vehicle.alamatKenek || '',
-        cabangId: vehicle.cabangId,
-        tipe: vehicle.tipe,
+        cabangId: typeof vehicle.cabangId === 'string' ? vehicle.cabangId : '',
+        tipe: ['Lansir', 'Antar Cabang'].includes(vehicle.tipe) ? vehicle.tipe : 'Lansir',
         grup: vehicle.grup || '',
         fotoSupir: null,
         fotoKTPSupir: null,
@@ -583,6 +583,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       margin="normal"
                       error={!!errors.tipe}
                       helperText={errors.tipe?.message as string}
+                      value={['Lansir', 'Antar Cabang'].includes(field.value) ? field.value : 'Lansir'}
                     >
                       <MenuItem value="Lansir">Lansir</MenuItem>
                       <MenuItem value="Antar Cabang">Antar Cabang</MenuItem>
@@ -605,6 +606,7 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       error={!!errors.cabangId}
                       helperText={errors.cabangId?.message as string}
                       disabled={!!user?.cabangId}
+                      value={typeof field.value === 'string' ? field.value : ''}
                     >
                       {branches.map((branch) => (
                         <MenuItem key={branch._id} value={branch._id}>
@@ -651,7 +653,9 @@ const filteredVehicles = Array.isArray(vehicles) ? vehicles.filter((vehicle) => 
                       margin="normal"
                       error={!!errors.supirId}
                       helperText={getErrorMessage(errors.supirId?.message)}
+                      value={typeof field.value === 'string' ? field.value : ''} // Ensure value is a string
                     >
+                      <MenuItem value="">Pilih Supir...</MenuItem>
                       {drivers.map((driver) => (
                         <MenuItem key={driver._id} value={driver._id}>
                           {driver.nama}

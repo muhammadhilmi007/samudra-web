@@ -1,5 +1,5 @@
 // src/pages/customer/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -28,8 +28,9 @@ import {
   InputAdornment,
   FormControl,
   InputLabel,
-  Select
-} from '@mui/material';
+  Select,
+  SelectChangeEvent,
+} from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -39,41 +40,41 @@ import {
   Business as BusinessIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  FilterList as FilterListIcon
-} from '@mui/icons-material';
-import Head from 'next/head';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
+  FilterList as FilterListIcon,
+} from "@mui/icons-material";
+import Head from "next/head";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../store";
 import {
   getCustomers,
   createCustomer,
   updateCustomer,
   deleteCustomer,
-  getCustomersByBranch
-} from '../../store/slices/customerSlice';
-import { getBranches } from '../../store/slices/branchSlice';
-import { clearError, clearSuccess } from '../../store/slices/uiSlice';
-import { Customer, CustomerFormInputs } from '../../types/customer';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import withAuth from '../../components/auth/withAuth';
+  getCustomersByBranch,
+} from "../../store/slices/customerSlice";
+import { getBranches } from "../../store/slices/branchSlice";
+import { clearError, clearSuccess } from "../../store/slices/uiSlice";
+import { Customer, CustomerFormInputs } from "../../types/customer";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import withAuth from "../../components/auth/withAuth";
 
 // Schema for customer form validation
 const customerSchema = z.object({
-  nama: z.string().min(1, 'Nama customer wajib diisi'),
-  tipe: z.enum(['Pengirim', 'Penerima', 'Keduanya'], {
-    errorMap: () => ({ message: 'Tipe customer wajib dipilih' }),
+  nama: z.string().min(1, "Nama customer wajib diisi"),
+  tipe: z.enum(["Pengirim", "Penerima", "Keduanya"], {
+    errorMap: () => ({ message: "Tipe customer wajib dipilih" }),
   }),
-  alamat: z.string().min(1, 'Alamat wajib diisi'),
-  kelurahan: z.string().min(1, 'Kelurahan wajib diisi'),
-  kecamatan: z.string().min(1, 'Kecamatan wajib diisi'),
-  kota: z.string().min(1, 'Kota wajib diisi'),
-  provinsi: z.string().min(1, 'Provinsi wajib diisi'),
-  telepon: z.string().min(1, 'Telepon wajib diisi'),
-  email: z.string().email('Email tidak valid').optional().or(z.literal('')),
-  perusahaan: z.string().optional().or(z.literal('')),
-  cabangId: z.string().min(1, 'Cabang wajib dipilih'),
+  alamat: z.string().min(1, "Alamat wajib diisi"),
+  kelurahan: z.string().min(1, "Kelurahan wajib diisi"),
+  kecamatan: z.string().min(1, "Kecamatan wajib diisi"),
+  kota: z.string().min(1, "Kota wajib diisi"),
+  provinsi: z.string().min(1, "Provinsi wajib diisi"),
+  telepon: z.string().min(1, "Telepon wajib diisi"),
+  email: z.string(), // Remove .optional() if present
+  perusahaan: z.string(), // Remove .optional() if present
+  cabangId: z.string().min(1, "Cabang wajib dipilih"),
 });
 
 const CustomerPage = () => {
@@ -83,7 +84,9 @@ const CustomerPage = () => {
   // Add default empty array for branches
   const { branches = [] } = useSelector((state: RootState) => state.branch);
   const { user } = useSelector((state: RootState) => state.auth);
-  const { loading, error, success } = useSelector((state: RootState) => state.ui);
+  const { loading, error, success } = useSelector(
+    (state: RootState) => state.ui
+  );
 
   const [openCustomerDialog, setOpenCustomerDialog] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -91,9 +94,15 @@ const CustomerPage = () => {
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [filterBranch, setFilterBranch] = useState<string>('');
-  const [filterType, setFilterType] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterBranch, setFilterBranch] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  const defaultBranchId = branches.find(
+    (branch) => branch._id === user?.cabangId
+  )
+    ? user?.cabangId
+    : "";
 
   const {
     control,
@@ -103,17 +112,23 @@ const CustomerPage = () => {
   } = useForm<CustomerFormInputs>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
-      nama: '',
-      tipe: 'Pengirim',
-      alamat: '',
-      kelurahan: '',
-      kecamatan: '',
-      kota: '',
-      provinsi: '',
-      telepon: '',
-      email: '',
-      perusahaan: '',
-      cabangId: '',
+      nama: "",
+      tipe: "Pengirim", // Ensure this is a valid enum value
+      alamat: "",
+      kelurahan: "",
+      kecamatan: "",
+      kota: "",
+      provinsi: "",
+      telepon: "",
+      email: "",
+      perusahaan: "",
+      cabangId:
+        branches.length > 0
+          ? user?.cabangId &&
+            branches.some((branch) => branch._id === user.cabangId)
+            ? user.cabangId
+            : branches[0]._id
+          : "", // Fallback to empty string if undefined
     },
   });
 
@@ -135,7 +150,7 @@ const CustomerPage = () => {
       setEditingCustomer(customer);
       reset({
         nama: customer.nama,
-        tipe: customer.tipe as 'Pengirim' | 'Penerima' | 'Keduanya',
+        tipe: customer.tipe as "Pengirim" | "Penerima" | "Keduanya",
         alamat: customer.alamat,
         kelurahan: customer.kelurahan,
         kecamatan: customer.kecamatan,
@@ -144,22 +159,26 @@ const CustomerPage = () => {
         telepon: customer.telepon,
         email: customer.email,
         perusahaan: customer.perusahaan,
-        cabangId: customer.cabangId,
+        cabangId: branches.some((branch) => branch._id === customer.cabangId)
+          ? customer.cabangId
+          : branches.length > 0
+          ? branches[0]._id
+          : "",
       });
     } else {
       setEditingCustomer(null);
       reset({
-        nama: '',
-        tipe: 'Pengirim',
-        alamat: '',
-        kelurahan: '',
-        kecamatan: '',
-        kota: '',
-        provinsi: '',
-        telepon: '',
-        email: '',
-        perusahaan: '',
-        cabangId: user?.cabangId || '',
+        nama: "",
+        tipe: "Pengirim",
+        alamat: "",
+        kelurahan: "",
+        kecamatan: "",
+        kota: "",
+        provinsi: "",
+        telepon: "",
+        email: "",
+        perusahaan: "",
+        cabangId: defaultBranchId,
       });
     }
     setOpenCustomerDialog(true);
@@ -183,8 +202,8 @@ const CustomerPage = () => {
   const handleDeleteConfirm = () => {
     if (customerToDelete) {
       dispatch(deleteCustomer(customerToDelete));
+      handleCloseDeleteDialog();
     }
-    handleCloseDeleteDialog();
   };
 
   const onSubmit = (data: CustomerFormInputs) => {
@@ -200,7 +219,9 @@ const CustomerPage = () => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -210,12 +231,13 @@ const CustomerPage = () => {
     dispatch(clearSuccess());
   };
 
-  const handleBranchFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Import SelectChangeEvent from MUI
+  const handleBranchFilter = (event: SelectChangeEvent) => {
     setFilterBranch(event.target.value);
     setPage(0);
   };
 
-  const handleTypeFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTypeFilter = (event: SelectChangeEvent) => {
     setFilterType(event.target.value);
     setPage(0);
   };
@@ -226,16 +248,24 @@ const CustomerPage = () => {
   };
 
   // Filter customers based on search term and filters
-  const filteredCustomers = Array.isArray(customers) 
+  const filteredCustomers = Array.isArray(customers)
     ? customers.filter((customer) => {
-        if (filterType && customer.tipe !== filterType && !(filterType === 'Keduanya' && (customer.tipe === 'Pengirim' || customer.tipe === 'Penerima'))) {
-          return false;
+        // For type filter
+        if (filterType && customer.tipe !== filterType) {
+          // Special case for "Keduanya" filter
+          if (filterType === "Keduanya" && customer.tipe === "Keduanya") {
+            // Pass through
+          } else {
+            return false;
+          }
         }
+
+        // For search term
         if (searchTerm) {
           const searchLower = searchTerm.toLowerCase();
           return (
             customer.nama.toLowerCase().includes(searchLower) ||
-            customer.perusahaan.toLowerCase().includes(searchLower) ||
+            (customer.perusahaan?.toLowerCase() || "").includes(searchLower) ||
             customer.telepon.includes(searchTerm) ||
             customer.alamat.toLowerCase().includes(searchLower) ||
             customer.kota.toLowerCase().includes(searchLower)
@@ -247,20 +277,25 @@ const CustomerPage = () => {
 
   // Pagination with safety check
   const paginatedCustomers = Array.isArray(filteredCustomers)
-    ? filteredCustomers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+    ? filteredCustomers.slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage
+      )
     : [];
 
   // Get chip color based on customer type
-  const getCustomerTypeColor = (type: string) => {
+  const getCustomerTypeColor = (
+    type: string
+  ): "primary" | "secondary" | "success" | "default" => {
     switch (type) {
-      case 'Pengirim':
-        return 'primary';
-      case 'Penerima':
-        return 'secondary';
-      case 'Keduanya':
-        return 'success';
+      case "Pengirim":
+        return "primary";
+      case "Penerima":
+        return "secondary";
+      case "Keduanya":
+        return "success";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -269,9 +304,14 @@ const CustomerPage = () => {
       <Head>
         <title>Customer - Samudra ERP</title>
       </Head>
-      
+
       <Box>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={3}
+        >
           <Typography variant="h4">Manajemen Customer</Typography>
           <Button
             variant="contained"
@@ -281,8 +321,8 @@ const CustomerPage = () => {
             Tambah Customer
           </Button>
         </Box>
-        
-        <Paper sx={{ width: '100%', mb: 2, p: 2 }}>
+
+        <Paper sx={{ width: "100%", mb: 2, p: 2 }}>
           <Grid container spacing={2} alignItems="center" mb={2}>
             <Grid item xs={12} md={4}>
               <TextField
@@ -307,7 +347,7 @@ const CustomerPage = () => {
                   labelId="type-filter-label"
                   value={filterType}
                   label="Tipe Customer"
-                  onChange={handleTypeFilter as any}
+                  onChange={(e) => handleTypeFilter(e as any)}
                 >
                   <MenuItem value="">Semua Tipe</MenuItem>
                   <MenuItem value="Pengirim">Pengirim</MenuItem>
@@ -321,21 +361,25 @@ const CustomerPage = () => {
                 <InputLabel id="branch-filter-label">Cabang</InputLabel>
                 <Select
                   labelId="branch-filter-label"
-                  value={filterBranch}
+                  value={filterBranch || ""}
                   label="Cabang"
-                  onChange={handleBranchFilter as any}
+                  onChange={handleBranchFilter}
                 >
                   <MenuItem value="">Semua Cabang</MenuItem>
-                  {branches.map((branch) => (
-                    <MenuItem key={branch._id} value={branch._id}>
-                      {branch.namaCabang}
-                    </MenuItem>
-                  ))}
+                  {branches.length > 0 ? (
+                    branches.map((branch) => (
+                      <MenuItem key={branch._id} value={branch._id}>
+                        {branch.namaCabang}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled>Loading...</MenuItem>
+                  )}
                 </Select>
               </FormControl>
             </Grid>
           </Grid>
-          
+
           <TableContainer>
             <Table>
               <TableHead>
@@ -368,27 +412,33 @@ const CustomerPage = () => {
                     <TableRow key={customer._id}>
                       <TableCell>{customer.nama}</TableCell>
                       <TableCell>
-                        <Chip 
-                          label={customer.tipe} 
-                          color={getCustomerTypeColor(customer.tipe) as any} 
-                          size="small" 
+                        <Chip
+                          label={customer.tipe}
+                          color={getCustomerTypeColor(customer.tipe) as any}
+                          size="small"
                         />
                       </TableCell>
-                      <TableCell>{customer.perusahaan || '-'}</TableCell>
+                      <TableCell>{customer.perusahaan || "-"}</TableCell>
                       <TableCell>{customer.telepon}</TableCell>
                       <TableCell>{customer.alamat}</TableCell>
                       <TableCell>{customer.kota}</TableCell>
                       <TableCell>
-                        {branches.find((branch) => branch._id === customer.cabangId)?.namaCabang || '-'}
+                        {branches.find(
+                          (branch) => branch._id === customer.cabangId
+                        )?.namaCabang || "-"}
                       </TableCell>
                       <TableCell>
                         <Tooltip title="Edit">
-                          <IconButton onClick={() => handleOpenCustomerDialog(customer)}>
+                          <IconButton
+                            onClick={() => handleOpenCustomerDialog(customer)}
+                          >
                             <EditIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Hapus">
-                          <IconButton onClick={() => handleOpenDeleteDialog(customer._id)}>
+                          <IconButton
+                            onClick={() => handleOpenDeleteDialog(customer._id)}
+                          >
                             <DeleteIcon />
                           </IconButton>
                         </Tooltip>
@@ -399,7 +449,7 @@ const CustomerPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          
+
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
@@ -411,10 +461,17 @@ const CustomerPage = () => {
           />
         </Paper>
       </Box>
-      
+
       {/* Customer Dialog */}
-      <Dialog open={openCustomerDialog} onClose={handleCloseCustomerDialog} maxWidth="md" fullWidth>
-        <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Tambah Customer'}</DialogTitle>
+      <Dialog
+        open={openCustomerDialog}
+        onClose={handleCloseCustomerDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingCustomer ? "Edit Customer" : "Tambah Customer"}
+        </DialogTitle>
         <Box component="form" onSubmit={handleSubmit(onSubmit)}>
           <DialogContent>
             <Grid container spacing={2}>
@@ -624,7 +681,9 @@ const CustomerPage = () => {
                       margin="normal"
                       error={!!errors.cabangId}
                       helperText={errors.cabangId?.message}
+                      value={field.value || ""}
                     >
+                      <MenuItem value="">Pilih Cabang</MenuItem>
                       {branches.map((branch) => (
                         <MenuItem key={branch._id} value={branch._id}>
                           {branch.namaCabang}
@@ -639,12 +698,12 @@ const CustomerPage = () => {
           <DialogActions>
             <Button onClick={handleCloseCustomerDialog}>Batal</Button>
             <Button type="submit" variant="contained">
-              {editingCustomer ? 'Perbarui' : 'Simpan'}
+              {editingCustomer ? "Perbarui" : "Simpan"}
             </Button>
           </DialogActions>
         </Box>
       </Dialog>
-      
+
       {/* Confirm Delete Dialog */}
       <Dialog
         open={confirmDeleteDialog}
@@ -652,9 +711,7 @@ const CustomerPage = () => {
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
       >
-        <DialogTitle id="alert-dialog-title">
-          Konfirmasi Hapus
-        </DialogTitle>
+        <DialogTitle id="alert-dialog-title">Konfirmasi Hapus</DialogTitle>
         <DialogContent>
           <Typography>
             Apakah Anda yakin ingin menghapus customer ini?
@@ -667,13 +724,17 @@ const CustomerPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-      
+
       {/* Snackbar untuk notifikasi */}
-      <Snackbar open={!!error || !!success} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={error ? 'error' : 'success'} 
-          sx={{ width: '100%' }}
+      <Snackbar
+        open={!!error || !!success}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={error ? "error" : "success"}
+          sx={{ width: "100%" }}
         >
           {error || success}
         </Alert>

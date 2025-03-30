@@ -257,15 +257,18 @@ const PickupPage = () => {
   };
 
   const handleOpenPickupDialog = (request: PickupRequest) => {
+    // Reset form with all required fields from the schema
     resetPickupForm({
       pengirimId: request.pengirimId,
+      alamatPengambilan: request.alamatPengambilan,
+      tujuan: request.tujuan,
+      jumlahColly: request.jumlahColly.toString(),
+      cabangId: request.cabangId || user?.cabangId || "",
       sttIds: [],
       supirId: "",
       kenekId: "",
       kendaraanId: "",
       estimasiPengambilan: "",
-      cabangId: request ? request.cabangId : user?.cabangId || "",
-      alamatPengambilan: request.alamatPengambilan,
     });
     setProcessingRequestId(request._id);
     setOpenPickupDialog(true);
@@ -310,8 +313,25 @@ const PickupPage = () => {
 
   const onSubmitPickup = async (data: PickupFormInputs) => {
     try {
-      await dispatch(createPickup(data)).unwrap();
+      // Prepare pickup data with all required fields
+      const pickupData = {
+        pengirimId: data.pengirimId,
+        alamatPengambilan: data.alamatPengambilan,
+        tujuan: data.tujuan || "",
+        jumlahColly: data.jumlahColly || "0",
+        cabangId: data.cabangId,
+        supirId: data.supirId,
+        kenekId: data.kenekId,
+        kendaraanId: data.kendaraanId,
+        estimasiPengambilan: data.estimasiPengambilan,
+        sttIds: data.sttIds || [],
+        pickupRequestId: processingRequestId
+      };
 
+      // Create the pickup
+      await dispatch(createPickup(pickupData)).unwrap();
+
+      // Update the request status to FINISH
       if (processingRequestId) {
         await dispatch(
           updatePickupRequestStatus({
@@ -319,6 +339,9 @@ const PickupPage = () => {
             status: "FINISH",
           })
         ).unwrap();
+
+        // Refresh the pending requests list
+        await dispatch(getPendingPickupRequests({}));
       }
 
       handleClosePickupDialog();
