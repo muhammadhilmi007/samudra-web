@@ -1,155 +1,296 @@
-// src/pages/employee/[id].tsx
 import React, { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
-import { useNavigate, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../store';
-import { getEmployeeById, updateEmployee } from '../../store/slices/employeeSlice';
-import EmployeeDetail from '../../components/employee/EmployeeDetail';
-import EmployeeForm from '../../components/employee/EmployeeForm';
-import { ArrowLeft, Edit, UserIcon } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogDescription
-} from '@/components/ui/dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
+import { getEmployeeById } from '../../store/slices/employeeSlice';
+import {
+  Card,
+  CardContent,
+  Grid,
+  Typography,
+  Divider,
+  Box,
+  Avatar,
+  Chip,
+  Button,
+  Link,
+  Paper,
+  CircularProgress
+} from '@mui/material';
+import {
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Home as HomeIcon,
+  Edit as EditIcon,
+  Badge as BadgeIcon,
+  Person as PersonIcon,
+  Work as WorkIcon,
+  Business as BusinessIcon
+} from '@mui/icons-material';
 
 interface EmployeeDetailProps {
   employeeId: string;
   onEdit?: () => void;
 }
 
-const EmployeeDetailPage: React.FC<EmployeeDetailProps> = ({ employeeId }) => {
+const EmployeeDetail: React.FC<EmployeeDetailProps> = ({ employeeId, onEdit }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  
-  const { employees, loading } = useSelector((state: RootState) => state.employee);
+  const { selectedEmployee, loading } = useSelector((state: RootState) => state.employee);
   const { user } = useSelector((state: RootState) => state.auth);
-  
-  const [openEditDialog, setOpenEditDialog] = React.useState(false);
-  const [editLoading, setEditLoading] = React.useState(false);
-  
-  // Find the employee from the store
-  const employee = employees.find(emp => emp._id === employeeId);
-  
-  // Fetch the employee if not in the store
+
+  // Fetch employee data if not already in state
   useEffect(() => {
-    if (employeeId && !employee && !loading) {
+    if (!selectedEmployee || selectedEmployee._id !== employeeId) {
       dispatch(getEmployeeById(employeeId));
     }
-  }, [dispatch, employeeId, employee, loading]);
-  
-  // Check if user has permission to edit
-  // src/pages/employee/[id].tsx (continued)
-  // Check if user has permission to edit
-  const canEdit = user?.role && 
-    ['admin', 'direktur', 'manajer_sdm', 'kepala_cabang'].includes(user.role);
-  
-  // Handle edit form submission
-  const handleEditSubmit = async (data: FormData): Promise<void> => {
-    if (!id) return;
-    
-    setEditLoading(true);
-    
-    dispatch(updateEmployee({ id, employeeData: data }))
-      .unwrap()
-      .then((result) => {
-        toast({
-          type: "success",
-          message: `Data pegawai ${result.nama} berhasil diperbarui`,
-        });
-        setOpenEditDialog(false);
-      })
-      .catch((error) => {
-        toast({
-          type: "error",
-          message: error.message || 'Terjadi kesalahan saat memperbarui data pegawai',
-        });
-      })
-      .finally(() => {
-        setEditLoading(false);
-      });
+  }, [dispatch, employeeId, selectedEmployee]);
+
+  // Check if user can edit this employee
+  const canEdit = user && (
+    user.role === 'direktur' ||
+    user.role === 'manajer_admin' ||
+    user.role === 'manajer_sdm' ||
+    (user.role === 'kepala_cabang' && 
+     selectedEmployee?.cabangId && 
+     (typeof selectedEmployee.cabangId === 'string' ? 
+       selectedEmployee.cabangId === user.cabangId :
+       selectedEmployee.cabangId._id === user.cabangId)) ||
+    selectedEmployee?._id === user._id // User can edit own data
+  );
+
+  if (loading || !selectedEmployee) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Formatting data
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
-  
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <Button 
-            variant="outlined" 
-            size="small" 
-            className="mb-2"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Kembali
-          </Button>
-          <h2 className="text-3xl font-bold tracking-tight">Detail Pegawai</h2>
-          <p className="text-muted-foreground">
-            Lihat dan kelola informasi pegawai
-          </p>
-        </div>
-        
-        {canEdit && employee && (
-          <Button onClick={() => setOpenEditDialog(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Pegawai
-          </Button>
-        )}
-      </div>
-      
-      {loading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-12 w-3/4" />
-          <Skeleton className="h-40 w-full" />
-          <div className="grid md:grid-cols-2 gap-4">
-            <Skeleton className="h-28 w-full" />
-            <Skeleton className="h-28 w-full" />
-          </div>
-        </div>
-      ) : employee ? (
-        <EmployeeDetail employeeId={id!} onEdit={() => setOpenEditDialog(true)} />
-      ) : (
-        <Alert variant="standard">
-          <UserIcon className="h-4 w-4" />
-          <AlertTitle>Pegawai Tidak Ditemukan</AlertTitle>
-          <AlertDescription>
-            Pegawai dengan ID yang Anda cari tidak ditemukan.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {/* Edit Dialog */}
-      <Dialog
-        open={openEditDialog}
-        onClose={() => setOpenEditDialog(false)}
-      >
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Pegawai</DialogTitle>
-            <DialogDescription>
-              Perbarui informasi pegawai di bawah ini
-            </DialogDescription>
-          </DialogHeader>
-          
-          {employee && (
-            <EmployeeForm
-              initialData={employee}
-              onSubmit={handleEditSubmit}
-              loading={editLoading}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+    <Card elevation={0}>
+      <CardContent>
+        <Grid container spacing={4}>
+          {/* Left column: Profile picture and basic info */}
+          <Grid item xs={12} md={4}>
+            <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+              <Avatar
+                alt={selectedEmployee.nama}
+                src={selectedEmployee.fotoProfil || '/default-avatar.png'}
+                sx={{ width: 150, height: 150, mb: 2 }}
+              />
+              <Typography variant="h5" gutterBottom textAlign="center">
+                {selectedEmployee.nama}
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary" gutterBottom textAlign="center">
+                {selectedEmployee.jabatan}
+              </Typography>
+              <Chip
+                label={selectedEmployee.aktif ? 'Aktif' : 'Nonaktif'}
+                color={selectedEmployee.aktif ? 'success' : 'error'}
+                size="small"
+                sx={{ mt: 1 }}
+              />
+              
+              {/* Edit button */}
+              {canEdit && onEdit && (
+                <Button 
+                  variant="outlined" 
+                  startIcon={<EditIcon />} 
+                  sx={{ mt: 2 }}
+                  onClick={onEdit}
+                  size="small"
+                >
+                  Edit
+                </Button>
+              )}
+            </Box>
+
+            <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                <PersonIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Login Details
+              </Typography>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="body2" gutterBottom>
+                <strong>Username:</strong> {selectedEmployee.username}
+              </Typography>
+              <Typography variant="body2" gutterBottom sx={{ wordBreak: 'break-word' }}>
+                <strong>Last Login:</strong> {selectedEmployee.lastLogin ? formatDate(selectedEmployee.lastLogin) : 'Belum pernah login'}
+              </Typography>
+            </Paper>
+
+            {/* Documents section */}
+            {(selectedEmployee.dokumen?.ktp || selectedEmployee.dokumen?.npwp) && (
+              <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  <BadgeIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                  Dokumen
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                {selectedEmployee.dokumen?.ktp && (
+                  <Box mt={1}>
+                    <Link href={selectedEmployee.dokumen.ktp} target="_blank" rel="noopener">
+                      <Button size="small" variant="text" startIcon={<BadgeIcon />}>
+                        Lihat KTP
+                      </Button>
+                    </Link>
+                  </Box>
+                )}
+                {selectedEmployee.dokumen?.npwp && (
+                  <Box mt={1}>
+                    <Link href={selectedEmployee.dokumen.npwp} target="_blank" rel="noopener">
+                      <Button size="small" variant="text" startIcon={<BadgeIcon />}>
+                        Lihat NPWP
+                      </Button>
+                    </Link>
+                  </Box>
+                )}
+              </Paper>
+            )}
+          </Grid>
+
+          {/* Right column: Detailed information */}
+          <Grid item xs={12} md={8}>
+            <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Informasi Pegawai
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <WorkIcon color="action" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Jabatan
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEmployee.jabatan}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <PersonIcon color="action" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Role
+                      </Typography>
+                      <Typography variant="body1">
+                        {typeof selectedEmployee.roleId === 'string' 
+                          ? selectedEmployee.role || '-'
+                          : selectedEmployee.roleId?.namaRole || '-'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <BusinessIcon color="action" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Cabang
+                      </Typography>
+                      <Typography variant="body1">
+                        {typeof selectedEmployee.cabangId === 'string'
+                          ? '-'
+                          : selectedEmployee.cabangId?.namaCabang || '-'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <HomeIcon color="action" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Alamat
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEmployee.alamat}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <EmailIcon color="action" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Email
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEmployee.email || '-'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <PhoneIcon color="action" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Telepon
+                      </Typography>
+                      <Typography variant="body1">
+                        {selectedEmployee.telepon}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* System information */}
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Informasi Sistem
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Dibuat pada
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDate(selectedEmployee.createdAt)}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Terakhir diperbarui
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatDate(selectedEmployee.updatedAt)}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        </Grid>
+      </CardContent>
+    </Card>
   );
 };
 
-export default EmployeeDetailPage;
+export default EmployeeDetail;

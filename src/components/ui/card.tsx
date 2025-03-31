@@ -3,8 +3,8 @@ import {
   CardContent as MuiCardContent, 
   CardHeader as MuiCardHeader,
   Typography,
-  CardContent as MuiCardDescription
-  CardFooter as MuiCardFooter
+  CardContent as MuiCardDescription,
+  CardActions as MuiCardFooter
 } from '@mui/material';
 import Box from '@mui/material/Box';
 

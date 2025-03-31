@@ -1,730 +1,676 @@
-import React from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { employeeFormSchema, Employee, EmployeeFormInputs, fileValidationSchema } from '@/types/employee';
-import { useToast } from '@/components/ui/use-toast';
-import {
-  Form,
+import { 
+  Button,
+  Card,
+  CardContent,
+  Divider,
   FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
+  FormHelperText,
+  Grid,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+  TextField,
+  Typography,
+  Switch,
+  FormControlLabel,
+  Avatar,
+  CircularProgress,
+  Box
+} from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Home as HomeIcon,
+  Work as WorkIcon,
+  Business as BusinessIcon,
+  Badge as BadgeIcon,
+  PhotoCamera as PhotoCameraIcon,
+  CloudUpload as CloudUploadIcon
+} from '@mui/icons-material';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/store';
-import { Upload, X, Camera, Eye, EyeOff } from 'lucide-react';
+import { RootState } from '../../store';
+import { Employee, employeeFormSchema, EmployeeFormInputs, MAX_FILE_SIZE, ALLOWED_FILE_TYPES, ALLOWED_DOCUMENT_TYPES } from '../../types/employee';
 
 interface EmployeeFormProps {
   initialData?: Employee;
   onSubmit: (data: FormData) => Promise<void>;
-  loading?: boolean;
+  loading: boolean;
 }
 
-const EmployeeForm = ({
+const EmployeeForm: React.FC<EmployeeFormProps> = ({
   initialData,
   onSubmit,
-  loading = false,
-}: EmployeeFormProps) => {
-  const { branches } = useSelector((state: RootState) => state.branch);
+  loading
+}) => {
+  // Get roles and branches from store
   const { roles } = useSelector((state: RootState) => state.employee);
+  const { branches } = useSelector((state: RootState) => state.branch);
   const { user } = useSelector((state: RootState) => state.auth);
-  const { toast } = useToast();
+  
+  // States
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [ktpDocument, setKtpDocument] = useState<File | null>(null);
+  const [npwpDocument, setNpwpDocument] = useState<File | null>(null);
+  
+  // File previews
+  const [profilePreview, setProfilePreview] = useState<string | null>(initialData?.fotoProfil || null);
+  const [ktpPreview, setKtpPreview] = useState<string | null>(initialData?.dokumen?.ktp || null);
+  const [npwpPreview, setNpwpPreview] = useState<string | null>(initialData?.dokumen?.npwp || null);
+  
+  // File errors
+  const [fileErrors, setFileErrors] = useState<{
+    fotoProfil?: string;
+    'dokumen.ktp'?: string;
+    'dokumen.npwp'?: string;
+  }>({});
 
-  // File upload states
-  const [profileImage, setProfileImage] = React.useState<File | null>(null);
-  const [profileImagePreview, setProfileImagePreview] = React.useState<string | null>(initialData?.fotoProfil || null);
-  const [ktpImage, setKtpImage] = React.useState<File | null>(null);
-  const [ktpImagePreview, setKtpImagePreview] = React.useState<string | null>(initialData?.dokumen?.ktp || null);
-  const [npwpImage, setNpwpImage] = React.useState<File | null>(null);
-  const [npwpImagePreview, setNpwpImagePreview] = React.useState<string | null>(initialData?.dokumen?.npwp || null);
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState('personal');
-  const [uploadProgress, setUploadProgress] = React.useState<number>(0);
-
-  // Cleanup function for file URLs
-  React.useEffect(() => {
-    return () => {
-      if (profileImagePreview) URL.revokeObjectURL(profileImagePreview);
-      if (ktpImagePreview) URL.revokeObjectURL(ktpImagePreview);
-      if (npwpImagePreview) URL.revokeObjectURL(npwpImagePreview);
-    };
-  }, [profileImagePreview, ktpImagePreview, npwpImagePreview]);
-
-  // Form validation
-  type FormValues = EmployeeFormInputs & {
-    aktif: boolean;
-    roleId: string;
-    cabangId: string;
-  };
-
-  const form = useForm<FormValues>({
+  // Setup react-hook-form
+  const { 
+    control, 
+    handleSubmit, 
+    watch,
+    setValue,
+    formState: { errors } 
+  } = useForm<EmployeeFormInputs>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
       nama: initialData?.nama || '',
       jabatan: initialData?.jabatan || '',
-      roleId: initialData?.roleId || '',
+      roleId: typeof initialData?.roleId === 'string' ? initialData.roleId : (initialData?.roleId as any)?._id || '',
       email: initialData?.email || '',
       telepon: initialData?.telepon || '',
       alamat: initialData?.alamat || '',
       username: initialData?.username || '',
-      password: '',
+      password: '', // Never pre-fill password
       confirmPassword: '',
-      cabangId: initialData?.cabangId || user?.cabangId || '',
-      aktif: initialData?.aktif !== undefined ? initialData.aktif : true,
-    },
+      cabangId: typeof initialData?.cabangId === 'string' ? initialData.cabangId : (initialData?.cabangId as any)?._id || (user?.cabangId || ''),
+      aktif: initialData?.aktif ?? true,
+    }
   });
-
-  // Generic file upload handler
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setFile: (file: File | null) => void,
-    setPreview: (url: string | null) => void,
-    fileType: 'profile' | 'ktp' | 'npwp'
-  ) => {
-    try {
-      if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        
-        // Validate file
-        const validation = fileValidationSchema.safeParse({
-          size: file.size,
-          type: file.type
-        });
-
-        if (!validation.success) {
-          toast({
-            message: validation.error.errors[0].message,
-            type: 'error',
-          });
-          return;
-        }
-
-        setFile(file);
-        setPreview(URL.createObjectURL(file));
-      }
-    } catch (error) {
-      console.error(`Error handling ${fileType} upload:`, error);
-      toast({
-        message: `Gagal mengunggah file ${fileType}. Silakan coba lagi.`,
-        type: 'error',
-      });
+  
+  // Handle toggle password visibility
+  const togglePasswordVisibility = () => setShowPassword(!showPassword);
+  const toggleConfirmPasswordVisibility = () => setShowConfirmPassword(!showConfirmPassword);
+  
+  // Handle file changes
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fileType: 'profile' | 'ktp' | 'npwp') => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setFileErrors(prev => ({
+        ...prev,
+        [fileType === 'profile' ? 'fotoProfil' : `dokumen.${fileType}`]: 'Ukuran file maksimal 5MB'
+      }));
+      return;
     }
-  };
-
-  // Specific file handlers
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileChange(e, setProfileImage, setProfileImagePreview, 'profile');
-
-  const handleKtpImageChange = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileChange(e, setKtpImage, setKtpImagePreview, 'ktp');
-
-  const handleNpwpImageChange = (e: React.ChangeEvent<HTMLInputElement>) => 
-    handleFileChange(e, setNpwpImage, setNpwpImagePreview, 'npwp');
-
-  // Remove file handlers
-  const removeProfileImage = () => {
-    setProfileImage(null);
-    setProfileImagePreview(null);
-  };
-
-  const removeKtpImage = () => {
-    setKtpImage(null);
-    setKtpImagePreview(null);
-  };
-
-  const removeNpwpImage = () => {
-    setNpwpImage(null);
-    setNpwpImagePreview(null);
-  };
-
-  // Toggle password visibility
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  // Handle form submission
-  const handleFormSubmit = async (data: EmployeeFormInputs) => {
-    try {
-      setUploadProgress(0);
-      const formData = new FormData();
-      
-      // Find the selected role to get its kodeRole
-      const selectedRole = roles.find((role) => role._id === data.roleId);
-      
-      if (!selectedRole) {
-        toast({
-          message: 'Role yang dipilih tidak ditemukan',
-          type: 'error',
-        });
-        return;
-      }
-
-      // Append all form fields except confirmPassword and roleId
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && key !== 'confirmPassword' && key !== 'roleId') {
-          formData.append(key, value.toString());
-        }
-      });
-
-      // Append both roleId and role (kodeRole)
-      formData.append('roleId', selectedRole._id);
-      formData.append('role', selectedRole.kodeRole);
-      
-      // Validate and append file uploads if available
-      try {
-        if (profileImage) {
-          await validateFile(profileImage, 'Foto Profil');
-          formData.append('fotoProfil', profileImage);
-        }
-        
-        if (ktpImage) {
-          await validateFile(ktpImage, 'KTP');
-          formData.append('ktp', ktpImage);
-        }
-        
-        if (npwpImage) {
-          await validateFile(npwpImage, 'NPWP');
-          formData.append('npwp', npwpImage);
-        }
-      } catch (validationError: any) {
-        toast({
-          message: validationError.message,
-          type: 'error',
-        });
-        return;
-      }
-      
-      // Custom onSubmit handler with progress tracking
-      const customSubmit = async (formData: FormData) => {
-        try {
-          await onSubmit(formData);
-          toast({
-            message: `Pegawai berhasil ${initialData ? 'diperbarui' : 'ditambahkan'}`,
-            type: 'success',
-          });
-        } catch (error: any) {
-          if (error.status === 409) {
-            toast({
-              message: 'Username sudah digunakan. Silakan gunakan username lain.',
-              type: 'error',
-            });
-          } else if (error.status === 413) {
-            toast({
-              message: 'Ukuran file terlalu besar. Maksimal 5MB per file.',
-              type: 'error',
-            });
-          } else {
-            toast({
-              message: error.message || 'Terjadi kesalahan saat menyimpan data',
-              type: 'error',
-            });
-          }
-          throw error;
-        }
+    
+    // Validate file type
+    const allowedTypes = fileType === 'profile' ? ALLOWED_FILE_TYPES : ALLOWED_DOCUMENT_TYPES;
+    if (!allowedTypes.includes(file.type)) {
+      setFileErrors(prev => ({
+        ...prev,
+        [fileType === 'profile' ? 'fotoProfil' : `dokumen.${fileType}`]: fileType === 'profile' 
+          ? 'Format file harus berupa JPG, JPEG, atau PNG'
+          : 'Format file harus berupa JPG, JPEG, PNG, atau PDF'
+      }));
+      return;
+    }
+    
+    // Clear previous error
+    setFileErrors(prev => ({
+      ...prev,
+      [fileType === 'profile' ? 'fotoProfil' : `dokumen.${fileType}`]: undefined
+    }));
+    
+    // Set file and preview
+    if (fileType === 'profile') {
+      setProfilePicture(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setProfilePreview(reader.result as string);
       };
-
-      await customSubmit(formData);
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      setUploadProgress(0);
+      reader.readAsDataURL(file);
+    } else if (fileType === 'ktp') {
+      setKtpDocument(file);
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setKtpPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // For PDFs
+        setKtpPreview('/icons/pdf-icon.png');
+      }
+    } else if (fileType === 'npwp') {
+      setNpwpDocument(file);
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setNpwpPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // For PDFs
+        setNpwpPreview('/icons/pdf-icon.png');
+      }
     }
   };
-
-  // File validation helper
-  const validateFile = async (file: File, fieldName: string): Promise<void> => {
-    const validation = fileValidationSchema.safeParse({
-      size: file.size,
-      type: file.type
+  
+  // Handle form submission
+  const onFormSubmit = (data: EmployeeFormInputs) => {
+    // Create FormData for file uploads
+    const formData = new FormData();
+    
+    // Add all text fields
+    Object.entries(data).forEach(([key, value]) => {
+      if (key !== 'confirmPassword' && value !== undefined && value !== null) {
+        formData.append(key, value.toString());
+      }
     });
-
-    if (!validation.success) {
-      throw new Error(`${fieldName}: ${validation.error.errors[0].message}`);
+    
+    // Add files if they exist
+    if (profilePicture) {
+      formData.append('fotoProfil', profilePicture);
     }
+    
+    if (ktpDocument) {
+      formData.append('dokumen.ktp', ktpDocument);
+    }
+    
+    if (npwpDocument) {
+      formData.append('dokumen.npwp', npwpDocument);
+    }
+    
+    // Submit form
+    onSubmit(formData);
   };
-
+  
   return (
-    <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {[
-              { id: 'personal', name: 'Data Pribadi' },
-              { id: 'job', name: 'Informasi Pekerjaan' },
-              { id: 'documents', name: 'Dokumen' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
-                  ${activeTab === tab.id
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}
-                `}
-                type="button"
+    <form onSubmit={handleSubmit(onFormSubmit)}>
+      <Card elevation={0} sx={{ mt: 2 }}>
+        <CardContent>
+          <Grid container spacing={3}>
+            {/* Profile photo */}
+            <Grid item xs={12} display="flex" flexDirection="column" alignItems="center" mb={2}>
+              <Avatar
+                alt="Foto Profil"
+                src={profilePreview || '/default-avatar.png'}
+                sx={{ width: 100, height: 100, mb: 2 }}
+              />
+              <Button
+                component="label"
+                variant="outlined"
+                startIcon={<PhotoCameraIcon />}
+                disabled={loading}
               >
-                {tab.name}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Personal Information Tab */}
-        {activeTab === 'personal' && (
-          <div className="space-y-6">
-            {/* Profile Image */}
-            <div className="flex justify-center">
-              <div className="relative">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profileImagePreview || undefined} alt="Profile" />
-                  <AvatarFallback className="text-4xl bg-primary/10">
-                    {form.watch('nama') ? form.watch('nama').charAt(0).toUpperCase() : 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="absolute -bottom-2 -right-2 flex space-x-1">
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    size="small"
-                    className="h-8 w-8 rounded-full bg-white shadow-md hover:bg-gray-100"
-                    onClick={() => document.getElementById('profile-upload')?.click()}
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                  
-                  {profileImagePreview && (
-                    <Button
-                      type="button"
-                      variant="contained"
-                      size="small"
-                      color="error"
-                      className="h-8 w-8 rounded-full"
-                      onClick={removeProfileImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                {profilePicture ? 'Ganti Foto' : 'Upload Foto'}
                 <input
-                  id="profile-upload"
                   type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleProfileImageChange}
+                  accept="image/jpeg,image/png,image/jpg"
+                  hidden
+                  onChange={(e) => handleFileChange(e, 'profile')}
                   disabled={loading}
                 />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Name */}
-              <FormField<FormValues>
+              </Button>
+              {fileErrors.fotoProfil && (
+                <Typography variant="caption" color="error" mt={1}>
+                  {fileErrors.fotoProfil}
+                </Typography>
+              )}
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Informasi Pegawai
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            {/* Employee name */}
+            <Grid item xs={12} md={6}>
+              <Controller
                 name="nama"
-                children={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Lengkap</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Masukkan nama pegawai" {...field} disabled={loading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Phone */}
-              <FormField<FormValues>
-                name="telepon"
-                children={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nomor Telepon</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Masukkan nomor telepon" {...field} disabled={loading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Email */}
-              <FormField<EmployeeFormInputs>
-                name="email"
-                children={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email (Opsional)</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="Masukkan email" {...field} disabled={loading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Active Status */}
-              <FormField<EmployeeFormInputs>
-                name="aktif"
-                children={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={Boolean(field.value)}
-                        onCheckedChange={(checked) => field.onChange(checked)}
-                        disabled={loading}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Status Aktif</FormLabel>
-                      <p className="text-sm text-gray-500">
-                        Pegawai dapat mengakses sistem jika aktif
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              {/* Address */}
-              <FormField<EmployeeFormInputs>
-                name="alamat"
-                children={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Alamat</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Masukkan alamat lengkap" 
-                        value={String(field.value || '')}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        disabled={loading}
-                        className="min-h-[100px]"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Job Information Tab */}
-        {activeTab === 'job' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Job Position */}
-            <FormField<EmployeeFormInputs>
-              name="jabatan"
-              children={({ field }) => (
-                <FormItem>
-                  <FormLabel>Jabatan</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Masukkan jabatan" {...field} disabled={loading} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Role */}
-            <FormField<EmployeeFormInputs>
-              name="roleId"
-              children={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Nama Lengkap"
+                    fullWidth
+                    error={!!errors.nama}
+                    helperText={errors.nama?.message}
                     disabled={loading}
-                    onValueChange={field.onChange}
-                    value={String(field.value || '')}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role._id} value={role._id}>
-                          {role.namaRole}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Branch */}
-            <FormField<EmployeeFormInputs>
-              name="cabangId"
-              children={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cabang</FormLabel>
-                  <Select
-                    disabled={loading || !!user?.cabangId}
-                    onValueChange={field.onChange}
-                    value={String(field.value || '')}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih cabang" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch._id} value={branch._id}>
-                          {branch.namaCabang}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Username */}
-            <FormField<EmployeeFormInputs>
-              name="username"
-              children={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Masukkan username" {...field} disabled={loading} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Password */}
-            <FormField<EmployeeFormInputs>
-              name="password"
-              children={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {initialData ? 'Password (Kosongkan jika tidak diubah)' : 'Password'}
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input 
-                        type={showPassword ? "text" : "password"}
-                        placeholder={initialData ? "••••••••" : "Masukkan password"} 
-                        {...field} 
-                        disabled={loading}
-                      />
-                      <Button 
-                        type="button"
-                        variant="outlined"
-                        size="small"
-                        className="absolute right-1 top-1"
-                        onClick={togglePasswordVisibility}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Confirm Password */}
-            <FormField<EmployeeFormInputs>
-              name="confirmPassword"
-              children={({ field }) => (
-                <FormItem>
-                  <FormLabel>Konfirmasi Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input 
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Konfirmasi password" 
-                        {...field} 
-                        disabled={loading}
-                      />
-                      <Button 
-                        type="button"
-                        variant="outlined"
-                        size="small"
-                        className="absolute right-1 top-1"
-                        onClick={togglePasswordVisibility}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
-
-        {/* Documents Tab */}
-        {activeTab === 'documents' && (
-          <div className="space-y-8">
-            {/* KTP Document */}
-            <div>
-              <FormLabel className="block text-sm font-medium mb-2">
-                KTP
-              </FormLabel>
-              
-              {ktpImagePreview ? (
-                <div className="relative border rounded-lg overflow-hidden bg-gray-50">
-                  <img 
-                    src={ktpImagePreview} 
-                    alt="KTP" 
-                    className="w-full h-auto max-h-48 object-contain"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonIcon />
+                        </InputAdornment>
+                      ),
+                    }}
                   />
-                  <div className="absolute top-2 right-2 flex space-x-2">
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      size="small"
-                      className="h-8 w-8 rounded-full bg-white/90 shadow-sm hover:bg-white"
-                      onClick={() => document.getElementById('ktp-upload')?.click()}
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="contained"
-                      size="small"
-                      color="error"
-                      className="h-8 w-8 rounded-full"
-                      onClick={removeKtpImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('ktp-upload')?.click()}
-                >
-                  <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Klik untuk mengunggah gambar KTP
-                  </p>
-                </div>
-              )}
-              <input
-                id="ktp-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleKtpImageChange}
-                disabled={loading}
+                )}
               />
-            </div>
+            </Grid>
+            
+            {/* Employee position */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="jabatan"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Jabatan"
+                    fullWidth
+                    error={!!errors.jabatan}
+                    helperText={errors.jabatan?.message}
+                    disabled={loading}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <WorkIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            {/* Email */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="email"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Email"
+                    type="email"
+                    fullWidth
+                    error={!!errors.email}
+                    helperText={errors.email?.message}
+                    disabled={loading}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            {/* Phone */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="telepon"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Nomor Telepon"
+                    fullWidth
+                    error={!!errors.telepon}
+                    helperText={errors.telepon?.message}
+                    disabled={loading}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PhoneIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            {/* Address */}
+            <Grid item xs={12}>
+              <Controller
+                name="alamat"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Alamat"
+                    fullWidth
+                    multiline
+                    rows={3}
+                    error={!!errors.alamat}
+                    helperText={errors.alamat?.message}
+                    disabled={loading}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <HomeIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Role dan Cabang
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            {/* Role */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="roleId"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={!!errors.roleId} disabled={loading}>
+                    <InputLabel id="role-label">Role</InputLabel>
+                    <Select
+                      {...field}
+                      labelId="role-label"
+                      label="Role"
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <PersonIcon />
+                        </InputAdornment>
+                      }
+                    >
+                      {roles.filter(role => {
+                        // Filter roles based on user's role
+                        if (user?.role === 'direktur') return true;
+                        
+                        // Admin and HR managers can't assign direktur
+                        if (['manajer_admin', 'manajer_sdm'].includes(user?.role || '') && role.kodeRole === 'direktur') {
+                          return false;
+                        }
+                        
+                        // Kepala cabang can only assign staff roles
+                        if (user?.role === 'kepala_cabang') {
+                          return ['staff_admin', 'staff_penjualan', 'kasir', 'checker', 'supir'].includes(role.kodeRole);
+                        }
+                        
+                        return true;
+                      }).map(role => (
+                        <MenuItem key={role._id} value={role._id}>
+                          {role.namaRole}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <FormHelperText>{errors.roleId?.message}</FormHelperText>
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            
+            {/* Branch */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="cabangId"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth error={!!errors.cabangId} disabled={loading || (!!user?.cabangId && user?.role !== 'direktur')}>
+                    <InputLabel id="branch-label">Cabang</InputLabel>
+                    <Select
+                      {...field}
+                      labelId="branch-label"
+                      label="Cabang"
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <BusinessIcon />
+                        </InputAdornment>
+                      }
+                    >
+                      {branches.map(branch => (
+                        <MenuItem key={branch._id} value={branch._id}>
+                          {branch.namaCabang}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <FormHelperText>{errors.cabangId?.message}</FormHelperText>
+                  </FormControl>
+                )}
+              />
+            </Grid>
+            
+            {/* Active status */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="aktif"
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={field.value}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        disabled={loading}
+                      />
+                    }
+                    label="Aktif"
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Login Credentials
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            {/* Username */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="username"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Username"
+                    fullWidth
+                    error={!!errors.username}
+                    helperText={errors.username?.message}
+                    disabled={loading || !!initialData} // Disable if editing
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            {/* Password */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="password"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label={initialData ? "Password (Kosongkan jika tidak diubah)" : "Password"}
+                    type={showPassword ? 'text' : 'password'}
+                    fullWidth
+                    error={!!errors.password}
+                    helperText={errors.password?.message}
+                    disabled={loading}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonIcon />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={togglePasswordVisibility}
+                            edge="end"
+                            disabled={loading}
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            {/* Confirm Password */}
+            <Grid item xs={12} md={6}>
+              <Controller
+                name="confirmPassword"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Konfirmasi Password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    fullWidth
+                    error={!!errors.confirmPassword}
+                    helperText={errors.confirmPassword?.message}
+                    disabled={loading}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PersonIcon />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={toggleConfirmPasswordVisibility}
+                            edge="end"
+                            disabled={loading}
+                          >
+                            {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Dokumen Pendukung
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            {/* KTP Document */}
+            <Grid item xs={12} md={6}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                {ktpPreview && (
+                  <Box mb={2} display="flex" justifyContent="center">
+                    {ktpPreview.endsWith('.pdf') || ktpPreview.includes('pdf-icon') ? (
+                      <img src="/icons/pdf-icon.png" alt="PDF" width="100" />
+                    ) : (
+                      <img src={ktpPreview} alt="KTP" style={{ maxWidth: '100%', maxHeight: '150px' }} />
+                    )}
+                  </Box>
+                )}
+                
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                  disabled={loading}
+                  fullWidth
+                >
+                  {ktpDocument ? 'Ganti KTP' : 'Upload KTP'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/jpg,application/pdf"
+                    hidden
+                    onChange={(e) => handleFileChange(e, 'ktp')}
+                    disabled={loading}
+                  />
+                </Button>
+                {fileErrors['dokumen.ktp'] && (
+                  <Typography variant="caption" color="error" mt={1}>
+                    {fileErrors['dokumen.ktp']}
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
             
             {/* NPWP Document */}
-            <div>
-              <FormLabel className="block text-sm font-medium mb-2">
-                NPWP (Opsional)
-              </FormLabel>
-              
-              {npwpImagePreview ? (
-                <div className="relative border rounded-lg overflow-hidden bg-gray-50">
-                  <img 
-                    src={npwpImagePreview} 
-                    alt="NPWP" 
-                    className="w-full h-auto max-h-48 object-contain"
-                  />
-                  <div className="absolute top-2 right-2 flex space-x-2">
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      size="small"
-                      className="h-8 w-8 rounded-full bg-white/90 shadow-sm hover:bg-white"
-                      onClick={() => document.getElementById('npwp-upload')?.click()}
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="contained"
-                      size="small"
-                      color="error"
-                      className="h-8 w-8 rounded-full"
-                      onClick={removeNpwpImage}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('npwp-upload')?.click()}
+            <Grid item xs={12} md={6}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                {npwpPreview && (
+                  <Box mb={2} display="flex" justifyContent="center">
+                    {npwpPreview.endsWith('.pdf') || npwpPreview.includes('pdf-icon') ? (
+                      <img src="/icons/pdf-icon.png" alt="PDF" width="100" />
+                    ) : (
+                      <img src={npwpPreview} alt="NPWP" style={{ maxWidth: '100%', maxHeight: '150px' }} />
+                    )}
+                  </Box>
+                )}
+                
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<CloudUploadIcon />}
+                  disabled={loading}
+                  fullWidth
                 >
-                  <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Klik untuk mengunggah gambar NPWP
-                  </p>
-                </div>
-              )}
-              <input
-                id="npwp-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleNpwpImageChange}
-                disabled={loading}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Upload Progress */}
-        {uploadProgress > 0 && uploadProgress < 100 && (
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-            <div
-              className="bg-primary h-2.5 rounded-full transition-all"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-        )}
-
-        {/* Form Actions */}
-        <div className="flex justify-end space-x-4 pt-6 border-t">
-          <Button
-            type="button"
-            variant="outlined"
-            onClick={() => form.reset()}
-            disabled={loading}
-          >
-            Reset
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading}
-            className="min-w-[120px]"
-          >
-            {loading ? (
-              <>
-                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Menyimpan...
-              </>
-            ) : initialData ? 'Perbarui Pegawai' : 'Tambah Pegawai'}
-          </Button>
-        </div>
-      </form>
-    </FormProvider>
+                  {npwpDocument ? 'Ganti NPWP' : 'Upload NPWP'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/jpg,application/pdf"
+                    hidden
+                    onChange={(e) => handleFileChange(e, 'npwp')}
+                    disabled={loading}
+                  />
+                </Button>
+                {fileErrors['dokumen.npwp'] && (
+                  <Typography variant="caption" color="error" mt={1}>
+                    {fileErrors['dokumen.npwp']}
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+          
+          <Box display="flex" justifyContent="flex-end" mt={4}>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary"
+              disabled={loading}
+              startIcon={loading && <CircularProgress size={20} color="inherit" />}
+            >
+              {loading ? 'Menyimpan...' : initialData ? 'Perbarui' : 'Simpan'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    </form>
   );
 };
 
