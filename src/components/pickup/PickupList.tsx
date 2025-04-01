@@ -156,16 +156,17 @@ const PickupList: React.FC<PickupListProps> = ({
         .unwrap()
         .then(() => {
           toast({
-            type: "success",
-            message: "Data pengambilan berhasil dihapus",
+            variant: "default",
+            title: "Berhasil",
+            description: "Data pengambilan berhasil dihapus",
           });
           setOpenDeleteDialog(false);
         })
         .catch((error) => {
           toast({
-            type: "error",
-            message:
-              error || "Terjadi kesalahan saat menghapus data pengambilan",
+            variant: "destructive",
+            title: "Error",
+            description: error || "Terjadi kesalahan saat menghapus data pengambilan",
           });
         });
     }
@@ -622,7 +623,10 @@ const PickupList: React.FC<PickupListProps> = ({
       </CardContent>
 
       {/* Pickup Detail Dialog */}
-      <Dialog open={openDetail} onClose={setOpenDetail}>
+      <Dialog
+        open={openDetail}
+        onClose={() => setOpenDetail(false)}
+      >
         <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detail Pengambilan Barang</DialogTitle>
@@ -632,8 +636,11 @@ const PickupList: React.FC<PickupListProps> = ({
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
-        <AlertDialogContent>
+      <AlertDialog>
+        <AlertDialogContent
+          open={openDeleteDialog}
+          onOpenChange={setOpenDeleteDialog}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Hapus</AlertDialogTitle>
             <AlertDialogDescription>

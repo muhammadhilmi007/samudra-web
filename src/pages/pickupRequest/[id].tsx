@@ -37,10 +37,13 @@ const PickupRequestDetailPage: NextPage = () => {
 
   const handleUpdateStatus = async () => {
     if (id && typeof id === "string") {
-      await dispatch(updatePickupRequestStatus({ id, status: pendingStatus }));
+      await dispatch(updatePickupRequestStatus({
+        id,
+        status: pendingStatus
+      }));
       setIsStatusChangeDialogOpen(false);
     }
-  };
+  }
 
   const handleDeleteRequest = async () => {
     if (id && typeof id === "string") {

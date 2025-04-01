@@ -9,6 +9,7 @@ import theme from '../styles/theme';
 import '../styles/globals.css';
 import Layout from '../components/layout/Layout';
 import { checkAuthStatus } from '../store/slices/authSlice';
+import { Toaster } from "../components/ui/toaster";
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -20,13 +21,15 @@ function MyApp({ Component, pageProps }: AppProps) {
       <StoreInitializer />
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        {isAuthPage ? (
-          <Component {...pageProps} />
-        ) : (
-          <Layout>
+        <Toaster>
+          {isAuthPage ? (
             <Component {...pageProps} />
-          </Layout>
-        )}
+          ) : (
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          )}
+        </Toaster>
       </ThemeProvider>
     </Provider>
   );

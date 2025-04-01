@@ -1,11 +1,14 @@
 // src/store/slices/pickupRequestSlice.ts
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import pickupRequestService from "../../services/pickupRequestService";
+import pickupService from "../../services/pickupService";
 import { setLoading, setError, setSuccess } from "./uiSlice";
 import {
   PickupRequest,
   PickupRequestFormInputs,
-  Pickup,
+  PickupRequestFilterParams,
+  StatusUpdateInput,
+  LinkPickupInput,
   PickupFormInputs,
 } from "../../types/pickupRequest";
 
@@ -13,9 +16,16 @@ interface PickupRequestState {
   pickupRequests: PickupRequest[];
   pickupRequest: PickupRequest | null;
   pendingRequests: PickupRequest[];
-  pickups: Pickup[]; // Add this line
+  pickups: any[]; // Add this line
+  pickup: any | null; // Add this line
   loading: boolean;
   error: string | null;
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
 }
 
 const initialState: PickupRequestState = {
@@ -23,19 +33,29 @@ const initialState: PickupRequestState = {
   pickupRequest: null,
   pendingRequests: [],
   pickups: [], // Add this line
+  pickup: null, // Add this line
   loading: false,
   error: null,
+  pagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10,
+  },
 };
 
 // Get all pickup requests
 export const getPickupRequests = createAsyncThunk(
   "pickupRequest/getPickupRequests",
-  async (filters: Record<string, any> = {}, { dispatch, rejectWithValue }) => {
+  async (
+    filters: PickupRequestFilterParams = {},
+    { dispatch, rejectWithValue }
+  ) => {
     try {
       dispatch(setLoading(true));
       const response = await pickupRequestService.getPickupRequests(filters);
       dispatch(setLoading(false));
-      return response.data;
+      return response;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(
@@ -53,14 +73,17 @@ export const getPickupRequests = createAsyncThunk(
 // Get pending pickup requests
 export const getPendingPickupRequests = createAsyncThunk(
   "pickupRequest/getPendingPickupRequests",
-  async (filters: Record<string, any> = {}, { dispatch, rejectWithValue }) => {
+  async (
+    filters: PickupRequestFilterParams = {},
+    { dispatch, rejectWithValue }
+  ) => {
     try {
       dispatch(setLoading(true));
       const response = await pickupRequestService.getPendingPickupRequests(
         filters
       );
       dispatch(setLoading(false));
-      return response.data;
+      return response;
     } catch (error: any) {
       dispatch(setLoading(false));
       dispatch(
@@ -164,6 +187,7 @@ export const updatePickupRequest = createAsyncThunk(
 );
 
 // Update pickup request status
+// Update the updatePickupRequestStatus thunk call
 export const updatePickupRequestStatus = createAsyncThunk(
   "pickupRequest/updatePickupRequestStatus",
   async (
@@ -174,7 +198,7 @@ export const updatePickupRequestStatus = createAsyncThunk(
       dispatch(setLoading(true));
       const response = await pickupRequestService.updatePickupRequestStatus(
         id,
-        status
+        { status }
       );
       dispatch(setLoading(false));
       dispatch(setSuccess("Status permintaan pengambilan berhasil diperbarui"));
@@ -195,6 +219,7 @@ export const updatePickupRequestStatus = createAsyncThunk(
     }
   }
 );
+
 
 // Delete pickup request
 export const deletePickupRequest = createAsyncThunk(
@@ -220,13 +245,107 @@ export const deletePickupRequest = createAsyncThunk(
   }
 );
 
-// Create pickup from pickup request
+// Link pickup request to pickup
+export const linkToPickup = createAsyncThunk(
+  "pickupRequest/linkToPickup",
+  async (
+    { id, linkData }: { id: string; linkData: LinkPickupInput },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await pickupRequestService.linkToPickup(id, linkData);
+      dispatch(setLoading(false));
+      dispatch(
+        setSuccess(
+          "Permintaan pengambilan berhasil dikaitkan dengan pengambilan"
+        )
+      );
+      return response.data;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(
+        setError(
+          error.response?.data?.message || "Failed to link pickup request"
+        )
+      );
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to link pickup request" }
+      );
+    }
+  }
+);
+
+// Get pickup requests by customer
+export const getPickupRequestsByCustomer = createAsyncThunk(
+  "pickupRequest/getPickupRequestsByCustomer",
+  async (
+    {
+      customerId,
+      filters,
+    }: { customerId: string; filters?: PickupRequestFilterParams },
+    { dispatch, rejectWithValue }
+  ) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await pickupRequestService.getPickupRequestsByCustomer(
+        customerId,
+        filters
+      );
+      dispatch(setLoading(false));
+      return response;
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(
+        setError(
+          error.response?.data?.message ||
+            "Failed to fetch customer pickup requests"
+        )
+      );
+      return rejectWithValue(
+        error.response?.data || {
+          message: "Failed to fetch customer pickup requests",
+        }
+      );
+    }
+  }
+);
+
+export const getPickups = createAsyncThunk(
+  "pickupRequest/getPickups",
+  async (filters: any = {}, { dispatch, rejectWithValue }) => {
+    try {
+      dispatch(setLoading(true));
+      const response = await pickupRequestService.getPickupRequests(filters);
+      dispatch(setLoading(false));
+      return response;
+  
+    } catch (error: any) {
+      dispatch(setLoading(false));
+      dispatch(
+        setError(error.response?.data?.message || "Failed to fetch pickups")
+      );
+      return rejectWithValue(
+        error.response?.data || { message: "Failed to fetch pickups" }
+      );
+    }
+  }
+);
+
+// Create pickup
 export const createPickup = createAsyncThunk(
   "pickupRequest/createPickup",
   async (pickupData: PickupFormInputs, { dispatch, rejectWithValue }) => {
     try {
       dispatch(setLoading(true));
-      const response = await pickupRequestService.createPickup(pickupData);
+      // Convert jumlahColly to number if it's a string
+      const processedData = {
+        ...pickupData,
+        jumlahColly: typeof pickupData.jumlahColly === 'string'
+          ? parseInt(pickupData.jumlahColly, 10)
+          : (typeof pickupData.jumlahColly === 'number' ? pickupData.jumlahColly : 1)
+      };
+      const response = await pickupService.createPickup(processedData);
       dispatch(setLoading(false));
       dispatch(setSuccess("Pengambilan berhasil dibuat"));
       return response.data;
@@ -237,27 +356,6 @@ export const createPickup = createAsyncThunk(
       );
       return rejectWithValue(
         error.response?.data || { message: "Failed to create pickup" }
-      );
-    }
-  }
-);
-
-// Get all pickups (completed pickup requests)
-export const getPickups = createAsyncThunk(
-  "pickupRequest/getPickups",
-  async (filters: Record<string, any> = {}, { dispatch, rejectWithValue }) => {
-    try {
-      dispatch(setLoading(true));
-      const response = await pickupRequestService.getPickups(filters);
-      dispatch(setLoading(false));
-      return response.data;
-    } catch (error: any) {
-      dispatch(setLoading(false));
-      dispatch(
-        setError(error.response?.data?.message || "Failed to fetch pickups")
-      );
-      return rejectWithValue(
-        error.response?.data || { message: "Failed to fetch pickups" }
       );
     }
   }
@@ -274,6 +372,9 @@ const pickupRequestSlice = createSlice({
       state.pickupRequests = [];
       state.pendingRequests = [];
     },
+    setPage: (state, action) => {
+      state.pagination.currentPage = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -284,7 +385,13 @@ const pickupRequestSlice = createSlice({
       })
       .addCase(getPickupRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.pickupRequests = action.payload;
+        state.pickupRequests = action.payload.data;
+        state.pagination = {
+          currentPage: action.payload.pagination?.currentPage || 1,
+          totalPages: action.payload.pagination?.totalPages || 1,
+          totalItems: action.payload.total || 0,
+          itemsPerPage: action.payload.pagination?.limit || 10,
+        };
         state.error = null;
       })
       .addCase(getPickupRequests.rejected, (state, action) => {
@@ -299,7 +406,7 @@ const pickupRequestSlice = createSlice({
       })
       .addCase(getPendingPickupRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.pendingRequests = action.payload;
+        state.pendingRequests = action.payload.data;
         state.error = null;
       })
       .addCase(getPendingPickupRequests.rejected, (state, action) => {
@@ -348,6 +455,28 @@ const pickupRequestSlice = createSlice({
         state.pickupRequest = action.payload;
       })
 
+      // Add these cases to the extraReducers in pickupRequestSlice.ts
+      // Get all pickups
+      .addCase(getPickups.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getPickups.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pickups = action.payload.data || [];
+        state.error = null;
+      })
+      .addCase(getPickups.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      // Create pickup
+      .addCase(createPickup.fulfilled, (state, action) => {
+        state.pickups = [action.payload, ...state.pickups];
+        state.pickup = action.payload;
+      })
+
       // Update pickup request status
       .addCase(updatePickupRequestStatus.fulfilled, (state, action) => {
         state.pickupRequests = state.pickupRequests.map((request) =>
@@ -365,19 +494,15 @@ const pickupRequestSlice = createSlice({
         state.pickupRequest = action.payload;
       })
 
-      // Get all pickups
-      .addCase(getPickups.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getPickups.fulfilled, (state, action) => {
-        state.loading = false;
-        state.pickups = action.payload;
-        state.error = null;
-      })
-      .addCase(getPickups.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
+      // Link pickup request to pickup
+      .addCase(linkToPickup.fulfilled, (state, action) => {
+        state.pickupRequests = state.pickupRequests.map((request) =>
+          request._id === action.payload._id ? action.payload : request
+        );
+        state.pendingRequests = state.pendingRequests.filter(
+          (request) => request._id !== action.payload._id
+        );
+        state.pickupRequest = action.payload;
       })
 
       // Delete pickup request
@@ -391,11 +516,23 @@ const pickupRequestSlice = createSlice({
         if (state.pickupRequest && state.pickupRequest._id === action.payload) {
           state.pickupRequest = null;
         }
+      })
+
+      // Get pickup requests by customer
+      .addCase(getPickupRequestsByCustomer.fulfilled, (state, action) => {
+        // We don't update the main pickupRequests array
+        // This is a specialized view that should be handled in component state
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(getPickupRequestsByCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { clearPickupRequest, clearPickupRequests } =
+export const { clearPickupRequest, clearPickupRequests, setPage } =
   pickupRequestSlice.actions;
 
 export default pickupRequestSlice.reducer;

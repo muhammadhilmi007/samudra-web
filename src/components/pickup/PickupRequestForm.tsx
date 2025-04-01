@@ -1,233 +1,178 @@
 // src/components/pickup/PickupRequestForm.tsx
-import React, { useState, useEffect } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
-import * as z from 'zod';
-import { 
-  FormControl,
+import React, { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  FormField,
   FormItem,
   FormLabel,
-  FormMessage 
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { 
+  FormControl,
+  FormMessage,
+  Form,
+} from "@/components/ui/form";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle,
-  CardFooter 
-} from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store';
-import { getBranches } from '../../store/slices/branchSlice';
-import { getCustomers } from '../../store/slices/customerSlice';
-import { Search, PlusCircle, Loader2, Calendar, MapPin, Package, Building, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { format } from 'date-fns';
+  SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Calendar,
+  MapPin,
+  Package,
+  User,
+  Search,
+  Info,
+  PlusCircle,
+  Loader2,
+} from "lucide-react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
+import { Customer } from "@/types/pickupRequest";
 
-// Schema validation for pickup request form
+// Schema validation for the form
 const pickupRequestFormSchema = z.object({
-  pengirimId: z.string().min(1, 'Harap pilih pengirim'),
-  alamatPengambilan: z.string().min(1, 'Alamat pengambilan harus diisi'),
-  tujuan: z.string().min(1, 'Tujuan harus diisi'),
-  jumlahColly: z.coerce.number().min(1, 'Jumlah colly harus lebih dari 0'),
-  cabangId: z.string().min(1, 'Cabang harus dipilih'),
-  tanggal: z.string().min(1, 'Tanggal harus diisi'),
+  pengirimId: z.string().min(1, "Harap pilih pengirim"),
+  alamatPengambilan: z.string().min(5, "Alamat pengambilan minimal 5 karakter"),
+  tujuan: z.string().min(2, "Tujuan minimal 2 karakter"),
+  jumlahColly: z.coerce.number().min(1, "Jumlah colly harus lebih dari 0"),
+  cabangId: z.string().min(1, "Cabang harus dipilih"),
+  tanggal: z.string().min(1, "Tanggal harus diisi"),
   estimasiPengambilan: z.string().optional(),
+  notes: z.string().optional(),
 });
 
-type PickupRequestFormInputs = z.infer<typeof pickupRequestFormSchema>;
+type PickupRequestFormValues = z.infer<typeof pickupRequestFormSchema>;
 
 interface PickupRequestFormProps {
   initialData?: any;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: PickupRequestFormValues) => void;
   loading?: boolean;
 }
 
-const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
+const PickupRequestForm = ({
   initialData,
   onSubmit,
   loading = false,
-}) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const { branches, loading: branchesLoading } = useSelector((state: RootState) => state.branch);
-  const { customers, loading: customersLoading } = useSelector((state: RootState) => state.customer);
+}: PickupRequestFormProps) => {
+  const { branches } = useSelector((state: RootState) => state.branch);
+  const { customers } = useSelector((state: RootState) => state.customer);
   const { user } = useSelector((state: RootState) => state.auth);
-  const { toast } = useToast();
-  
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [createCustomer, setCreateCustomer] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({
-    nama: '',
-    telepon: '',
-    alamat: '',
-  });
-  
+
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+
   // Initialize form with default values
-  const form = useForm<PickupRequestFormInputs>({
+  const form = useForm<PickupRequestFormValues>({
     resolver: zodResolver(pickupRequestFormSchema),
     defaultValues: {
-      pengirimId: initialData?.pengirimId || '',
-      alamatPengambilan: initialData?.alamatPengambilan || '',
-      tujuan: initialData?.tujuan || '',
+      pengirimId: initialData?.pengirimId || "",
+      alamatPengambilan: initialData?.alamatPengambilan || "",
+      tujuan: initialData?.tujuan || "",
       jumlahColly: initialData?.jumlahColly || 1,
-      cabangId: initialData?.cabangId || user?.cabangId || '',
-      tanggal: initialData?.tanggal ? 
-        format(new Date(initialData.tanggal), 'yyyy-MM-dd') : 
-        format(new Date(), 'yyyy-MM-dd'),
-      estimasiPengambilan: initialData?.estimasiPengambilan || '',
+      cabangId: initialData?.cabangId || user?.cabangId || "",
+      tanggal: initialData?.tanggal
+        ? format(new Date(initialData.tanggal), "yyyy-MM-dd")
+        : format(new Date(), "yyyy-MM-dd"),
+      estimasiPengambilan: initialData?.estimasiPengambilan || "",
+      notes: initialData?.notes || "",
     },
   });
-  
-  // Fetch initial data
-  useEffect(() => {
-    dispatch(getBranches());
-    dispatch(getCustomers());
-  }, [dispatch]);
-  
-  // Filter customers by search term
-  const filteredCustomers = customers
-    .filter(customer => 
-      !customerSearch || 
-      customer.nama.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      (customer.telepon && customer.telepon.includes(customerSearch))
-    )
-    .sort((a, b) => a.nama.localeCompare(b.nama));
 
-  // Handle form submission
-  const handleFormSubmit = (data: PickupRequestFormInputs) => {
-    onSubmit(data);
-  };
-  
-  // Validate new customer form
-  const validateNewCustomer = () => {
-    if (!newCustomer.nama) {
-      toast({
-        type: "error",
-        message: "Nama pelanggan harus diisi",
-      });
-      return false;
-    }
-    
-    if (!newCustomer.telepon) {
-      toast({
-        type: "error",
-        message: "Nomor telepon pelanggan harus diisi",
-      });
-      return false;
-    }
-    
-    if (!newCustomer.alamat) {
-      toast({
-        type: "error",
-        message: "Alamat pelanggan harus diisi",
-      });
-      return false;
-    }
-    
-    return true;
-  };
-  
-  // Handle create new customer
-  const handleCreateCustomer = () => {
-    if (!validateNewCustomer()) return;
-    
-    // Create customer data
-    const customerData = {
-      ...newCustomer,
-      tipe: 'Pengirim',
-      cabangId: user?.cabangId || form.getValues('cabangId'),
-      createdBy: user?._id,
-    };
-    
-    // Here you should dispatch to create the customer 
-    // This is where the actual API call would happen
-    console.log('Creating customer:', customerData);
-    
-    toast({
-      type: "warning",
-      message: "Fungsi tambah pelanggan belum diimplementasikan",
-    });
-    
-    // Reset form
-    setNewCustomer({
-      nama: '',
-      telepon: '',
-      alamat: '',
-    });
-    setCreateCustomer(false);
-  };
-  
-  // Select customer with pre-fill
-  const handleSelectCustomer = (customerId: string) => {
-    form.setValue('pengirimId', customerId);
-    
-    // Pre-fill address if needed
-    const selectedCustomer = customers.find(c => c._id === customerId);
-    if (selectedCustomer && !form.getValues('alamatPengambilan')) {
-      form.setValue('alamatPengambilan', selectedCustomer.alamat || '');
+  // Filter customers by search and "pengirim" type
+  const filteredCustomers = customers
+    .filter((customer) => {
+      // Filter by search term if any
+      if (customerSearch) {
+        const search = customerSearch.toLowerCase();
+        return (
+          customer.nama?.toLowerCase().includes(search) ||
+          customer.telepon?.includes(search) ||
+          customer.alamat?.toLowerCase().includes(search)
+        );
+      }
+      return true;
+    })
+    .filter((customer) => {
+      // Only include customers that can be senders
+      const type = customer.tipe?.toLowerCase();
+      return type === "pengirim" || type === "keduanya";
+    })
+    .sort((a, b) => a.nama.localeCompare(b.nama, "id-ID"));
+
+  // Prefill address when selecting a customer
+  const handleCustomerSelect = (customerId: string) => {
+    form.setValue("pengirimId", customerId);
+
+    const selectedCustomer = customers.find((c) => c._id === customerId);
+    if (selectedCustomer && !form.getValues("alamatPengambilan")) {
+      form.setValue("alamatPengambilan", selectedCustomer.alamat || "");
     }
   };
-  
+
   return (
-    <form onSubmit={form.handleSubmit(handleFormSubmit)}>
-      <div className="space-y-6">
+    <Form {...form} onSubmit={form.handleSubmit(onSubmit) as any}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-            <CardTitle>Formulir Request Pengambilan Barang</CardTitle>
+            <CardTitle>
+              {initialData
+                ? "Edit Permintaan Pengambilan"
+                : "Buat Permintaan Pengambilan Baru"}
+            </CardTitle>
             <CardDescription>
-              Isi data untuk request pengambilan barang dari pelanggan
+              {initialData
+                ? "Edit data permintaan pengambilan barang"
+                : "Isi formulir untuk request pengambilan barang dari pelanggan"}
             </CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-6">
             {/* Basic Information Section */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Informasi Dasar</h3>
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Informasi Dasar</h3>
+
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Date Picker */}
+                {/* Date */}
                 <Controller
                   control={form.control}
                   name="tanggal"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <FormLabel className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
                         Tanggal
                       </FormLabel>
                       <FormControl>
-                        <Input 
-                          type="date" 
-                          {...field} 
-                          disabled={loading}
-                        />
+                        <Input type="date" {...field} disabled={loading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
-                {/* Branch Selection */}
+
+                {/* Branch */}
                 <Controller
                   control={form.control}
                   name="cabangId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center">
-                        <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                        Cabang
-                      </FormLabel>
+                      <FormLabel>Cabang</FormLabel>
                       <Select
                         disabled={loading || Boolean(user?.cabangId)}
                         onValueChange={field.onChange}
@@ -238,22 +183,30 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                             <SelectValue placeholder="Pilih cabang" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {branchesLoading ? (
-                            <div className="flex items-center justify-center p-2">
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              <span>Memuat cabang...</span>
-                            </div>
-                          ) : branches.length === 0 ? (
+                        <SelectContent className="max-h-[300px]">
+                          {filteredCustomers.length === 0 ? (
                             <div className="p-2 text-center text-muted-foreground">
-                              Tidak ada data cabang
+                              {customerSearch
+                                ? `Tidak ada hasil untuk "${customerSearch}"`
+                                : "Tidak ada data pengirim"}
                             </div>
                           ) : (
-                            branches.map((branch) => (
-                              <SelectItem key={branch._id} value={branch._id}>
-                                {branch.namaCabang}
-                              </SelectItem>
-                            ))
+                            filteredCustomers
+                              .filter(
+                                (customer) =>
+                                  customer._id && customer._id.trim() !== ""
+                              ) // Ensure _id is valid
+                              .map((customer) => (
+                                <SelectItem
+                                  key={customer._id}
+                                  value={customer._id.trim()}
+                                >
+                                  {customer.nama}{" "}
+                                  {customer.telepon
+                                    ? `- ${customer.telepon}`
+                                    : ""}
+                                </SelectItem>
+                              ))
                           )}
                         </SelectContent>
                       </Select>
@@ -263,26 +216,25 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                 />
               </div>
             </div>
-            
-            <Separator />
-            
-            {/* Customer/Sender Selection Section */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium">Informasi Pengirim</h3>
+
+            {/* Customer Selection Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Data Pengirim</h3>
                 <Button
                   type="button"
                   variant="outlined"
                   size="small"
-                  onClick={() => setCreateCustomer(!createCustomer)}
+                  onClick={() => setShowCreateCustomer(!showCreateCustomer)}
                 >
                   <PlusCircle className="h-4 w-4 mr-2" />
-                  {createCustomer ? 'Batalkan' : 'Pengirim Baru'}
+                  {showCreateCustomer ? "Batal" : "Pengirim Baru"}
                 </Button>
               </div>
-              
-              {!createCustomer ? (
+
+              {!showCreateCustomer ? (
                 <div className="space-y-4">
+                  {/* Search Customer */}
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -290,9 +242,12 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                       value={customerSearch}
                       onChange={(e) => setCustomerSearch(e.target.value)}
                       className="pl-8"
-                      disabled={loading} name={''}                    />
+                      disabled={loading}
+                      name={""}
+                    />
                   </div>
-                  
+
+                  {/* Customer Select */}
                   <Controller
                     control={form.control}
                     name="pengirimId"
@@ -301,7 +256,7 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                         <FormLabel>Pengirim</FormLabel>
                         <Select
                           disabled={loading}
-                          onValueChange={(value) => handleSelectCustomer(value)}
+                          onValueChange={(value) => handleCustomerSelect(value)}
                           value={field.value}
                         >
                           <FormControl>
@@ -310,23 +265,29 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="max-h-[300px]">
-                            {customersLoading ? (
-                              <div className="flex items-center justify-center p-2">
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                <span>Memuat pelanggan...</span>
-                              </div>
-                            ) : filteredCustomers.length === 0 ? (
+                            {filteredCustomers.length === 0 ? (
                               <div className="p-2 text-center text-muted-foreground">
-                                {customerSearch 
-                                  ? `Tidak ada hasil untuk "${customerSearch}"` 
-                                  : "Tidak ada data pelanggan"}
+                                {customerSearch
+                                  ? `Tidak ada hasil untuk "${customerSearch}"`
+                                  : "Tidak ada data pengirim"}
                               </div>
                             ) : (
-                              filteredCustomers.map((customer) => (
-                                <SelectItem key={customer._id} value={customer._id}>
-                                  {customer.nama} {customer.telepon ? `- ${customer.telepon}` : ''}
-                                </SelectItem>
-                              ))
+                              filteredCustomers
+                                .filter(
+                                  (customer) =>
+                                    customer._id && customer._id.trim() !== ""
+                                )
+                                .map((customer) => (
+                                  <SelectItem
+                                    key={customer._id}
+                                    value={customer._id}
+                                  >
+                                    {customer.nama}{" "}
+                                    {customer.telepon
+                                      ? `- ${customer.telepon}`
+                                      : ""}
+                                  </SelectItem>
+                                ))
                             )}
                           </SelectContent>
                         </Select>
@@ -334,19 +295,38 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                       </FormItem>
                     )}
                   />
-                  
-                  {form.getValues('pengirimId') && (
+
+                  {/* Display selected customer info */}
+                  {form.watch("pengirimId") && (
                     <div className="rounded-md bg-muted p-3">
-                      <h4 className="text-sm font-medium mb-1">Detail Pengirim</h4>
+                      <h4 className="text-sm font-medium mb-1">
+                        Detail Pengirim
+                      </h4>
                       {(() => {
-                        const selectedCustomer = customers.find(c => c._id === form.getValues('pengirimId'));
-                        if (!selectedCustomer) return <p className="text-sm text-muted-foreground">Detail tidak tersedia</p>;
-                        
+                        const selectedCustomer = customers.find(
+                          (c) => c._id === form.getValues("pengirimId")
+                        );
+                        if (!selectedCustomer)
+                          return (
+                            <p className="text-sm text-muted-foreground">
+                              Detail tidak tersedia
+                            </p>
+                          );
+
                         return (
                           <div className="space-y-1">
-                            <p className="text-sm"><span className="font-medium">Nama:</span> {selectedCustomer.nama}</p>
-                            <p className="text-sm"><span className="font-medium">Telepon:</span> {selectedCustomer.telepon || '-'}</p>
-                            <p className="text-sm"><span className="font-medium">Alamat:</span> {selectedCustomer.alamat || '-'}</p>
+                            <p className="text-sm">
+                              <span className="font-medium">Nama:</span>{" "}
+                              {selectedCustomer.nama}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Telepon:</span>{" "}
+                              {selectedCustomer.telepon || "-"}
+                            </p>
+                            <p className="text-sm">
+                              <span className="font-medium">Alamat:</span>{" "}
+                              {selectedCustomer.alamat || "-"}
+                            </p>
                           </div>
                         );
                       })()}
@@ -354,64 +334,20 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                  <div className="text-sm font-medium">Tambah Pengirim Baru</div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <FormLabel>Nama</FormLabel>
-                      <Input
-                          value={newCustomer.nama}
-                          onChange={(e) => setNewCustomer({ ...newCustomer, nama: e.target.value })}
-                          placeholder="Nama Pengirim"
-                          disabled={loading} name={''}                      />
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>Telepon</FormLabel>
-                      <Input
-                          value={newCustomer.telepon}
-                          onChange={(e) => setNewCustomer({ ...newCustomer, telepon: e.target.value })}
-                          placeholder="Nomor Telepon"
-                          disabled={loading} name={''}                      />
-                    </div>
-                    <div className="space-y-2">
-                      <FormLabel>Alamat</FormLabel>
-                      <Textarea
-                        value={newCustomer.alamat}
-                        onChange={(e) => setNewCustomer({...newCustomer, alamat: e.target.value})}
-                        placeholder="Alamat Lengkap"
-                        rows={3}
-                        disabled={loading}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 mt-4">
-                    <Button 
-                      type="button" 
-                      variant="outlined" 
-                      size="small" 
-                      onClick={() => setCreateCustomer(false)}
-                      disabled={loading}
-                    >
-                      Batal
-                    </Button>
-                    <Button 
-                      type="button" 
-                      size="small" 
-                      onClick={handleCreateCustomer}
-                      disabled={loading}
-                    >
-                      Simpan Pengirim
-                    </Button>
-                  </div>
-                </div>
+                <Alert variant="standard">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Fitur tambah pengirim tersedia di modul Customer. Silakan
+                    tambah pelanggan baru terlebih dahulu di menu Customer.
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
-            
-            <Separator />
-            
+
             {/* Pickup Details Section */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Detail Pengambilan</h3>
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Detail Pengambilan</h3>
+
               <div className="grid grid-cols-1 gap-6">
                 {/* Pickup Address */}
                 <Controller
@@ -419,14 +355,14 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                   name="alamatPengambilan"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <FormLabel className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
                         Alamat Pengambilan
                       </FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Masukkan alamat lengkap pengambilan" 
-                          {...field} 
+                        <Textarea
+                          placeholder="Masukkan alamat lengkap pengambilan"
+                          {...field}
                           disabled={loading}
                           rows={3}
                         />
@@ -435,7 +371,7 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Destination */}
                 <Controller
                   control={form.control}
@@ -444,9 +380,9 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                     <FormItem>
                       <FormLabel>Tujuan</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Masukkan tujuan pengiriman" 
-                          {...field} 
+                        <Input
+                          placeholder="Masukkan tujuan pengiriman"
+                          {...field}
                           disabled={loading}
                         />
                       </FormControl>
@@ -454,7 +390,8 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                     </FormItem>
                   )}
                 />
-                
+
+                {/* Colly and Estimation - Two column layout */}
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Number of Packages (Colly) */}
                   <Controller
@@ -462,35 +399,40 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                     name="jumlahColly"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center">
-                          <Package className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <FormLabel className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
                           Jumlah Colly (Paket)
                         </FormLabel>
                         <FormControl>
-                          <Input 
+                          <Input
                             type="number"
-                            {...field} 
+                            {...field}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value);
+                              if (value < 1) return;
+                              field.onChange(value);
+                            }}
                             disabled={loading}
-                            inputProps={{ min: 1 }}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* Estimated Pickup Time */}
                   <Controller
                     control={form.control}
                     name="estimasiPengambilan"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estimasi Waktu Pengambilan (Opsional)</FormLabel>
+                        <FormLabel>
+                          Estimasi Waktu Pengambilan (Opsional)
+                        </FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Contoh: Pagi antara jam 8-10" 
-                            {...field} 
+                          <Input
+                            placeholder="Contoh: Pagi antara jam 8-10"
+                            {...field}
                             disabled={loading}
                           />
                         </FormControl>
@@ -499,18 +441,30 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
                     )}
                   />
                 </div>
+
+                {/* Notes */}
+                <Controller
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Catatan (Opsional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Masukkan catatan tambahan jika ada"
+                          {...field}
+                          disabled={loading}
+                          rows={2}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
-            
-            {/* Notes about next steps */}
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Setelah permintaan pengambilan dibuat, tim operasional akan memproses dan
-                menugaskan kendaraan untuk proses pengambilan.
-              </AlertDescription>
-            </Alert>
           </CardContent>
+
           <CardFooter className="flex justify-end space-x-4 border-t px-6 py-4">
             <Button
               type="button"
@@ -520,21 +474,22 @@ const PickupRequestForm: React.FC<PickupRequestFormProps> = ({
             >
               Reset
             </Button>
-            <Button
-              type="submit"
-              disabled={loading || form.formState.isSubmitting}
-            >
-              {loading || form.formState.isSubmitting ? (
+            <Button type="submit" disabled={loading}>
+              {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Menyimpan...
                 </>
-              ) : initialData ? 'Perbarui Request' : 'Buat Request'}
+              ) : initialData ? (
+                "Perbarui"
+              ) : (
+                "Simpan"
+              )}
             </Button>
           </CardFooter>
         </Card>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 };
 

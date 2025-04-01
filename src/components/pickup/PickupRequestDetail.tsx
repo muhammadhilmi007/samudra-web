@@ -1,355 +1,166 @@
 // src/components/pickup/PickupRequestDetail.tsx
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import React from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  CardFooter
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogActions,
-  DialogDescription
-} from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
-import { 
-  ArrowLeft, 
-  Truck, 
-  MapPin, 
-  Package, 
-  Calendar, 
-  CheckCircle, 
-  User, 
-  Phone, 
-  Building, 
-  AlertCircle,
-  Loader2
-} from 'lucide-react';
-import { RootState, AppDispatch } from '../../store';
-import { 
-  getPickupRequestById, 
-  updatePickupRequestStatus,
-  createPickup 
-} from '../../store/slices/pickupRequestSlice';
-import { Locale } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-const indonesianLocale: Locale = id;
+import { 
+  Calendar, 
+  MapPin, 
+  Package, 
+  User, 
+  Clock, 
+  Building, 
+  AlertCircle, 
+  ArrowRightCircle, 
+  Edit, 
+  Trash2,
+  Printer,
+  Info,
+  Loader2
+} from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store';
+import { PickupRequest } from '@/types/pickupRequest';
 
-const PickupRequestDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
-  const { toast } = useToast();
+interface PickupRequestDetailProps {
+  pickupRequest: PickupRequest | null;
+  loading: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onUpdateStatus?: (status: string, notes?: string) => void;
+  onLinkToPickup?: (pickupId: string) => void;
+  showActions?: boolean;
+}
 
-  const { pickupRequest, loading } = useSelector((state: RootState) => state.pickupRequest);
-  const { user } = useSelector((state: RootState) => state.auth);
-  const { vehicles } = useSelector((state: RootState) => state.vehicle);
-  const { employees } = useSelector((state: RootState) => state.employee);
-
-  const [error, setError] = useState<string | null>(null);
-  const [openCreatePickupDialog, setOpenCreatePickupDialog] = useState(false);
-  const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
-  const [pickupFormData, setPickupFormData] = useState({
-    supirId: '',
-    kenekId: '',
-    kendaraanId: '',
-    estimasiPengambilan: '',
-    alamatPengambilan: ''
-  });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [processingAction, setProcessingAction] = useState(false);
-  
-  useEffect(() => {
-    if (id) {
-      dispatch(getPickupRequestById(id))
-        .unwrap()
-        .catch((err) => {
-          setError(err.message || 'Gagal memuat detail permintaan pengambilan');
-        });
-    }
-  }, [id, dispatch]);
-
-  useEffect(() => {
-    // Pre-fill form when pickup request is loaded
-    if (pickupRequest) {
-      setPickupFormData(prev => ({
-        ...prev,
-        alamatPengambilan: pickupRequest.alamatPengambilan || ''
-      }));
-    }
-  }, [pickupRequest]);
-
-  // Format date helper
+const PickupRequestDetail: React.FC<PickupRequestDetailProps> = ({
+  pickupRequest,
+  loading,
+  onEdit,
+  onDelete,
+  onUpdateStatus,
+  onLinkToPickup,
+  showActions = true
+}) => {
+  // Format date with Indonesian locale
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
     try {
-      return format(parseISO(dateString), 'dd MMMM yyyy, HH:mm', { locale: indonesianLocale });
+      return format(parseISO(dateString), 'dd MMMM yyyy', { locale: id });
     } catch (error) {
       return '-';
     }
   };
-
-  // Check permissions to manage pickup requests
-  const canManagePickupRequest = user?.role && [
-    'admin', 
-    'direktur',
-    'manajerOperasional', 
-    'kepalaGudang', 
-    'stafOperasional'
-  ].includes(user.role);
-
-  // Handle updating status
-  const handleUpdateStatus = async () => {
-    if (!id) return;
-    
-    setProcessingAction(true);
+  
+  // Format datetime with Indonesian locale
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return '-';
     try {
-      await dispatch(updatePickupRequestStatus({ 
-        id, 
-        status: 'FINISH' 
-      })).unwrap();
-      
-      toast({
-        type: 'success',
-        message: 'Status permintaan pengambilan berhasil diubah menjadi selesai',
-      });
-
-      setOpenConfirmDialog(false);
-      navigate(-1);
-    } catch (error: any) {
-      toast({
-        type: 'error',
-        message: error.message || 'Gagal memperbarui status',
-      });
-    } finally {
-      setProcessingAction(false);
+      return format(parseISO(dateString), 'dd MMMM yyyy, HH:mm', { locale: id });
+    } catch (error) {
+      return '-';
     }
   };
-
-  // Validate form
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    
-    if (!pickupFormData.supirId) {
-      errors.supirId = 'Supir harus dipilih';
-    }
-    
-    if (!pickupFormData.kendaraanId) {
-      errors.kendaraanId = 'Kendaraan harus dipilih';
-    }
-    
-    if (!pickupFormData.estimasiPengambilan) {
-      errors.estimasiPengambilan = 'Estimasi pengambilan harus diisi';
-    }
-    
-    if (!pickupFormData.alamatPengambilan) {
-      errors.alamatPengambilan = 'Alamat pengambilan harus diisi';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  // Handle creating pickup
-  const handleCreatePickup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setProcessingAction(true);
-    try {
-      if (!pickupRequest) throw new Error('Data permintaan tidak ditemukan');
-      
-      await dispatch(createPickup({
-        pengirimId: pickupRequest.pengirimId,
-        sttIds: [], 
-        supirId: pickupFormData.supirId,
-        kenekId: pickupFormData.kenekId || undefined,
-        kendaraanId: pickupFormData.kendaraanId,
-        alamatPengambilan: pickupFormData.alamatPengambilan,
-        estimasiPengambilan: pickupFormData.estimasiPengambilan,
-        cabangId: user?.cabangId || pickupRequest.cabangId,
-        tujuan: pickupRequest.tujuan,
-        jumlahColly: String(pickupRequest.jumlahColly)
-      })).unwrap();
-
-      // Update pickup request status
-      await dispatch(updatePickupRequestStatus({ 
-        id: id!, 
-        status: 'FINISH' 
-      })).unwrap();
-
-      toast({
-        type: 'success',
-        message: 'Pengambilan berhasil dibuat dan status permintaan diperbarui',
-      });
-
-      setOpenCreatePickupDialog(false);
-      navigate('/pickup');
-    } catch (error: any) {
-      toast({
-        type: 'error',
-        message: error.message || 'Gagal membuat pengambilan',
-      });
-    } finally {
-      setProcessingAction(false);
+  
+  // Get status badge
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'PENDING':
+        return <Badge variant="warning">Menunggu</Badge>;
+      case 'FINISH':
+        return <Badge variant="success">Selesai</Badge>;
+      case 'CANCELLED':
+        return <Badge variant="destructive">Dibatalkan</Badge>;
+      default:
+        return <Badge variant="secondary">{status || 'Unknown'}</Badge>;
     }
   };
-
-  if (!canManagePickupRequest) {
+  
+  if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Akses Ditolak</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="outlined">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Tidak Diizinkan</AlertTitle>
-            <AlertDescription>
-              Anda tidak memiliki izin untuk melihat detail permintaan pengambilan.
-            </AlertDescription>
-          </Alert>
+      <Card className="w-full">
+        <CardContent className="flex flex-col items-center justify-center py-10">
+          <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+          <p className="text-lg font-medium">Memuat data...</p>
         </CardContent>
       </Card>
     );
   }
-
-  if (loading) {
+  
+  if (!pickupRequest) {
     return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardContent className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-            <p>Memuat detail permintaan pengambilan...</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="w-full">
+        <CardContent className="flex flex-col items-center justify-center py-10">
+          <AlertCircle className="h-10 w-10 text-muted-foreground mb-4" />
+          <p className="text-lg font-medium">Data tidak ditemukan</p>
+          <p className="text-sm text-muted-foreground">
+            Permintaan pengambilan tidak tersedia
+          </p>
+        </CardContent>
+      </Card>
     );
   }
-
-  if (error || !pickupRequest) {
-    return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Kesalahan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="standard">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Tidak Ditemukan</AlertTitle>
-              <AlertDescription>
-                {error || 'Permintaan pengambilan tidak ditemukan'}
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-          <CardFooter>
-            <Button variant="outlined" onClick={() => navigate(-1)}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Kembali
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button 
-            variant="outlined" 
-            size="small" 
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Kembali
-          </Button>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Detail Permintaan Pengambilan
-          </h2>
-        </div>
-        
-        {pickupRequest.status === 'PENDING' && (
-          <div className="flex space-x-2">
-            <Button 
-              variant="outlined"
-              onClick={() => setOpenCreatePickupDialog(true)}
-            >
-              <Truck className="mr-2 h-4 w-4" />
-              Buat Pengambilan
-            </Button>
-            <Button 
-              variant="text"
-              onClick={() => setOpenConfirmDialog(true)}
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Selesaikan Permintaan
-            </Button>
-          </div>
-        )}
-      </div>
-
+    <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between">
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
           <div>
-            <CardTitle>Informasi Permintaan</CardTitle>
+            <CardTitle className="text-2xl font-bold">
+              {pickupRequest.noRequest ? 
+                `Permintaan Pengambilan #${pickupRequest.noRequest}` : 
+                'Detail Permintaan Pengambilan'}
+            </CardTitle>
             <CardDescription>
-              Detail permintaan pengambilan barang oleh pelanggan
+              Dibuat pada {formatDateTime(pickupRequest.createdAt)}
             </CardDescription>
           </div>
-          <Badge className={
-            pickupRequest.status === 'PENDING' 
-              ? 'bg-yellow-100 text-yellow-800' 
-              : 'bg-green-100 text-green-800'
-          }>
-            {pickupRequest.status === 'PENDING' ? 'Menunggu' : 'Selesai'}
-          </Badge>
+          <div>
+            {getStatusBadge(pickupRequest.status)}
+          </div>
         </CardHeader>
-        <CardContent>
+        
+        <CardContent className="space-y-6">
+          {/* Basic Info */}
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm text-muted-foreground">Tanggal Permintaan</div>
-                  <div className="font-medium">{formatDate(pickupRequest.tanggal)}</div>
+                  <div className="font-medium">Tanggal Permintaan</div>
+                  <div className="text-sm text-muted-foreground">
+                    {formatDate(pickupRequest.tanggal)}
+                  </div>
                 </div>
               </div>
               
               <div className="flex items-center space-x-3">
-                <MapPin className="h-5 w-5 text-muted-foreground" />
+                <Building className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm text-muted-foreground">Alamat Pengambilan</div>
-                  <div className="font-medium">{pickupRequest.alamatPengambilan}</div>
+                  <div className="font-medium">Cabang</div>
+                  <div className="text-sm text-muted-foreground">
+                    {pickupRequest.cabang?.namaCabang || '-'}
+                  </div>
                 </div>
               </div>
               
               <div className="flex items-center space-x-3">
                 <Package className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm text-muted-foreground">Jumlah Colly</div>
-                  <div className="font-medium">{pickupRequest.jumlahColly} Colly</div>
+                  <div className="font-medium">Jumlah Colly</div>
+                  <div className="text-sm text-muted-foreground">
+                    {pickupRequest.jumlahColly} Colly
+                  </div>
                 </div>
               </div>
             </div>
@@ -358,268 +169,168 @@ const PickupRequestDetailPage: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <User className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <div className="text-sm text-muted-foreground">Pengirim</div>
-                  <div className="font-medium">{pickupRequest.pengirim?.nama || 'Tidak tersedia'}</div>
-                  <div className="text-xs flex items-center">
-                    <Phone className="h-3 w-3 mr-1 text-muted-foreground" />
-                    <span className="text-muted-foreground">{pickupRequest.pengirim?.telepon || 'Tidak tersedia'}</span>
+                  <div className="font-medium">Pengirim</div>
+                  <div className="text-sm text-muted-foreground">
+                    {pickupRequest.pengirim?.nama || '-'}
+                  </div>
+                  {pickupRequest.pengirim?.telepon && (
+                    <div className="text-xs text-muted-foreground">
+                      Telepon: {pickupRequest.pengirim.telepon}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <ArrowRightCircle className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="font-medium">Tujuan Pengiriman</div>
+                  <div className="text-sm text-muted-foreground">
+                    {pickupRequest.tujuan}
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3">
-                <Building className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <div className="text-sm text-muted-foreground">Cabang</div>
-                  <div className="font-medium">{pickupRequest.cabang?.namaCabang || 'Tidak tersedia'}</div>
+              {pickupRequest.estimasiPengambilan && (
+                <div className="flex items-center space-x-3">
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <div className="font-medium">Estimasi Pengambilan</div>
+                    <div className="text-sm text-muted-foreground">
+                      {pickupRequest.estimasiPengambilan}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Truck className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <div className="text-sm text-muted-foreground">Tujuan</div>
-                  <div className="font-medium">{pickupRequest.tujuan}</div>
-                </div>
+              )}
+            </div>
+          </div>
+          
+          <Separator />
+          
+          {/* Address Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Alamat Pengambilan</h3>
+            <div className="flex items-start space-x-3">
+              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="font-medium">
+                {pickupRequest.alamatPengambilan}
               </div>
             </div>
           </div>
           
-          <Separator className="my-6" />
+          {/* Notes Section */}
+          {pickupRequest.notes && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Catatan</h3>
+                <div className="bg-muted p-3 rounded-md">
+                  {pickupRequest.notes}
+                </div>
+              </div>
+            </>
+          )}
           
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-md font-medium mb-2">Alamat Lengkap Pengirim</h3>
-              <p className="text-muted-foreground">
-                {pickupRequest.pengirim?.alamat || 'Tidak tersedia'}
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="text-md font-medium mb-2">Informasi Tambahan</h3>
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">Dibuat Oleh</TableCell>
-                    <TableCell>{pickupRequest.user?.nama || '-'}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Waktu Dibuat</TableCell>
-                    <TableCell>{formatDate(pickupRequest.createdAt)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Terakhir Diperbarui</TableCell>
-                    <TableCell>{formatDate(pickupRequest.updatedAt)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+          {/* Linked Pickup Section */}
+          {pickupRequest.pickupId && pickupRequest.pickup && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Dikaitkan dengan Pengambilan</h3>
+                <div className="bg-muted p-3 rounded-md">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">No. Pengambilan: {pickupRequest.pickup.noPengambilan}</p>
+                      {pickupRequest.pickup.waktuBerangkat && (
+                        <p className="text-sm text-muted-foreground">
+                          Waktu Berangkat: {formatDateTime(pickupRequest.pickup.waktuBerangkat)}
+                        </p>
+                      )}
+                      {pickupRequest.pickup.waktuPulang && (
+                        <p className="text-sm text-muted-foreground">
+                          Waktu Pulang: {formatDateTime(pickupRequest.pickup.waktuPulang)}
+                        </p>
+                      )}
+                    </div>
+                    <Button variant="outlined" size="small" onClick={() => window.open(`/pickup/${pickupRequest.pickupId}`, '_blank')}>
+                      Lihat Detail
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+          
+          {/* Additional Info */}
+          <Separator />
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Informasi Tambahan</h3>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Dibuat Oleh:</span> {pickupRequest.user?.nama || '-'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Dibuat Pada:</span> {formatDateTime(pickupRequest.createdAt)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Terakhir Diperbarui:</span> {formatDateTime(pickupRequest.updatedAt)}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Status:</span> {getStatusBadge(pickupRequest.status)}
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
-      </Card>
-
-      {/* Dialog Buat Pengambilan */}
-      <Dialog 
-        open={openCreatePickupDialog} 
-        onClose={setOpenCreatePickupDialog}
-      >
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Buat Pengambilan</DialogTitle>
-            <DialogDescription>
-              Isi data untuk membuat proses pengambilan barang
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleCreatePickup} className="space-y-6 py-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="alamatPengambilan">Alamat Pengambilan</Label>
-                <Input
-                  id="alamatPengambilan"
-                  value={pickupFormData.alamatPengambilan}
-                  onChange={(e) => setPickupFormData(prev => ({
-                    ...prev,
-                    alamatPengambilan: e.target.value
-                  }))}
-                  className={formErrors.alamatPengambilan ? "border-destructive" : ""} name={''}                />
-                {formErrors.alamatPengambilan && (
-                  <p className="text-sm text-destructive">{formErrors.alamatPengambilan}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="supirId">Supir</Label>
-                <Select 
-                  value={pickupFormData.supirId}
-                  onValueChange={(value) => setPickupFormData(prev => ({
-                    ...prev, 
-                    supirId: value 
-                  }))}
-                >
-                  <SelectTrigger className={formErrors.supirId ? "border-destructive" : ""}>
-                    <SelectValue placeholder="Pilih Supir" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees
-                      .filter(emp => 
-                        emp.jabatan?.toLowerCase().includes('supir') && 
-                        (!user?.cabangId || emp.cabangId === user?.cabangId)
-                      )
-                      .map(emp => (
-                        <SelectItem key={emp._id} value={emp._id}>
-                          {emp.nama}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-                {formErrors.supirId && (
-                  <p className="text-sm text-destructive">{formErrors.supirId}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="kenekId">Kenek (Opsional)</Label>
-                <Select 
-                  value={pickupFormData.kenekId}
-                  onValueChange={(value) => setPickupFormData(prev => ({
-                    ...prev, 
-                    kenekId: value 
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih Kenek" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Tidak Ada Kenek</SelectItem>
-                    {employees
-                      .filter(emp => 
-                        emp.jabatan?.toLowerCase().includes('kenek') && 
-                        (!user?.cabangId || emp.cabangId === user?.cabangId)
-                      )
-                      .map(emp => (
-                        <SelectItem key={emp._id} value={emp._id}>
-                          {emp.nama}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="kendaraanId">Kendaraan</Label>
-                <Select 
-                  value={pickupFormData.kendaraanId}
-                  onValueChange={(value) => setPickupFormData(prev => ({
-                    ...prev, 
-                    kendaraanId: value 
-                  }))}
-                >
-                  <SelectTrigger className={formErrors.kendaraanId ? "border-destructive" : ""}>
-                    <SelectValue placeholder="Pilih Kendaraan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicles
-                      .filter(vehicle => 
-                        vehicle.tipe === 'lansir' && 
-                        (!user?.cabangId || vehicle.cabangId === user?.cabangId)
-                      )
-                      .map(vehicle => (
-                        <SelectItem key={vehicle._id} value={vehicle._id}>
-                          {vehicle.namaKendaraan} - {vehicle.noPolisi}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-                {formErrors.kendaraanId && (
-                  <p className="text-sm text-destructive">{formErrors.kendaraanId}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="estimasiPengambilan">Estimasi Pengambilan</Label>
-                <Input
-                  id="estimasiPengambilan"
-                  value={pickupFormData.estimasiPengambilan}
-                  onChange={(e) => setPickupFormData(prev => ({
-                    ...prev,
-                    estimasiPengambilan: e.target.value
-                  }))}
-                  placeholder="Contoh: 2 jam"
-                  className={formErrors.estimasiPengambilan ? "border-destructive" : ""} name={''}                />
-                {formErrors.estimasiPengambilan && (
-                  <p className="text-sm text-destructive">{formErrors.estimasiPengambilan}</p>
-                )}
-              </div>
-            </div>
+        
+        {showActions && (
+          <CardFooter className="flex justify-end space-x-2 border-t px-6 py-4">
+            {pickupRequest.status === 'PENDING' && onEdit && (
+              <Button variant="text" onClick={onEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
             
-            <DialogActions>
+            {pickupRequest.status === 'PENDING' && onUpdateStatus && (
               <Button 
-                type="button" 
-                variant="outlined"
-                onClick={() => setOpenCreatePickupDialog(false)}
-                disabled={processingAction}
+                variant="text" 
+                onClick={() => onUpdateStatus('FINISH')}
               >
-                Batal
+                <Info className="h-4 w-4 mr-2" />
+                Selesaikan
               </Button>
+            )}
+            
+            {pickupRequest.status === 'PENDING' && onUpdateStatus && (
               <Button 
-                type="submit"
-                disabled={processingAction}
+                variant="text"
+                onClick={() => onUpdateStatus('CANCELLED')}
               >
-                {processingAction ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Memproses...
-                  </>
-                ) : (
-                  'Buat Pengambilan'
-                )}
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Batalkan
               </Button>
-            </DialogActions>
-          </form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Confirmation Dialog for Completing Request */}
-      <Dialog open={openConfirmDialog} onClose={setOpenConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Konfirmasi Selesaikan Permintaan</DialogTitle>
-            <DialogDescription>
-              Apakah Anda yakin ingin menyelesaikan permintaan pengambilan ini tanpa membuat pengambilan?
-              Ini akan menandai permintaan ini sebagai selesai.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogActions>
-            <Button 
-              variant="outlined" 
-              onClick={() => setOpenConfirmDialog(false)}
-              disabled={processingAction}
-            >
-              Batal
+            )}
+            
+            {pickupRequest.status === 'PENDING' && onDelete && (
+              <Button variant="text" onClick={onDelete}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Hapus
+              </Button>
+            )}
+            
+            <Button variant="outlined" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" />
+              Cetak
             </Button>
-            <Button 
-              onClick={handleUpdateStatus}
-              disabled={processingAction}
-            >
-              {processingAction ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Memproses...
-                </>
-              ) : (
-                'Selesaikan Permintaan'
-              )}
-            </Button>
-          </DialogActions>
-        </DialogContent>
-      </Dialog>
+          </CardFooter>
+        )}
+      </Card>
     </div>
   );
 };
 
-export default PickupRequestDetailPage;
-
+export default PickupRequestDetail;

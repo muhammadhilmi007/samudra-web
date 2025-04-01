@@ -79,15 +79,13 @@ const PickupDetail: React.FC<PickupDetailProps> = ({
   const getStatusBadge = (status?: string) => {
     switch (status?.toUpperCase()) {
       case "PENDING":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800">Menunggu</Badge>
-        );
+        return <Badge variant="warning">Menunggu</Badge>;
       case "FINISH":
-        return <Badge className="bg-green-100 text-green-800">Selesai</Badge>;
+        return <Badge variant="success">Selesai</Badge>;
       case "CANCELLED":
-        return <Badge className="bg-red-100 text-red-800">Dibatalkan</Badge>;
+        return <Badge variant="destructive">Dibatalkan</Badge>;
       default:
-        return <Badge variant="outline">{status || "Tidak ada status"}</Badge>;
+        return <Badge variant="secondary">{status || "Tidak ada status"}</Badge>;
     }
   };
 

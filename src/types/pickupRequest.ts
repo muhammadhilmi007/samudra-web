@@ -1,52 +1,48 @@
 // src/types/pickupRequest.ts
 export interface PickupRequest {
   _id: string;
+  noRequest?: string;
   tanggal: string;
   pengirimId: string;
   alamatPengambilan: string;
   tujuan: string;
   jumlahColly: number;
+  estimasiPengambilan?: string | null;
   userId: string;
   cabangId: string;
-  status: "PENDING" | "FINISH";
+  status: "PENDING" | "FINISH" | "CANCELLED";
+  pickupId?: string | null;
+  notes?: string | null;
   createdAt: string;
   updatedAt: string;
 
-  // Related entities that might be included in API responses
+  // Related entities that might be populated
   pengirim?: Customer;
   user?: User;
   cabang?: Branch;
+  pickup?: Pickup;
 }
 
 export interface Pickup {
   _id: string;
-  tanggal: string;
   noPengambilan: string;
+  waktuBerangkat?: string;
+  waktuPulang?: string;
   pengirimId: string;
-  sttIds: string[] | STT[];
+  cabangId: string;
+  userId: string;
   supirId: string;
   kenekId?: string;
   kendaraanId: string;
-  waktuBerangkat?: string;
-  waktuPulang?: string;
-  estimasiPengambilan: string;
+  status: string;
+  tanggal: string;
   alamatPengambilan: string;
-  tujuan: string;
   jumlahColly: number;
-  userId: string;
-  cabangId: string;
-  status: "PENDING" | "BERANGKAT" | "SELESAI" | "CANCELLED";
+  estimasiPengambilan: string;
+  tujuan: string;
   createdAt: string;
   updatedAt: string;
-
-  // Related entities that might be included in API responses
-  pengirim?: Customer;
-  supir?: User;
-  kenek?: User;
-  kendaraan?: Vehicle;
-  stts: STT[];
-  user?: User;
-  cabang?: Branch;
+  sttIds?: string[];
 }
 
 export interface Customer {
@@ -54,6 +50,11 @@ export interface Customer {
   nama: string;
   telepon?: string;
   alamat?: string;
+  email?: string;
+  kota?: string;
+  provinsi?: string;
+  kelurahan?: string;
+  kecamatan?: string;
   tipe?: string;
 }
 
@@ -69,22 +70,6 @@ export interface Branch {
   namaCabang: string;
 }
 
-export interface Vehicle {
-  _id: string;
-  noPolisi: string;
-  namaKendaraan: string;
-}
-
-export interface STT {
-  _id: string;
-  noSTT: string;
-  namaBarang?: string;
-  jumlahColly?: number;
-  berat?: number;
-  harga?: number;
-  paymentType?: string;
-}
-
 export interface PickupRequestFormInputs {
   pengirimId: string;
   alamatPengambilan: string;
@@ -93,18 +78,46 @@ export interface PickupRequestFormInputs {
   cabangId: string;
   tanggal?: string;
   estimasiPengambilan?: string;
+  notes?: string;
+}
+
+export interface PickupRequestFilterParams {
+  cabangId?: string;
+  status?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+  sortField?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface StatusUpdateInput {
+  status: "PENDING" | "FINISH" | "CANCELLED";
+  notes?: string;
+}
+
+export interface LinkPickupInput {
+  pickupId: string;
 }
 
 export interface PickupFormInputs {
+  noPengambilan?: string;
+  waktuBerangkat?: string;
+  waktuPulang?: string;
+  requestIds?: string[];
+  driverId?: string;
+  vehicleId?: string;
+  // Additional fields from pickup schema
   pengirimId: string;
-  sttIds: string[];
+  alamatPengambilan: string;
+  tujuan: string;
+  jumlahColly?: string | number;
+  cabangId: string;
   supirId: string;
   kenekId?: string;
   kendaraanId: string;
-  alamatPengambilan: string;
-  tujuan: string;
-  jumlahColly: string;
   estimasiPengambilan: string;
-  cabangId: string;
-  tanggal?: string;
+  sttIds?: string[];
 }

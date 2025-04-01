@@ -71,8 +71,12 @@ import { clearError, clearSuccess } from "../../store/slices/uiSlice";
 import {
   PickupRequest,
   PickupRequestFormInputs,
+  PickupRequestFilterParams,
+  StatusUpdateInput,
+  LinkPickupInput,
   PickupFormInputs,
 } from "../../types/pickupRequest";
+
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -112,17 +116,23 @@ const pickupRequestSchema = z.object({
 
 // Schema for pickup form validation
 const pickupSchema = z.object({
+  noPengambilan: z.string().optional(),
+  waktuBerangkat: z.string().optional(),
+  waktuPulang: z.string().optional(),
+  requestIds: z.array(z.string()).optional(),
+  driverId: z.string().optional(),
+  vehicleId: z.string().optional(),
   pengirimId: z.string().min(1, "Pengirim wajib dipilih"),
-  sttIds: z.array(z.string()).min(1, "STT wajib dipilih minimal 1"),
+  alamatPengambilan: z.string().min(1, "Alamat pengambilan wajib diisi"),
+  tujuan: z.string().min(1, "Tujuan wajib diisi"),
+  jumlahColly: z.union([z.string(), z.number()]).optional(),
+  cabangId: z.string().min(1, "Cabang wajib dipilih"),
   supirId: z.string().min(1, "Supir wajib dipilih"),
   kenekId: z.string().optional(),
   kendaraanId: z.string().min(1, "Kendaraan wajib dipilih"),
   estimasiPengambilan: z.string().min(1, "Estimasi pengambilan wajib diisi"),
-  cabangId: z.string().min(1, "Cabang wajib dipilih"),
-  alamatPengambilan: z.string().min(1, "Alamat pengambilan wajib diisi"),
-  tujuan: z.string(), // Add missing property validation
-  jumlahColly: z.string(), // Add missing property validation
-});
+  sttIds: z.array(z.string()).optional()
+}).strict() as z.ZodType<PickupFormInputs>;
 
 const PickupPage = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -173,6 +183,7 @@ const PickupPage = () => {
     },
   });
 
+  // In useForm declaration for pickupControl
   const {
     control: pickupControl,
     handleSubmit: handlePickupSubmit,
@@ -181,36 +192,47 @@ const PickupPage = () => {
   } = useForm<PickupFormInputs>({
     resolver: zodResolver(pickupSchema),
     defaultValues: {
+      noPengambilan: undefined,
+      waktuBerangkat: undefined,
+      waktuPulang: undefined,
+      requestIds: undefined,
+      driverId: undefined,
+      vehicleId: undefined,
       pengirimId: "",
       alamatPengambilan: "",
-      cabangId: "",
-      estimasiPengambilan: "",
-      sttIds: [],
+      tujuan: "",
+      jumlahColly: undefined,
+      cabangId: user?.cabangId || "",
       supirId: "",
-      kendaraanId: "",
       kenekId: undefined,
-      tujuan: "", // Add missing property
-      jumlahColly: "", // Add missing property (or appropriate default)
+      kendaraanId: "",
+      estimasiPengambilan: "",
+      sttIds: undefined
     },
   });
 
   useEffect(() => {
     // Load initial data
     const loadData = async () => {
-      await Promise.all([
-        dispatch(getBranches()).unwrap(),
-        dispatch(getSenders()).unwrap()
-      ]);
-      
-      dispatch(getVehicles());
-      dispatch(getEmployees({}));
-      dispatch(getPendingPickupRequests({}));
+      try {
+        // Load reference data
+        await Promise.all([
+          dispatch(getBranches()).unwrap(),
+          dispatch(getSenders()).unwrap(),
+          dispatch(getVehicles()).unwrap(),
+          dispatch(getEmployees({})).unwrap(),
+        ]);
 
-      // Load requests and pickups
-      if (tabValue === 0) {
-        dispatch(getPickupRequests({}));
-      } else if (tabValue === 2) {
-        dispatch(getPickups({}));
+        // Load requests based on current tab
+        if (tabValue === 0) {
+          await dispatch(getPickupRequests({})).unwrap();
+        } else if (tabValue === 1) {
+          await dispatch(getPendingPickupRequests({})).unwrap();
+        } else if (tabValue === 2) {
+          await dispatch(getPickups({})).unwrap();
+        }
+      } catch (error) {
+        console.error("Error loading initial data:", error);
       }
     };
 
@@ -259,17 +281,23 @@ const PickupPage = () => {
   const handleOpenPickupDialog = (request: PickupRequest) => {
     // Reset form with all required fields from the schema
     resetPickupForm({
+      noPengambilan: undefined,
+      waktuBerangkat: undefined,
+      waktuPulang: undefined,
+      requestIds: undefined,
+      driverId: undefined,
+      vehicleId: undefined,
       pengirimId: request.pengirimId,
       alamatPengambilan: request.alamatPengambilan,
       tujuan: request.tujuan,
       jumlahColly: request.jumlahColly.toString(),
       cabangId: request.cabangId || user?.cabangId || "",
-      sttIds: [],
       supirId: "",
-      kenekId: "",
+      kenekId: undefined,
       kendaraanId: "",
       estimasiPengambilan: "",
-    });
+      sttIds: undefined
+    } satisfies PickupFormInputs);
     setProcessingRequestId(request._id);
     setOpenPickupDialog(true);
   };
@@ -313,36 +341,47 @@ const PickupPage = () => {
 
   const onSubmitPickup = async (data: PickupFormInputs) => {
     try {
-      // Prepare pickup data with all required fields
-      const pickupData = {
+      if (!processingRequestId) {
+        throw new Error("No pickup request ID found");
+      }
+
+      // Convert jumlahColly to number with a default value of 1
+      const jumlahColly = typeof data.jumlahColly === 'string'
+        ? parseInt(data.jumlahColly, 10)
+        : (typeof data.jumlahColly === 'number' ? data.jumlahColly : 1);
+
+      // Create pickup with the form data
+      const pickupData: PickupFormInputs = {
+        noPengambilan: undefined,
+        waktuBerangkat: undefined,
+        waktuPulang: undefined,
+        requestIds: [processingRequestId],
+        driverId: data.supirId,
+        vehicleId: data.kendaraanId,
         pengirimId: data.pengirimId,
         alamatPengambilan: data.alamatPengambilan,
-        tujuan: data.tujuan || "",
-        jumlahColly: data.jumlahColly || "0",
+        tujuan: data.tujuan,
+        jumlahColly,
         cabangId: data.cabangId,
         supirId: data.supirId,
         kenekId: data.kenekId,
         kendaraanId: data.kendaraanId,
         estimasiPengambilan: data.estimasiPengambilan,
-        sttIds: data.sttIds || [],
-        pickupRequestId: processingRequestId
+        sttIds: undefined
       };
 
-      // Create the pickup
       await dispatch(createPickup(pickupData)).unwrap();
 
       // Update the request status to FINISH
-      if (processingRequestId) {
-        await dispatch(
-          updatePickupRequestStatus({
-            id: processingRequestId,
-            status: "FINISH",
-          })
-        ).unwrap();
+      await dispatch(
+        updatePickupRequestStatus({
+          id: processingRequestId,
+          status: "FINISH",
+        })
+      ).unwrap();
 
-        // Refresh the pending requests list
-        await dispatch(getPendingPickupRequests({}));
-      }
+      // Refresh the pending requests
+      dispatch(getPendingPickupRequests({}));
 
       handleClosePickupDialog();
     } catch (error) {
@@ -555,8 +594,12 @@ const PickupPage = () => {
                           </TableCell>
                           <TableCell>
                             {(() => {
-                              const sender = request.pengirim ||
-                                (request.pengirimId && senders.find(s => s._id === request.pengirimId));
+                              const sender =
+                                request.pengirim ||
+                                (request.pengirimId &&
+                                  senders.find(
+                                    (s) => s._id === request.pengirimId
+                                  ));
                               return sender ? sender.nama : "-";
                             })()}
                           </TableCell>
@@ -565,8 +608,12 @@ const PickupPage = () => {
                           <TableCell>{request.jumlahColly}</TableCell>
                           <TableCell>
                             {(() => {
-                              const branch = request.cabang ||
-                                (request.cabangId && branches.find(b => b._id === request.cabangId));
+                              const branch =
+                                request.cabang ||
+                                (request.cabangId &&
+                                  branches.find(
+                                    (b) => b._id === request.cabangId
+                                  ));
                               return branch ? branch.namaCabang : "-";
                             })()}
                           </TableCell>
@@ -680,9 +727,15 @@ const PickupPage = () => {
                               />
                               <Typography variant="subtitle1">
                                 {(() => {
-                                  const sender = request.pengirim ||
-                                    (request.pengirimId && senders.find(s => s._id === request.pengirimId));
-                                  return sender ? sender.nama : "Pengirim tidak diketahui";
+                                  const sender =
+                                    request.pengirim ||
+                                    (request.pengirimId &&
+                                      senders.find(
+                                        (s) => s._id === request.pengirimId
+                                      ));
+                                  return sender
+                                    ? sender.nama
+                                    : "Pengirim tidak diketahui";
                                 })()}
                               </Typography>
                             </Box>
@@ -739,8 +792,12 @@ const PickupPage = () => {
                               <Typography variant="body2">
                                 Cabang:{" "}
                                 {(() => {
-                                  const branch = request.cabang ||
-                                    (request.cabangId && branches.find(b => b._id === request.cabangId));
+                                  const branch =
+                                    request.cabang ||
+                                    (request.cabangId &&
+                                      branches.find(
+                                        (b) => b._id === request.cabangId
+                                      ));
                                   return branch ? branch.namaCabang : "-";
                                 })()}
                               </Typography>
